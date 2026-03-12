@@ -351,8 +351,8 @@ const Export = (() => {
         const a = document.createElement('a');
         a.href = viewerUrl;
         a.target = '_blank';
-        a.textContent = '보기 →';
-        a.style.color = '#2563eb';
+        a.textContent = '보기 🔍';
+        a.style.color = '#8B2252';
         a.style.textDecoration = 'none';
         tdLink.appendChild(a);
         row.appendChild(tdLink);
@@ -639,7 +639,7 @@ const Export = (() => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
         html += `<tr>`;
         html += `<td align="center" bgcolor="#ffffff">${esc(label)}</td>`;
-        html += `<td align="center" bgcolor="#ffffff"><a href="${viewerUrl}"><font color="#2563eb">보기 →</font></a></td>`;
+        html += `<td align="center" bgcolor="#ffffff"><a href="${viewerUrl}"><font color="#8B2252">보기 🔍</font></a></td>`;
         html += `</tr>`;
       });
       html += `</table>`;
