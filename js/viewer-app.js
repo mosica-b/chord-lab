@@ -1,10 +1,22 @@
 /**
  * Viewer App Module
  * Chord viewer page logic - reads URL params, renders notation cards, plays audio
+ * Global tab bar switches all cards at once
  */
 const ViewerApp = (() => {
   let chords = [];
   let defaultType = null; // e.g. 'staff', 'guitar-diagram', 'piano'
+  let currentType = 'staff';
+
+  const TABS = [
+    { id: 'staff', label: '오선보', instrument: 'piano' },
+    { id: 'guitar-tab', label: '기타 타브', instrument: 'guitar' },
+    { id: 'guitar-diagram', label: '기타 다이어그램', instrument: 'guitar' },
+    { id: 'ukulele-tab', label: '우쿨렐레 타브', instrument: 'ukulele' },
+    { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램', instrument: 'ukulele' },
+    { id: 'piano', label: '피아노', instrument: 'piano' },
+  ];
+  const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
 
   async function init() {
     await ChordDB.load();
@@ -18,13 +30,47 @@ const ViewerApp = (() => {
       chords = chordsParam.split(',').map(c => c.trim()).filter(Boolean);
     }
     if (typeParam) {
-      const validTypes = ['staff', 'guitar-tab', 'ukulele-tab', 'guitar-diagram', 'ukulele-diagram', 'piano'];
+      const validTypes = TABS.map(t => t.id);
       if (validTypes.includes(typeParam)) defaultType = typeParam;
     }
+    currentType = defaultType || 'staff';
 
+    setupGlobalTabs();
     setupAddChord();
     setupPlayAll();
     render();
+  }
+
+  function setupGlobalTabs() {
+    const bar = document.getElementById('globalTabBar');
+    const btns = bar.querySelectorAll('.instrument-tab');
+
+    // Set initial active from defaultType
+    btns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.type === currentType);
+      btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentType = btn.dataset.type;
+        switchAllPanels(currentType);
+      });
+    });
+  }
+
+  function switchAllPanels(typeId) {
+    // Switch all notation panels
+    document.querySelectorAll('.notation-panel').forEach(p => {
+      p.classList.toggle('active', p.dataset.type === typeId);
+    });
+    // Update all play buttons
+    const tab = TABS.find(t => t.id === typeId);
+    const instLabel = instrumentLabels[tab ? tab.instrument : 'piano'];
+    document.querySelectorAll('.card-play-btn').forEach(btn => {
+      btn.dataset.instrument = tab ? tab.instrument : 'piano';
+      if (!btn.classList.contains('playing')) {
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
+      }
+    });
   }
 
   function render() {
@@ -34,12 +80,16 @@ const ViewerApp = (() => {
 
     const emptyState = document.getElementById('emptyState');
     const cardsContainer = document.getElementById('chordCards');
+    const globalTabBar = document.getElementById('globalTabBar');
+
     if (chords.length === 0) {
       emptyState.classList.remove('hidden');
       cardsContainer.classList.add('hidden');
+      globalTabBar.classList.add('hidden');
     } else {
       emptyState.classList.add('hidden');
       cardsContainer.classList.remove('hidden');
+      globalTabBar.classList.remove('hidden');
     }
   }
 
@@ -117,84 +167,45 @@ const ViewerApp = (() => {
     }
     left.appendChild(notesDiv);
 
-    // Instrument tabs with associated audio instrument
-    const tabs = [
-      { id: 'staff', label: '오선보', instrument: 'piano' },
-      { id: 'guitar-tab', label: '기타 타브', instrument: 'guitar' },
-      { id: 'guitar-diagram', label: '기타 다이어그램', instrument: 'guitar' },
-      { id: 'ukulele-tab', label: '우쿨렐레 타브', instrument: 'ukulele' },
-      { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램', instrument: 'ukulele' },
-      { id: 'piano', label: '피아노', instrument: 'piano' },
-    ];
-
-    // Track current instrument for this card
-    const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
-    // Determine default tab: use defaultType if set, otherwise first tab
-    const defaultTabId = defaultType || tabs[0].id;
-    const defaultTab = tabs.find(t => t.id === defaultTabId) || tabs[0];
-    let cardInstrument = defaultTab.instrument;
-
-    // Play button (uses current tab's instrument)
+    // Play button (uses global tab's instrument)
+    const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
     const playBtn = document.createElement('button');
-    playBtn.className = 'play-btn';
-    playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[cardInstrument]} 재생`;
+    playBtn.className = 'play-btn card-play-btn';
+    playBtn.dataset.instrument = currentTab.instrument;
+    playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[currentTab.instrument]} 재생`;
     playBtn.addEventListener('click', async () => {
-      const instLabel = instrumentLabels[cardInstrument];
+      const inst = playBtn.dataset.instrument;
+      const instLabel = instrumentLabels[inst];
       playBtn.classList.add('playing');
       playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> ${instLabel} 재생 중`;
-      await ChordAudio.playChord(chordName, 2.0, cardInstrument);
+      await ChordAudio.playChord(chordName, 2.0, inst);
       playBtn.classList.remove('playing');
-      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
+      const currentInst = playBtn.dataset.instrument;
+      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[currentInst]} 재생`;
     });
 
     header.appendChild(left);
     header.appendChild(playBtn);
     card.appendChild(header);
 
-    const tabBar = document.createElement('div');
-    tabBar.className = 'flex flex-wrap gap-2 mb-4';
-
-    const panels = {};
-
-    tabs.forEach(({ id, label, instrument }) => {
-      const isActive = id === defaultTabId;
-      const btn = document.createElement('button');
-      btn.className = `instrument-tab${isActive ? ' active' : ''}`;
-      btn.textContent = label;
-      btn.dataset.panel = `${chordName}-${id}`;
-
-      btn.addEventListener('click', () => {
-        tabBar.querySelectorAll('.instrument-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        Object.values(panels).forEach(p => p.classList.remove('active'));
-        panels[id].classList.add('active');
-
-        // Update instrument for this card's play button
-        cardInstrument = instrument;
-        const instLabel = instrumentLabels[instrument];
-        playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
-      });
-
-      tabBar.appendChild(btn);
-
-      // Create panel
-      const panel = document.createElement('div');
-      panel.className = `notation-panel${isActive ? ' active' : ''}`;
-      panels[id] = panel;
-    });
-
-    card.appendChild(tabBar);
-
-    // Render notation into panels
+    // Create notation panels (no per-card tabs)
     const singleChord = [chordName];
-    Renderers.renderStaffNotation(panels['staff'], singleChord);
-    Renderers.renderGuitarTab(panels['guitar-tab'], singleChord);
-    Renderers.renderGuitarDiagrams(panels['guitar-diagram'], singleChord);
-    Renderers.renderUkuleleTab(panels['ukulele-tab'], singleChord);
-    Renderers.renderUkuleleDiagrams(panels['ukulele-diagram'], singleChord);
-    Renderers.renderPianoKeyboards(panels['piano'], singleChord);
+    TABS.forEach(({ id }) => {
+      const panel = document.createElement('div');
+      panel.className = `notation-panel${id === currentType ? ' active' : ''}`;
+      panel.dataset.type = id;
+      card.appendChild(panel);
 
-    Object.values(panels).forEach(p => card.appendChild(p));
+      // Render into panel
+      switch (id) {
+        case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
+        case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
+        case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
+        case 'ukulele-tab': Renderers.renderUkuleleTab(panel, singleChord); break;
+        case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, singleChord); break;
+        case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
+      }
+    });
 
     return card;
   }
