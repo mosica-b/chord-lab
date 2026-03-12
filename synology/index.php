@@ -9,24 +9,112 @@
  *   GET  ?action=get&id=123            Get full song data
  *   POST ?action=save                  Create or update (upsert)
  *   DELETE ?action=delete&id=123       Delete a song
+ *
+ * Security features:
+ *   - API Key authentication (X-API-Key header)
+ *   - CORS restriction (GitHub Pages only)
+ *   - Server-side IP rate limiting (SQLite-based)
+ *   - Request logging
+ *   - CSP + cache prevention headers
  */
 
 require_once __DIR__ . '/config.php';
 
-/* ── CORS ── */
+/* ── Security Headers ── */
+
+// CORS
 header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-API-Key');
+
+// Content type
 header('Content-Type: application/json; charset=utf-8');
+
+// Cache prevention - API responses should never be cached
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// CSP - restrict what can be loaded
+header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+
+// Additional security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
+/* ── Rate Limiting (IP-based, SQLite) ── */
+
+function checkRateLimit() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+    $rlDb = new PDO('sqlite:' . RATE_LIMIT_DB);
+    $rlDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $rlDb->exec("CREATE TABLE IF NOT EXISTS requests (
+        ip TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+    )");
+    $rlDb->exec("CREATE INDEX IF NOT EXISTS idx_ip_ts ON requests(ip, timestamp)");
+
+    $now = time();
+    $windowStart = $now - RATE_LIMIT_WINDOW;
+
+    // Clean old entries (older than window)
+    $rlDb->prepare("DELETE FROM requests WHERE timestamp < :ts")
+         ->execute([':ts' => $windowStart]);
+
+    // Count recent requests from this IP
+    $stmt = $rlDb->prepare("SELECT COUNT(*) FROM requests WHERE ip = :ip AND timestamp >= :ts");
+    $stmt->execute([':ip' => $ip, ':ts' => $windowStart]);
+    $count = (int)$stmt->fetchColumn();
+
+    if ($count >= RATE_LIMIT_MAX) {
+        $retryAfter = RATE_LIMIT_WINDOW;
+        header("Retry-After: $retryAfter");
+        http_response_code(429);
+        echo json_encode(['error' => 'Too many requests. Try again later.', 'retry_after' => $retryAfter]);
+        exit;
+    }
+
+    // Record this request
+    $rlDb->prepare("INSERT INTO requests (ip, timestamp) VALUES (:ip, :ts)")
+         ->execute([':ip' => $ip, ':ts' => $now]);
+}
+
+checkRateLimit();
+
+/* ── Request Logging ── */
+
+function logRequest($action, $statusCode = 200, $extra = '') {
+    if (!LOG_ENABLED) return;
+
+    $logDir = LOG_DIR;
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0750, true);
+    }
+
+    $logFile = $logDir . '/api-' . date('Y-m-d') . '.log';
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $method = $_SERVER['REQUEST_METHOD'] ?? '?';
+    $time = date('Y-m-d H:i:s');
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '-';
+
+    $line = "[$time] $method $action $statusCode | IP: $ip | Origin: $origin";
+    if ($extra) $line .= " | $extra";
+    $line .= "\n";
+
+    @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+}
+
 /* ── Auth ── */
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
 if ($apiKey !== API_KEY) {
+    logRequest('AUTH_FAIL', 401);
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
@@ -91,6 +179,7 @@ switch ($action) {
         $countStmt->execute([':q' => $q]);
         $total = (int)$countStmt->fetchColumn();
 
+        logRequest('search', 200, "q={$_GET['q']}, results=$total");
         echo json_encode([
             'songs' => $stmt->fetchAll(PDO::FETCH_ASSOC),
             'total' => $total,
@@ -115,6 +204,7 @@ switch ($action) {
 
         $total = (int)$db->query("SELECT COUNT(*) FROM songs")->fetchColumn();
 
+        logRequest('recent', 200, "page=$page");
         echo json_encode([
             'songs' => $stmt->fetchAll(PDO::FETCH_ASSOC),
             'total' => $total,
@@ -131,11 +221,13 @@ switch ($action) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) {
+            logRequest('get', 404, "id=$id");
             http_response_code(404);
             echo json_encode(['error' => 'Not found']);
         } else {
             $row['selected_chords'] = json_decode($row['selected_chords'], true) ?: [];
             $row['capo_position'] = (int)$row['capo_position'];
+            logRequest('get', 200, "id=$id, song={$row['song_name']}");
             echo json_encode($row);
         }
         break;
@@ -143,6 +235,7 @@ switch ($action) {
     /* ── Save (upsert) ── */
     case 'save':
         if ($method !== 'POST') {
+            logRequest('save', 405);
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
             break;
@@ -150,6 +243,7 @@ switch ($action) {
 
         $body = json_decode(file_get_contents('php://input'), true);
         if (!$body || empty($body['song_name'])) {
+            logRequest('save', 400, 'missing song_name');
             http_response_code(400);
             echo json_encode(['error' => 'song_name is required']);
             break;
@@ -202,12 +296,14 @@ switch ($action) {
             $id = $lookup->fetchColumn();
         }
 
+        logRequest('save', 200, "id=$id, song={$body['song_name']}");
         echo json_encode(['ok' => true, 'id' => (int)$id]);
         break;
 
     /* ── Delete ── */
     case 'delete':
         if ($method !== 'DELETE') {
+            logRequest('delete', 405);
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
             break;
@@ -215,10 +311,12 @@ switch ($action) {
         $id = intval($_GET['id'] ?? 0);
         $stmt = $db->prepare("DELETE FROM songs WHERE id = :id");
         $stmt->execute([':id' => $id]);
+        logRequest('delete', 200, "id=$id, affected={$stmt->rowCount()}");
         echo json_encode(['ok' => true, 'deleted' => $stmt->rowCount()]);
         break;
 
     default:
+        logRequest('unknown', 400, "action=$action");
         http_response_code(400);
         echo json_encode(['error' => 'Unknown action']);
 }

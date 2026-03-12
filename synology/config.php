@@ -12,3 +12,12 @@ define('DB_PATH', __DIR__ . '/db/songs.db');
 
 // CORS: only allow requests from GitHub Pages
 define('ALLOWED_ORIGIN', 'https://mosica-b.github.io');
+
+// Rate limiting
+define('RATE_LIMIT_MAX', 60);        // max requests per window
+define('RATE_LIMIT_WINDOW', 60);     // window in seconds (1 minute)
+define('RATE_LIMIT_DB', __DIR__ . '/db/rate_limit.db');
+
+// Logging
+define('LOG_DIR', __DIR__ . '/logs');
+define('LOG_ENABLED', true);
