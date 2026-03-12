@@ -402,7 +402,9 @@ const Export = (() => {
       html += `<b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}<br>`;
     });
 
-    // 사용 코드 (triads + advanced link)
+    html += `</blockquote>`;
+
+    // 사용 코드 (outside blockquote so links work)
     if (chords.length > 0) {
       const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
       const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
@@ -417,7 +419,6 @@ const Export = (() => {
       }
       html += chordLine + `<br>`;
     }
-    html += `</blockquote>`;
 
     // Chord notes table - split into primary and advanced, sorted by degree
     if (chords.length > 0) {
