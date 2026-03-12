@@ -385,12 +385,14 @@ const Export = (() => {
 
     let html = '';
 
-    // Title + Song info in blockquote
+    // Title in blockquote
     html += `<blockquote>`;
     if (metadata.songName) {
-      html += `<font size="5"><b>${esc(metadata.songName)}</b></font><br><br>`;
+      html += `<font size="5"><b>${esc(metadata.songName)}</b></font>`;
     }
+    html += `</blockquote>`;
 
+    // Song info (outside blockquote)
     const infoRows = [
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
@@ -405,8 +407,6 @@ const Export = (() => {
     infoRows.forEach(({ label, value }) => {
       html += `<b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}<br>`;
     });
-
-    html += `</blockquote>`;
 
     // 사용 코드 (outside blockquote, centered)
     if (chords.length > 0) {
