@@ -96,20 +96,20 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">키 (Key)</label>
-          <select id="songKey" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">선택</option>
-            <option>C</option><option>C#</option><option>Db</option>
-            <option>D</option><option>D#</option><option>Eb</option>
-            <option>E</option><option>F</option><option>F#</option>
-            <option>Gb</option><option>G</option><option>G#</option>
-            <option>Ab</option><option>A</option><option>A#</option>
-            <option>Bb</option><option>B</option>
-            <option>Cm</option><option>C#m</option><option>Dm</option>
-            <option>D#m</option><option>Ebm</option><option>Em</option>
-            <option>Fm</option><option>F#m</option><option>Gm</option>
-            <option>G#m</option><option>Am</option><option>A#m</option>
-            <option>Bbm</option><option>Bm</option>
-          </select>
+          <input type="text" id="songKey" list="songKeyList" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="예: C, Am, F#m">
+          <datalist id="songKeyList">
+            <option value="C"><option value="C#"><option value="Db">
+            <option value="D"><option value="D#"><option value="Eb">
+            <option value="E"><option value="F"><option value="F#">
+            <option value="Gb"><option value="G"><option value="G#">
+            <option value="Ab"><option value="A"><option value="A#">
+            <option value="Bb"><option value="B">
+            <option value="Cm"><option value="C#m"><option value="Dm">
+            <option value="D#m"><option value="Ebm"><option value="Em">
+            <option value="Fm"><option value="F#m"><option value="Gm">
+            <option value="G#m"><option value="Am"><option value="A#m">
+            <option value="Bbm"><option value="Bm">
+          </datalist>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">카포 (Capo)</label>
