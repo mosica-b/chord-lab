@@ -101,7 +101,10 @@ const ViewerApp = (() => {
         currentType = item.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        fabAccordion.classList.add('hidden');
+        // Capo types → keep FAB open so user can select capo
+        if (!CAPO_TYPES.has(currentType)) {
+          fabAccordion.classList.add('hidden');
+        }
       });
     });
 
@@ -141,7 +144,7 @@ const ViewerApp = (() => {
           topToggle.classList.remove('open');
           if (topHint) topHint.textContent = '열기';
         }
-        // Capo types → keep accordion open so user can select capo
+        // Capo types → keep open so user can select capo, then close
       });
     });
 
@@ -167,6 +170,9 @@ const ViewerApp = (() => {
           if (topToggle) topToggle.classList.remove('open');
           if (topHint) topHint.textContent = '열기';
         }
+        // Close FAB accordion after capo selection
+        const fabAccordion = document.getElementById('fabAccordion');
+        if (fabAccordion) fabAccordion.classList.add('hidden');
       });
     });
   }
