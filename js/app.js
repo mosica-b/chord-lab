@@ -118,6 +118,19 @@ const App = (() => {
         saveState();
         updatePreview();
       }
+
+      // Auto-fetch lyrics intro (non-blocking, runs after main search)
+      if (geniusUrl && !state.metadata.lyricsIntro) {
+        ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+          if (intro && !state.metadata.lyricsIntro) {
+            state.metadata.lyricsIntro = intro;
+            const el = document.getElementById('lyricsIntro');
+            if (el) el.value = intro;
+            saveState();
+            updatePreview();
+          }
+        }).catch(() => {});
+      }
     } catch (e) {
       console.warn('Auto API search failed:', e);
     }
@@ -193,6 +206,19 @@ const App = (() => {
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
           updatePreview();
+
+          // Auto-fetch lyrics intro
+          if (geniusUrl && !state.metadata.lyricsIntro) {
+            ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+              if (intro && !state.metadata.lyricsIntro) {
+                state.metadata.lyricsIntro = intro;
+                const el = document.getElementById('lyricsIntro');
+                if (el) el.value = intro;
+                saveState();
+                updatePreview();
+              }
+            }).catch(() => {});
+          }
         }
       } catch (err) {
         console.error('MusicXML parse failed:', err);
@@ -225,6 +251,20 @@ const App = (() => {
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
           updatePreview();
+
+          // Auto-fetch lyrics intro
+          if (geniusUrl && !state.metadata.lyricsIntro) {
+            ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+              if (intro && !state.metadata.lyricsIntro) {
+                state.metadata.lyricsIntro = intro;
+                const el = document.getElementById('lyricsIntro');
+                if (el) el.value = intro;
+                saveState();
+                updatePreview();
+              }
+            }).catch(() => {});
+          }
+
           if (!album || !album.albumName) {
             alert('앨범을 찾지 못했습니다.');
           }
