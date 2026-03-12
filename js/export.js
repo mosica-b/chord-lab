@@ -485,7 +485,7 @@ const Export = (() => {
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
         let chordsValue = basicLinks;
         if (nAdvanced.length > 0) {
-          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
+          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;text-decoration:none;"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
         }
         extraRows.push({ label: '사용 코드', value: chordsValue });
       }
@@ -501,9 +501,9 @@ const Export = (() => {
         let lyricsValue = '';
         if (metadata.lyricsIntro) {
           lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
-          lyricsValue += `<font color="#999999">&hellip;</font> ▶ <a href="${geniusLink}"><font color="#8B2252"><b>가사 전체 보기</b></font></a> 🌙`;
+          lyricsValue += `<font color="#999999">&hellip;</font> ▶ <a href="${geniusLink}" style="color:#8B2252;text-decoration:none;"><font color="#8B2252"><b>가사 전체 보기</b></font></a> 🌙`;
         } else {
-          lyricsValue += `▶ <a href="${geniusLink}"><font color="#8B2252">가사 전체 보기</font></a> 🌙`;
+          lyricsValue += `▶ <a href="${geniusLink}" style="color:#8B2252;text-decoration:none;"><font color="#8B2252">가사 전체 보기</font></a> 🌙`;
         }
         lyricsValue += `<br><font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`;
         extraRows.push({ label: '가사', value: lyricsValue });
