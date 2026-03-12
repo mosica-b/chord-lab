@@ -230,7 +230,7 @@ const ChordAudio = (() => {
       if (notes.length === 0) { resolve(); return; }
 
       const now = ctx.currentTime;
-      const baseOctave = inst === 'ukulele' ? 4 : 3;
+      const baseOctave = inst === 'guitar' ? 3 : 4;
 
       notes.forEach((note, i) => {
         let octave = baseOctave;
