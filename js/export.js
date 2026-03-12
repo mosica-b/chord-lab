@@ -310,25 +310,26 @@ const Export = (() => {
       ];
       notationTypes.forEach(({ key, label }) => {
         const card = document.createElement('div');
-        card.style.border = '1px solid #ddd';
+        card.style.border = '1px solid #e0e0e0';
         card.style.borderRadius = '8px';
         card.style.marginBottom = '12px';
         card.style.overflow = 'hidden';
 
         const header = document.createElement('div');
-        header.style.background = '#f5f5f5';
+        header.style.background = '#3b3b3b';
         header.style.padding = '10px 16px';
         header.style.fontWeight = '600';
         header.style.fontSize = '14px';
-        header.style.borderBottom = '1px solid #ddd';
+        header.style.color = '#ffffff';
         header.textContent = label;
         card.appendChild(header);
 
         const body = document.createElement('div');
-        body.style.padding = '16px';
+        body.style.padding = '24px 16px';
         body.style.textAlign = 'center';
-        body.style.color = '#aaa';
+        body.style.color = '#ccc';
         body.style.fontSize = '13px';
+        body.style.background = '#ffffff';
         body.textContent = '이미지 첨부';
         card.appendChild(body);
 
@@ -581,9 +582,15 @@ const Export = (() => {
       html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
       const notationLabels = ['오선표기', '기타 타브', '우쿨렐레 타브', '기타 다이어그램', '우쿨렐레 다이어그램', '피아노'];
       notationLabels.forEach(label => {
-        html += `<table bgcolor="#dddddd" cellspacing="1" cellpadding="0" style="width:100%">`;
-        html += `<tr><td bgcolor="#f5f5f5" style="padding:10px 16px"><b>${esc(label)}</b></td></tr>`;
-        html += `<tr><td bgcolor="#ffffff" align="center" style="padding:24px 16px"><font color="#aaaaaa">이미지 첨부</font></td></tr>`;
+        html += `<table bgcolor="#e0e0e0" cellspacing="0" cellpadding="0" style="width:100%">`;
+        html += `<tr><td>`;
+        html += `<table bgcolor="#3b3b3b" cellspacing="0" cellpadding="8" style="width:100%">`;
+        html += `<tr><td><font color="#ffffff" size="2"><b>${esc(label)}</b></font></td></tr>`;
+        html += `</table>`;
+        html += `<table bgcolor="#ffffff" cellspacing="0" cellpadding="0" style="width:100%">`;
+        html += `<tr><td align="center" height="80"><font color="#cccccc" size="2">이미지 첨부</font></td></tr>`;
+        html += `</table>`;
+        html += `</td></tr>`;
         html += `</table><br>`;
       });
     }
