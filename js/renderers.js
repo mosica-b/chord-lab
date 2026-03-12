@@ -15,8 +15,8 @@ const Renderers = (() => {
       return;
     }
 
-    const labelHeight = 30; // Space reserved for chord names above stave
-    const staveY = 50 + labelHeight;
+    const labelHeight = 20; // Space reserved for chord names above stave
+    const staveY = 40 + labelHeight;
     const totalHeight = staveY + 120;
     const width = Math.max(chords.length * 120 + 80, 400);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
@@ -75,7 +75,7 @@ const Renderers = (() => {
         const centerX = bbox.getX() + bbox.getW() / 2;
         const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textEl.setAttribute('x', centerX);
-        textEl.setAttribute('y', staveY - 10);
+        textEl.setAttribute('y', staveY - 5);
         textEl.setAttribute('text-anchor', 'middle');
         textEl.setAttribute('font-family', 'Arial');
         textEl.setAttribute('font-size', '13');
@@ -287,20 +287,15 @@ const Renderers = (() => {
       const item = document.createElement('div');
       item.className = 'diagram-item';
 
-      const label = document.createElement('div');
-      label.className = 'chord-label';
-      label.textContent = name;
-      item.appendChild(label);
-
       const svgContainer = document.createElement('div');
       svgContainer.style.width = '100px';
-      svgContainer.style.height = '130px';
+      svgContainer.style.height = '150px';
       item.appendChild(svgContainer);
 
       if (positions && positions[0]) {
         drawGuitarDiagram(svgContainer, positions[0], name);
       } else {
-        svgContainer.innerHTML = '<p class="text-xs text-gray-400">데이터 없음</p>';
+        svgContainer.innerHTML = `<p class="text-xs text-gray-400" style="text-align:center;font-weight:bold;">${name}<br>데이터 없음</p>`;
       }
 
       grid.appendChild(item);
@@ -434,20 +429,15 @@ const Renderers = (() => {
       const item = document.createElement('div');
       item.className = 'diagram-item';
 
-      const label = document.createElement('div');
-      label.className = 'chord-label';
-      label.textContent = name;
-      item.appendChild(label);
-
       const svgContainer = document.createElement('div');
       svgContainer.style.width = '80px';
-      svgContainer.style.height = '130px';
+      svgContainer.style.height = '150px';
       item.appendChild(svgContainer);
 
       if (positions && positions[0]) {
         drawUkuleleDiagram(svgContainer, positions[0], name);
       } else {
-        svgContainer.innerHTML = '<p class="text-xs text-gray-400">데이터 없음</p>';
+        svgContainer.innerHTML = `<p class="text-xs text-gray-400" style="text-align:center;font-weight:bold;">${name}<br>데이터 없음</p>`;
       }
 
       grid.appendChild(item);
@@ -559,11 +549,6 @@ const Renderers = (() => {
     chords.forEach(name => {
       const item = document.createElement('div');
       item.className = 'piano-chord';
-
-      const label = document.createElement('div');
-      label.className = 'chord-label';
-      label.textContent = name;
-      item.appendChild(label);
 
       const svgContainer = document.createElement('div');
       item.appendChild(svgContainer);
