@@ -570,7 +570,6 @@ const Export = (() => {
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
-        html += `<hr>`;
       }
     }
 
