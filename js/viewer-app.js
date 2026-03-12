@@ -7,6 +7,7 @@ const ViewerApp = (() => {
   let chords = [];
   let defaultType = null; // e.g. 'staff', 'guitar-diagram', 'piano'
   let currentType = 'staff';
+  const isAdmin = !!sessionStorage.getItem('chord_lab_auth');
 
   const TABS = [
     { id: 'staff', label: '오선보', instrument: 'piano' },
@@ -35,8 +36,14 @@ const ViewerApp = (() => {
     }
     currentType = defaultType || 'staff';
 
+    // Show admin controls (chord add input) only for logged-in users
+    if (isAdmin) {
+      const adminControls = document.getElementById('adminControls');
+      if (adminControls) adminControls.style.display = '';
+    }
+
     setupGlobalTabs();
-    setupAddChord();
+    if (isAdmin) setupAddChord();
     setupPlayAll();
     render();
   }
@@ -161,11 +168,15 @@ const ViewerApp = (() => {
     chords.forEach(name => {
       const badge = document.createElement('span');
       badge.className = 'chord-chip';
-      badge.innerHTML = `${esc(name)}<button class="remove-chord" title="제거">&times;</button>`;
-      badge.querySelector('.remove-chord').addEventListener('click', () => {
-        chords = chords.filter(c => c !== name);
-        render();
-      });
+      if (isAdmin) {
+        badge.innerHTML = `${esc(name)}<button class="remove-chord" title="제거">&times;</button>`;
+        badge.querySelector('.remove-chord').addEventListener('click', () => {
+          chords = chords.filter(c => c !== name);
+          render();
+        });
+      } else {
+        badge.textContent = name;
+      }
       container.appendChild(badge);
     });
   }
