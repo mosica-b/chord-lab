@@ -202,7 +202,9 @@ const ViewerApp = (() => {
 
   function renderBadges() {
     const container = document.getElementById('chordBadges');
-    container.innerHTML = '';
+    // Remove only badge elements, keep static buttons
+    container.querySelectorAll('.chord-chip').forEach(b => b.remove());
+    const insertBefore = document.getElementById('resetOrderBtn');
 
     chords.forEach((name, i) => {
       const badge = document.createElement('span');
@@ -335,7 +337,7 @@ const ViewerApp = (() => {
         dragChordName = '';
       });
 
-      container.appendChild(badge);
+      container.insertBefore(badge, insertBefore);
     });
   }
 
