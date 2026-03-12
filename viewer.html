@@ -173,28 +173,26 @@
     .horizontal-toggle svg { transition: transform 0.2s; }
     .horizontal-toggle.active svg { color: #2563eb; }
 
-    #chordCards.horizontal-mode {
-      display: flex !important;
-      flex-wrap: nowrap;
+    .horizontal-panel {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
       overflow-x: auto;
-      gap: 16px;
-      padding-bottom: 12px;
-      scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
     }
-    #chordCards.horizontal-mode > .chord-card {
-      flex: 0 0 auto;
-      width: 300px;
-      scroll-snap-align: start;
+    .horizontal-panel::-webkit-scrollbar { height: 4px; }
+    .horizontal-panel::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .horizontal-capo-info {
+      display: inline-block;
+      padding: 4px 12px;
+      margin-bottom: 10px;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
     }
-    @media (max-width: 640px) {
-      #chordCards.horizontal-mode > .chord-card {
-        width: 260px;
-      }
-    }
-    /* Hide scrollbar but keep scrollable */
-    #chordCards.horizontal-mode::-webkit-scrollbar { height: 4px; }
-    #chordCards.horizontal-mode::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 
     @media (max-width: 480px) {
       .chord-card { padding: 14px; }

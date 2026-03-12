@@ -12,6 +12,7 @@ const ViewerApp = (() => {
   let defaultType = null;
   let currentType = 'staff';
   let capoPosition = 0;
+  let horizontalMode = false;
   const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
   const isAdmin = !!sessionStorage.getItem('chord_lab_auth');
 
@@ -398,6 +399,12 @@ const ViewerApp = (() => {
   function renderCards() {
     const container = document.getElementById('chordCards');
     container.innerHTML = '';
+
+    if (horizontalMode) {
+      renderHorizontalView(container);
+      return;
+    }
+
     const cardPairs = [];
     chords.forEach(name => {
       const card = createChordCard(name);
@@ -407,6 +414,38 @@ const ViewerApp = (() => {
     cardPairs.forEach(({ card, name }) => {
       renderCardNotations(card, name);
     });
+  }
+
+  function renderHorizontalView(container) {
+    // Build chord list with capo transposition applied
+    const displayChords = chords.map(name => {
+      if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+        return MusicTheory.transposeChord(name, -capoPosition);
+      }
+      return name;
+    });
+
+    // Capo info bar
+    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+      const capoInfo = document.createElement('div');
+      capoInfo.className = 'horizontal-capo-info';
+      capoInfo.textContent = `카포 ${capoPosition} 적용`;
+      container.appendChild(capoInfo);
+    }
+
+    // Single notation panel
+    const panel = document.createElement('div');
+    panel.className = 'horizontal-panel';
+    container.appendChild(panel);
+
+    switch (currentType) {
+      case 'staff': Renderers.renderStaffNotation(panel, displayChords); break;
+      case 'guitar-tab': Renderers.renderGuitarTab(panel, displayChords); break;
+      case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, displayChords); break;
+      case 'ukulele-tab': Renderers.renderUkuleleTab(panel, displayChords); break;
+      case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, displayChords); break;
+      case 'piano': Renderers.renderPianoKeyboards(panel, displayChords); break;
+    }
   }
 
   function renderCardNotations(card, chordName) {
@@ -911,12 +950,12 @@ const ViewerApp = (() => {
 
   function setupHorizontalToggle() {
     const btn = document.getElementById('horizontalToggle');
-    const cards = document.getElementById('chordCards');
-    if (!btn || !cards) return;
+    if (!btn) return;
 
     btn.addEventListener('click', () => {
-      const isActive = btn.classList.toggle('active');
-      cards.classList.toggle('horizontal-mode', isActive);
+      horizontalMode = !horizontalMode;
+      btn.classList.toggle('active', horizontalMode);
+      renderCards();
     });
   }
 
