@@ -321,7 +321,7 @@ const Renderers = (() => {
     const svg = createSVG(width, height);
 
     // Draw chord name at top of SVG
-    const nameText = createSVGText(width / 2, 14, chordName, '13px', 'middle');
+    const nameText = createSVGText(width / 2, 11, chordName, '13px', 'middle');
     nameText.setAttribute('font-weight', 'bold');
     svg.appendChild(nameText);
     const frets = position.frets;
@@ -460,7 +460,7 @@ const Renderers = (() => {
     const svg = createSVG(width, height);
 
     // Draw chord name at top of SVG
-    const nameText = createSVGText(width / 2, 14, chordName, '13px', 'middle');
+    const nameText = createSVGText(width / 2, 11, chordName, '13px', 'middle');
     nameText.setAttribute('font-weight', 'bold');
     svg.appendChild(nameText);
     const frets = position.frets;
@@ -592,7 +592,7 @@ const Renderers = (() => {
 
     // Draw chord name at top
     if (chordName) {
-      const nameText = createSVGText(width / 2, 14, chordName, '12px', 'middle');
+      const nameText = createSVGText(width / 2, 11, chordName, '12px', 'middle');
       nameText.setAttribute('font-weight', 'bold');
       svg.appendChild(nameText);
     }
