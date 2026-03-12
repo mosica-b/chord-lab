@@ -15,8 +15,8 @@ const Renderers = (() => {
       return;
     }
 
-    const labelHeight = 20; // Space reserved for chord names above stave
-    const staveY = 40 + labelHeight;
+    const labelHeight = 14; // Space reserved for chord names above stave
+    const staveY = 36 + labelHeight;
     const totalHeight = staveY + 120;
     const width = Math.max(chords.length * 120 + 80, 400);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
