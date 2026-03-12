@@ -4,6 +4,7 @@
  */
 const ViewerApp = (() => {
   let chords = [];
+  let defaultType = null; // e.g. 'staff', 'guitar-diagram', 'piano'
 
   async function init() {
     await ChordDB.load();
@@ -11,9 +12,14 @@ const ViewerApp = (() => {
     // Parse URL params
     const params = new URLSearchParams(window.location.search);
     const chordsParam = params.get('chords');
+    const typeParam = params.get('type');
 
     if (chordsParam) {
       chords = chordsParam.split(',').map(c => c.trim()).filter(Boolean);
+    }
+    if (typeParam) {
+      const validTypes = ['staff', 'guitar-tab', 'ukulele-tab', 'guitar-diagram', 'ukulele-diagram', 'piano'];
+      if (validTypes.includes(typeParam)) defaultType = typeParam;
     }
 
     setupAddChord();
@@ -111,10 +117,27 @@ const ViewerApp = (() => {
     }
     left.appendChild(notesDiv);
 
+    // Instrument tabs with associated audio instrument
+    const tabs = [
+      { id: 'staff', label: '오선보', instrument: 'piano' },
+      { id: 'guitar-tab', label: '기타 타브', instrument: 'guitar' },
+      { id: 'guitar-diagram', label: '기타 다이어그램', instrument: 'guitar' },
+      { id: 'ukulele-tab', label: '우쿨렐레 타브', instrument: 'ukulele' },
+      { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램', instrument: 'ukulele' },
+      { id: 'piano', label: '피아노', instrument: 'piano' },
+    ];
+
+    // Track current instrument for this card
+    const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
+    // Determine default tab: use defaultType if set, otherwise first tab
+    const defaultTabId = defaultType || tabs[0].id;
+    const defaultTab = tabs.find(t => t.id === defaultTabId) || tabs[0];
+    let cardInstrument = defaultTab.instrument;
+
     // Play button (uses current tab's instrument)
     const playBtn = document.createElement('button');
     playBtn.className = 'play-btn';
-    playBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 피아노 재생';
+    playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[cardInstrument]} 재생`;
     playBtn.addEventListener('click', async () => {
       const instLabel = instrumentLabels[cardInstrument];
       playBtn.classList.add('playing');
@@ -128,28 +151,15 @@ const ViewerApp = (() => {
     header.appendChild(playBtn);
     card.appendChild(header);
 
-    // Instrument tabs with associated audio instrument
-    const tabs = [
-      { id: 'staff', label: '오선보', instrument: 'piano' },
-      { id: 'guitar-tab', label: '기타 타브', instrument: 'guitar' },
-      { id: 'guitar-diagram', label: '기타 다이어그램', instrument: 'guitar' },
-      { id: 'ukulele-tab', label: '우쿨렐레 타브', instrument: 'ukulele' },
-      { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램', instrument: 'ukulele' },
-      { id: 'piano', label: '피아노', instrument: 'piano' },
-    ];
-
-    // Track current instrument for this card
-    let cardInstrument = 'piano';
-    const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
-
     const tabBar = document.createElement('div');
     tabBar.className = 'flex flex-wrap gap-2 mb-4';
 
     const panels = {};
 
-    tabs.forEach(({ id, label, instrument }, i) => {
+    tabs.forEach(({ id, label, instrument }) => {
+      const isActive = id === defaultTabId;
       const btn = document.createElement('button');
-      btn.className = `instrument-tab${i === 0 ? ' active' : ''}`;
+      btn.className = `instrument-tab${isActive ? ' active' : ''}`;
       btn.textContent = label;
       btn.dataset.panel = `${chordName}-${id}`;
 
@@ -169,7 +179,7 @@ const ViewerApp = (() => {
 
       // Create panel
       const panel = document.createElement('div');
-      panel.className = `notation-panel${i === 0 ? ' active' : ''}`;
+      panel.className = `notation-panel${isActive ? ' active' : ''}`;
       panels[id] = panel;
     });
 

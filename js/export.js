@@ -308,19 +308,25 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
+      const chordsParam = encodeURIComponent(chords.join(','));
       notationTypes.forEach(({ key, label }) => {
+        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
         const card = document.createElement('div');
         card.style.border = '1px solid #e0e0e0';
         card.style.borderRadius = '8px';
         card.style.marginBottom = '12px';
         card.style.overflow = 'hidden';
 
-        const header = document.createElement('div');
+        const header = document.createElement('a');
+        header.href = viewerUrl;
+        header.target = '_blank';
+        header.style.display = 'block';
         header.style.background = '#3b3b3b';
         header.style.padding = '10px 16px';
         header.style.fontWeight = '600';
         header.style.fontSize = '14px';
         header.style.color = '#ffffff';
+        header.style.textDecoration = 'none';
         header.textContent = label;
         card.appendChild(header);
 
@@ -577,15 +583,24 @@ const Export = (() => {
       html += `</table>`;
     }
 
-    // Notation type cards (modal-like)
+    // Notation type cards (modal-like) with viewer links
     if (chords.length > 0) {
       html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
-      const notationLabels = ['오선표기', '기타 타브', '우쿨렐레 타브', '기타 다이어그램', '우쿨렐레 다이어그램', '피아노'];
-      notationLabels.forEach(label => {
+      const chordsParam = encodeURIComponent(chords.join(','));
+      const notationItems = [
+        { key: 'staff', label: '오선표기' },
+        { key: 'guitar-tab', label: '기타 타브' },
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
+        { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
+        { key: 'piano', label: '피아노' }
+      ];
+      notationItems.forEach(({ key, label }) => {
+        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
         html += `<table bgcolor="#e0e0e0" cellspacing="0" cellpadding="0" style="width:100%">`;
         html += `<tr><td>`;
         html += `<table bgcolor="#3b3b3b" cellspacing="0" cellpadding="8" style="width:100%">`;
-        html += `<tr><td><font color="#ffffff" size="2"><b>${esc(label)}</b></font></td></tr>`;
+        html += `<tr><td><a href="${viewerUrl}" style="color:#ffffff;text-decoration:none"><font color="#ffffff" size="2"><b>${esc(label)}</b></font></a></td></tr>`;
         html += `</table>`;
         html += `<table bgcolor="#ffffff" cellspacing="0" cellpadding="0" style="width:100%">`;
         html += `<tr><td align="center" height="80"><font color="#cccccc" size="2">이미지 첨부</font></td></tr>`;
