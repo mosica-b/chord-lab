@@ -438,6 +438,11 @@ const App = (() => {
 
     if (copyTextBtn) {
       copyTextBtn.addEventListener('click', async () => {
+        // Ensure API URLs are fetched before copying
+        if (state.metadata.songName && (!state.metadata.geniusUrl || !state.metadata.appleMusicUrl)) {
+          copyTextBtn.textContent = '링크 검색 중...';
+          await autoSearchAPIs();
+        }
         const ok = await Export.copyTextToClipboard(state.metadata, state.selectedChords, state.capoPosition);
         if (ok) {
           copyTextBtn.textContent = '복사 완료!';
