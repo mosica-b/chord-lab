@@ -35,11 +35,23 @@ const Export = (() => {
       { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
-    infoRows.forEach(({ label, value }) => {
+    const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
+
+    infoRows.forEach(({ label, value, isChords }) => {
       const row = document.createElement('p');
       row.style.margin = '4px 0';
       row.style.fontSize = '14px';
-      row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
+
+      if (isChords && chords.length > 0) {
+        const chordLinks = chords.map(c => {
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:500;" target="_blank">${esc(c)}</a>`;
+        }).join(', ');
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${chordLinks}&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[전체 보기]</a>`;
+      } else {
+        row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
+      }
       infoSection.appendChild(row);
     });
 
@@ -70,7 +82,13 @@ const Export = (() => {
         const row = document.createElement('tr');
         const tdName = document.createElement('td');
         tdName.style.fontWeight = '600';
-        tdName.textContent = name;
+        const chordLink = document.createElement('a');
+        chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+        chordLink.target = '_blank';
+        chordLink.style.color = '#2563eb';
+        chordLink.style.textDecoration = 'none';
+        chordLink.textContent = `${name} ▶`;
+        tdName.appendChild(chordLink);
         row.appendChild(tdName);
 
         const tdNotes = document.createElement('td');
@@ -214,30 +232,25 @@ const Export = (() => {
 
   /**
    * Copy formatted text to clipboard for Naver blog
-   * Uses Clipboard API with text/html for rich formatting
-   * Images are NOT included - they must be uploaded separately
+   * Selects the blog preview DOM and copies via execCommand
+   * This preserves <a> links when pasting into Naver Smart Editor
    */
-  async function copyTextToClipboard(metadata, chords, capoPosition) {
-    const html = generateNaverHTML(metadata, chords, capoPosition);
-    const plainText = generatePlainText(metadata, chords, capoPosition);
+  async function copyTextToClipboard() {
+    const preview = document.getElementById('blogPreview');
+    if (!preview) return false;
 
     try {
-      const clipboardItem = new ClipboardItem({
-        'text/html': new Blob([html], { type: 'text/html' }),
-        'text/plain': new Blob([plainText], { type: 'text/plain' }),
-      });
-      await navigator.clipboard.write([clipboardItem]);
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(preview);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand('copy');
+      selection.removeAllRanges();
       return true;
     } catch (e) {
-      console.error('Clipboard API failed:', e);
-      // Fallback: copy plain text
-      try {
-        await navigator.clipboard.writeText(plainText);
-        return true;
-      } catch (e2) {
-        console.error('Plain text copy also failed:', e2);
-        return false;
-      }
+      console.error('Copy failed:', e);
+      return false;
     }
   }
 

@@ -270,7 +270,7 @@ const App = (() => {
 
     if (copyTextBtn) {
       copyTextBtn.addEventListener('click', async () => {
-        const ok = await Export.copyTextToClipboard(state.metadata, state.selectedChords, state.capoPosition);
+        const ok = await Export.copyTextToClipboard();
         if (ok) {
           copyTextBtn.textContent = '복사 완료!';
           copyTextBtn.classList.replace('bg-blue-500', 'bg-green-500');
