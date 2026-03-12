@@ -573,8 +573,8 @@ const Renderers = (() => {
       { note: 'A#', pos: 5 },
     ];
 
-    // Build 3-octave key layout
-    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave, ...whiteKeysOneOctave];
+    // Build 3-octave + final C key layout (C~C~C~C)
+    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave, ...whiteKeysOneOctave, 'C'];
     const blackKeys = [
       ...blackKeysOneOctave,
       ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 7 })),
@@ -616,7 +616,7 @@ const Renderers = (() => {
       normalizedHighlight.forEach((note, i) => {
         const idx = noteOrder.indexOf(note);
         if (i > 0 && idx <= prevIdx) octave++;
-        if (octave > 2) octave = 2;
+        if (octave > 3) octave = 3;
         highlightPositions.add(`${note}-${octave}`);
         prevIdx = idx;
       });
