@@ -152,8 +152,8 @@ const MusicXMLParser = (() => {
     if (changes.length === 0) return '';
     if (changes.length === 1) return changes[0].sig;
 
-    // Filter out brief appearances (less than 4 consecutive measures)
-    const threshold = 4;
+    // Filter out brief appearances (less than 4 consecutive measures OR < 10% of total)
+    const threshold = Math.max(4, Math.floor(totalMeasures * 0.1));
     const significant = [];
     for (let i = 0; i < changes.length; i++) {
       const start = changes[i].measureIdx;
