@@ -24,8 +24,8 @@ const Export = (() => {
 
     const title = document.createElement('h3');
     title.textContent = '곡정보';
+    title.style.marginBottom = '0';
     infoSection.appendChild(title);
-    infoSection.appendChild(document.createElement('hr'));
 
     const infoRows = [
       { label: '곡명', value: metadata.songName },
@@ -383,7 +383,6 @@ const Export = (() => {
     html += `<blockquote>`;
     html += `<font size="5"><b>곡정보</b></font>`;
     html += `</blockquote>`;
-    html += `<hr>`;
 
     // Song info table (outside blockquote)
     const infoRows = [
