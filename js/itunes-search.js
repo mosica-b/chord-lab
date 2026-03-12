@@ -47,5 +47,37 @@ const ITunesSearch = (() => {
     }
   }
 
-  return { searchAlbum };
+  /**
+   * Search Genius for direct lyrics page URL
+   */
+  const GENIUS_TOKEN = 'REMOVED_GENIUS_TOKEN';
+
+  async function searchGeniusLyrics(songName, artist) {
+    if (!songName) return null;
+    const query = `${artist || ''} ${songName}`.trim();
+    try {
+      const res = await fetch(`https://api.genius.com/search?q=${encodeURIComponent(query)}`, {
+        headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const hits = data.response && data.response.hits;
+      if (!hits || hits.length === 0) return null;
+
+      // Find best match
+      const songLower = songName.toLowerCase();
+      for (const hit of hits) {
+        const s = hit.result;
+        if (s.title && s.title.toLowerCase().includes(songLower)) {
+          return s.url;
+        }
+      }
+      return hits[0].result.url;
+    } catch (e) {
+      console.warn('Genius search failed:', e);
+      return null;
+    }
+  }
+
+  return { searchAlbum, searchGeniusLyrics };
 })();

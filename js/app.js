@@ -129,18 +129,22 @@ const App = (() => {
         saveState();
         updateAll();
 
-        // Search album via iTunes
+        // Search album via iTunes + Genius lyrics
         if (result.songName || result.artist) {
-          const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
+          const [album, geniusUrl] = await Promise.all([
+            ITunesSearch.searchAlbum(result.songName, result.artist),
+            ITunesSearch.searchGeniusLyrics(result.songName, result.artist),
+          ]);
           if (album) {
             if (album.albumName && !state.metadata.albumName) {
               state.metadata.albumName = album.albumName;
               document.getElementById('albumName').value = album.albumName;
             }
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
-            saveState();
-            updatePreview();
           }
+          if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
+          saveState();
+          updatePreview();
         }
       } catch (err) {
         console.error('MusicXML parse failed:', err);
@@ -161,11 +165,17 @@ const App = (() => {
         searchBtn.textContent = '...';
         searchBtn.disabled = true;
         try {
-          const album = await ITunesSearch.searchAlbum(songName, artist);
+          const [album, geniusUrl] = await Promise.all([
+            ITunesSearch.searchAlbum(songName, artist),
+            ITunesSearch.searchGeniusLyrics(songName, artist),
+          ]);
           if (album && album.albumName) {
             state.metadata.albumName = album.albumName;
             document.getElementById('albumName').value = album.albumName;
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
+          }
+          if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
+          if (album && album.albumName) {
             saveState();
             updatePreview();
           } else {

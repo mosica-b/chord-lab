@@ -289,7 +289,7 @@ const Export = (() => {
         const lyricsQuery = encodeURIComponent(`${q} 가사`);
         const appleMusicUrl = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
         const links = [
-          { emoji: '🎵', text: 'Genius 가사', url: `https://genius.com/search?q=${query}` },
+          { emoji: '🎵', text: 'Genius 가사', url: metadata.geniusUrl || `https://genius.com/search?q=${query}` },
           { emoji: '▶️', text: 'YouTube 가사', url: `https://www.youtube.com/results?search_query=${lyricsQuery}` },
           { emoji: '🎧', text: 'Spotify', url: `https://open.spotify.com/search/${query}` },
           { emoji: '🍎', text: 'Apple Music', url: appleMusicUrl },
@@ -538,7 +538,8 @@ const Export = (() => {
         const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
         const query = encodeURIComponent(q);
         const lyricsQuery = encodeURIComponent(`${q} 가사`);
-        html += `<a href="https://genius.com/search?q=${query}">Genius 가사</a><br>`;
+        const geniusLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : `https://genius.com/search?q=${query}`;
+        html += `<a href="${geniusLink}">Genius 가사</a><br>`;
         html += `<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube 가사</a><br>`;
         html += `<a href="https://open.spotify.com/search/${query}">Spotify</a><br>`;
         if (metadata.appleMusicUrl) {
@@ -650,7 +651,7 @@ const Export = (() => {
       const appleMusicUrl = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
       text += `\n관련 링크\n`;
       text += `${'─'.repeat(30)}\n`;
-      text += `Genius 가사: https://genius.com/search?q=${query}\n`;
+      text += `Genius 가사: ${metadata.geniusUrl || `https://genius.com/search?q=${query}`}\n`;
       text += `YouTube 가사: https://www.youtube.com/results?search_query=${lyricsQuery}\n`;
       text += `Spotify: https://open.spotify.com/search/${query}\n`;
       text += `Apple Music: ${appleMusicUrl}\n`;
