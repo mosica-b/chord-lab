@@ -453,7 +453,7 @@ const Export = (() => {
     let html = '';
 
     // Title in blockquote
-    html += `<blockquote>`;
+    html += `<blockquote style="margin:0 0 2px 0;">`;
     html += `<font size="5"><b>곡정보</b></font>`;
     html += `</blockquote>`;
 
@@ -511,7 +511,7 @@ const Export = (() => {
         extraRows.push({ label: '음원', value: `<a href="https://music.youtube.com/search?q=${query}">YouTube Music</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
-      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0">`;
+      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0" style="margin:0;">`;
       const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
@@ -532,7 +532,7 @@ const Export = (() => {
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
-        t += `<table width="100%" border="1" bordercolor="#999999" cellpadding="${pad}" cellspacing="0">`;
+        t += `<table width="100%" border="1" bordercolor="#999999" cellpadding="${pad}" cellspacing="0" style="margin:0;">`;
         const headerCells = ['코드', '타입', '구성음'];
         t += `<tr>`;
         headerCells.forEach(h => {
@@ -582,7 +582,7 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<hr><blockquote><font size="3"><b>주요 코드</b></font>`;
+        html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>주요 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
@@ -590,7 +590,7 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<hr><blockquote><font size="3"><b>심화 코드</b></font>`;
+        html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
@@ -599,7 +599,7 @@ const Export = (() => {
 
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
-      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0">`;
+      html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
@@ -623,7 +623,7 @@ const Export = (() => {
 
     // Notation type table with viewer links
     if (chords.length > 0) {
-      html += `<hr><blockquote><font size="3"><b>코드 표기</b></font></blockquote>`;
+      html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>코드 표기</b></font></blockquote>`;
       const chordsParam = encodeURIComponent(chords.join(','));
       const notationItems = [
         { key: 'staff', label: '오선표기' },
@@ -633,7 +633,7 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
-      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0">`;
+      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
