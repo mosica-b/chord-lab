@@ -551,6 +551,7 @@ const Export = (() => {
               typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
             }
             const notes = MusicTheory.getChordNotesDisplay(name);
+            const degrees = MusicTheory.getChordDegreeLabels(name);
             const rowBg = rowIdx % 2 === 1 ? '#f8f9fa' : '#ffffff';
             t += `<tr>`;
             // 코드 column: 도수 작게 + 코드명
@@ -567,8 +568,11 @@ const Export = (() => {
             t += isCompact
               ? `<td align="center" bgcolor="${rowBg}"><font color="#888888" size="2">${esc(typeName)}</font></td>`
               : `<td align="center" bgcolor="${rowBg}"><font color="#888888">${esc(typeName)}</font></td>`;
-            // 구성음 column (note names only)
-            const fmtNotes = notes.map(n => `<b>${esc(n)}</b>`).join(', ');
+            // 구성음 column (note + degree label)
+            const fmtNotes = notes.map((n, ni) => {
+              const deg = degrees[ni] ? `<font color="#999999" size="1">(${esc(degrees[ni])})</font>` : '';
+              return `<b>${esc(n)}</b>${deg}`;
+            }).join(', ');
             t += isCompact
               ? `<td align="center" bgcolor="${rowBg}"><font size="2">${fmtNotes}</font></td>`
               : `<td align="center" bgcolor="${rowBg}">${fmtNotes}</td>`;
