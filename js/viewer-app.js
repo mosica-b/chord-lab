@@ -318,6 +318,74 @@ const ViewerApp = (() => {
     });
   }
 
+  function showPlaybackModal(chordName) {
+    const modal = document.getElementById('playbackModal');
+    const titleEl = document.getElementById('playbackModalTitle');
+    const typeEl = document.getElementById('playbackModalType');
+    const notesEl = document.getElementById('playbackModalNotes');
+    const contentEl = document.getElementById('playbackModalContent');
+
+    titleEl.textContent = chordName;
+
+    // Chord type
+    const parsed = MusicTheory.parseChordName(chordName);
+    const typeNames = {
+      'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
+      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
+      'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
+      'sus2': '서스 2', 'sus4': '서스 4',
+      '6': '메이저 6', 'm6': '마이너 6',
+      '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
+    };
+    if (parsed) {
+      const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+      typeEl.textContent = typeNames[intervalKey] || parsed.suffix || '';
+    } else {
+      typeEl.textContent = '';
+    }
+
+    // Notes badges
+    notesEl.innerHTML = '';
+    MusicTheory.getChordNotesDisplay(chordName).forEach(n => {
+      const badge = document.createElement('span');
+      badge.className = 'chord-notes-badge highlighted';
+      badge.textContent = n;
+      notesEl.appendChild(badge);
+    });
+
+    // Render current notation type into modal
+    contentEl.innerHTML = '';
+    const panel = document.createElement('div');
+    const singleChord = [chordName];
+    switch (currentType) {
+      case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
+      case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
+      case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
+      case 'ukulele-tab': Renderers.renderUkuleleTab(panel, singleChord); break;
+      case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, singleChord); break;
+      case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
+    }
+    contentEl.appendChild(panel);
+
+    modal.classList.add('show');
+  }
+
+  function hidePlaybackModal() {
+    document.getElementById('playbackModal').classList.remove('show');
+  }
+
+  function highlightBadge(idx) {
+    const badges = document.querySelectorAll('#chordBadges .chord-chip');
+    badges.forEach(b => b.classList.remove('playing'));
+    if (idx >= 0 && idx < badges.length) {
+      badges[idx].classList.add('playing');
+    }
+  }
+
+  function clearBadgeHighlights() {
+    document.querySelectorAll('#chordBadges .chord-chip').forEach(b => b.classList.remove('playing'));
+  }
+
   function setupPlayAll() {
     const btn = document.getElementById('playAllBtn');
     btn.addEventListener('click', async () => {
@@ -325,8 +393,8 @@ const ViewerApp = (() => {
         ChordAudio.stopPlayback();
         btn.classList.remove('playing');
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
-        // Remove highlight from all cards
-        document.querySelectorAll('.chord-card').forEach(c => c.style.outline = '');
+        clearBadgeHighlights();
+        hidePlaybackModal();
         return;
       }
 
@@ -334,18 +402,16 @@ const ViewerApp = (() => {
       btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
 
       await ChordAudio.playChordSequence(chords, 2.0, (name, idx) => {
-        // Highlight current card
-        document.querySelectorAll('.chord-card').forEach(c => c.style.outline = '');
-        const card = document.getElementById(`card-${name}`);
-        if (card) {
-          card.style.outline = '3px solid #3b82f6';
-          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+        // Highlight badge
+        highlightBadge(idx);
+        // Show bottom modal with notation
+        showPlaybackModal(name);
       });
 
       btn.classList.remove('playing');
       btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
-      document.querySelectorAll('.chord-card').forEach(c => c.style.outline = '');
+      clearBadgeHighlights();
+      hidePlaybackModal();
     });
   }
 

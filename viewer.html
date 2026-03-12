@@ -56,6 +56,61 @@
     #playAllBtn.playing {
       background: #ef4444 !important;
     }
+    /* Badge blink animation during playback */
+    @keyframes badgePulse {
+      0%, 100% { background: #3b82f6; color: #fff; transform: scale(1); }
+      50% { background: #2563eb; color: #fff; transform: scale(1.12); }
+    }
+    .chord-chip.playing {
+      animation: badgePulse 0.6s ease-in-out infinite;
+      box-shadow: 0 0 8px rgba(59,130,246,0.5);
+    }
+    /* Bottom playback modal */
+    .playback-modal {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      background: white;
+      border-top: 2px solid #3b82f6;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+      padding: 16px 16px 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      max-height: 45vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .playback-modal.show {
+      transform: translateY(0);
+    }
+    .playback-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .playback-modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .playback-modal-type {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-left: 8px;
+    }
+    .playback-modal-notes {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .playback-modal-content {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     /* Notation panel scrollable on overflow */
     .notation-panel.active {
       overflow-x: auto;
@@ -324,6 +379,18 @@
       <p class="text-gray-400 text-sm">위 입력란에 코드를 추가하거나, URL에 ?chords=Am,C,G 형태로 전달해주세요</p>
     </div>
   </main>
+
+  <!-- Playback modal (bottom sheet) -->
+  <div class="playback-modal" id="playbackModal">
+    <div class="playback-modal-header">
+      <div style="display:flex;align-items:baseline;">
+        <span class="playback-modal-title" id="playbackModalTitle"></span>
+        <span class="playback-modal-type" id="playbackModalType"></span>
+      </div>
+      <div class="playback-modal-notes" id="playbackModalNotes"></div>
+    </div>
+    <div class="playback-modal-content" id="playbackModalContent"></div>
+  </div>
 
   <!-- Floating buttons -->
   <div class="fab-container" id="fabContainer">
