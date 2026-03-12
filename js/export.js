@@ -97,13 +97,13 @@ const Export = (() => {
         tdLabel.style.width = '80px';
         tdLabel.style.textAlign = 'center';
         tdLabel.style.background = '#eef2f7';
-        tdLabel.style.border = '1px solid #ddd';
+        tdLabel.style.border = '1px solid #999';
         tdLabel.innerHTML = `<b>${esc(row.label)}</b>`;
         tr.appendChild(tdLabel);
 
         const tdValue = document.createElement('td');
         tdValue.style.padding = '6px 10px';
-        tdValue.style.border = '1px solid #ddd';
+        tdValue.style.border = '1px solid #999';
         tdValue.innerHTML = row.valueHtml || esc(row.value);
         tr.appendChild(tdValue);
 
@@ -324,7 +324,7 @@ const Export = (() => {
         th.textContent = text;
         th.style.padding = '10px 16px';
         th.style.background = '#f5f5f5';
-        th.style.border = '1px solid #ddd';
+        th.style.border = '1px solid #999';
         th.style.fontWeight = '600';
         th.style.textAlign = 'center';
         headRow.appendChild(th);
@@ -340,13 +340,13 @@ const Export = (() => {
         const tdLabel = document.createElement('td');
         tdLabel.textContent = label;
         tdLabel.style.padding = '10px 16px';
-        tdLabel.style.border = '1px solid #ddd';
+        tdLabel.style.border = '1px solid #999';
         tdLabel.style.textAlign = 'center';
         row.appendChild(tdLabel);
 
         const tdLink = document.createElement('td');
         tdLink.style.padding = '10px 16px';
-        tdLink.style.border = '1px solid #ddd';
+        tdLink.style.border = '1px solid #999';
         tdLink.style.textAlign = 'center';
         const a = document.createElement('a');
         a.href = viewerUrl;
@@ -491,7 +491,7 @@ const Export = (() => {
         extraRows.push({ label: '음원', value: `<a href="https://music.youtube.com/search?q=${query}">YouTube Music</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
-      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="8" cellspacing="1">`;
+      html += `<table width="100%" bgcolor="#999999" border="0" cellpadding="8" cellspacing="1">`;
       const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
@@ -512,7 +512,7 @@ const Export = (() => {
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
-        t += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="${pad}" cellspacing="1">`;
+        t += `<table width="100%" bgcolor="#999999" border="0" cellpadding="${pad}" cellspacing="1">`;
         const headerCells = ['코드', '타입', '구성음'];
         t += `<tr>`;
         headerCells.forEach(h => {
@@ -579,7 +579,7 @@ const Export = (() => {
 
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
-      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" bgcolor="#999999" border="0" cellpadding="10" cellspacing="1">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
@@ -613,7 +613,7 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
-      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<table width="100%" bgcolor="#999999" border="0" cellpadding="10" cellspacing="1">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
