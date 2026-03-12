@@ -29,6 +29,7 @@ JS_FILES = [
     'js/musicxml-parser.js',
     'js/itunes-search.js',
     'js/export.js',
+    'js/db.js',
     'js/app.js',
 ]
 
