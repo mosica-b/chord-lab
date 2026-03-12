@@ -429,8 +429,7 @@ const Export = (() => {
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
         t += `<table width="100%" border="1" cellpadding="${pad}" cellspacing="0">`;
-        const headerCells = hasKey ? ['도수', '코드', '타입'] : ['코드', '타입'];
-        const colCount = headerCells.length;
+        const headerCells = ['코드', '타입', '구성음'];
         t += `<tr bgcolor="#f0f0f0">`;
         headerCells.forEach(h => {
           t += sz ? `<td align="center"><font size="${sz}"><b>${h}</b></font></td>` : `<td align="center"><b>${h}</b></td>`;
@@ -446,17 +445,17 @@ const Export = (() => {
               const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
               typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
             }
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            const fmtNotes = notes.map((n, i) => `<b>${esc(n)}</b><font color="#999999" size="1">(${esc(deg[i] || '')})</font>`).join(', ');
             t += `<tr>`;
-            // 도수 column
+            // 코드 column: 도수 작게 + 코드명
+            let chordCell = '';
             if (hasKey) {
               const info = getScaleDegreeInfo(name, metadata.key);
-              const roman = info ? info.roman : '';
-              t += isCompact
-                ? `<td align="center"><font size="2">${esc(roman)}</font></td>`
-                : `<td align="center">${esc(roman)}</td>`;
+              if (info) chordCell += `<font color="#888888" size="1">${esc(info.roman)}</font><br>`;
             }
-            // 코드 column
-            const chordCell = `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
+            chordCell += `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
             t += isCompact
               ? `<td align="center"><font size="2">${chordCell}</font></td>`
               : `<td align="center">${chordCell}</td>`;
@@ -464,10 +463,14 @@ const Export = (() => {
             t += isCompact
               ? `<td align="center"><font color="#888888" size="2">${esc(typeName)}</font></td>`
               : `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
+            // 구성음 column
+            t += isCompact
+              ? `<td align="center"><font size="2">${fmtNotes}</font></td>`
+              : `<td align="center">${fmtNotes}</td>`;
             t += `</tr>`;
           });
           if (gi < groups.length - 1) {
-            t += `<tr><td colspan="${colCount}" bgcolor="#eef2f7">&nbsp;</td></tr>`;
+            t += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
           }
         });
         t += `</table>`;
