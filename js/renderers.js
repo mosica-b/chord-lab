@@ -563,7 +563,7 @@ const Renderers = (() => {
   }
 
   function drawPianoKeyboard(container, highlightNotes, chordName) {
-    // Draw 2 octaves (C to B x2) to avoid inversion issues
+    // Draw 3 octaves (C to B x3) for tension chords (9th, 11th, 13th)
     const whiteKeysOneOctave = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const blackKeysOneOctave = [
       { note: 'C#', pos: 0 },
@@ -573,11 +573,12 @@ const Renderers = (() => {
       { note: 'A#', pos: 5 },
     ];
 
-    // Build 2-octave key layout
-    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave];
+    // Build 3-octave key layout
+    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave, ...whiteKeysOneOctave];
     const blackKeys = [
       ...blackKeysOneOctave,
       ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 7 })),
+      ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 14 })),
     ];
 
     const keyWidth = 18;
@@ -607,23 +608,24 @@ const Renderers = (() => {
     const noteOrder = MusicTheory.NOTE_NAMES;
     const rootIdx = normalizedHighlight.length > 0 ? noteOrder.indexOf(normalizedHighlight[0]) : 0;
 
-    // Build highlight set with octave position (0=first octave, 1=second)
+    // Build highlight set with octave position (0=first, 1=second, 2=third)
     const highlightPositions = new Set();
     if (normalizedHighlight.length > 0) {
       let prevIdx = -1;
       let octave = 0;
       normalizedHighlight.forEach((note, i) => {
         const idx = noteOrder.indexOf(note);
-        if (i > 0 && idx <= prevIdx) octave = 1;
+        if (i > 0 && idx <= prevIdx) octave++;
+        if (octave > 2) octave = 2;
         highlightPositions.add(`${note}-${octave}`);
         prevIdx = idx;
       });
     }
 
-    // Draw white keys (2 octaves)
+    // Draw white keys (3 octaves)
     whiteKeys.forEach((note, i) => {
       const x = i * keyWidth + 1;
-      const octave = i < 7 ? 0 : 1;
+      const octave = Math.floor(i / 7);
       const isHighlighted = highlightPositions.has(`${note}-${octave}`);
 
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -646,10 +648,10 @@ const Renderers = (() => {
       }
     });
 
-    // Draw black keys (2 octaves)
+    // Draw black keys (3 octaves)
     blackKeys.forEach(({ note, pos }) => {
       const x = (pos + 1) * keyWidth - blackKeyWidth / 2 + 1;
-      const octave = pos < 7 ? 0 : 1;
+      const octave = Math.floor(pos / 7);
       const normalizedNote = MusicTheory.normalizeNote(note);
       const isHighlighted = highlightPositions.has(`${normalizedNote}-${octave}`);
 
