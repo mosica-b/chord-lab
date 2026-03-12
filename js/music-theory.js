@@ -11,6 +11,22 @@ const MusicTheory = (() => {
     'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
   };
 
+  // Letter names and their natural semitone values (for theory-correct spelling)
+  const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const LETTER_TO_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+  // Scale degree numbers for each chord type (determines which letter name each note uses)
+  // e.g., degree 7 → 7th letter from root, so C7's ♭7 = B♭ (not A#)
+  const CHORD_DEGREE_NUMS = {
+    'major': [1,3,5], 'minor': [1,3,5], 'dim': [1,3,5], 'aug': [1,3,5],
+    '7': [1,3,5,7], 'm7': [1,3,5,7], 'maj7': [1,3,5,7], 'dim7': [1,3,5,7],
+    'm7b5': [1,3,5,7], 'sus2': [1,2,5], 'sus4': [1,4,5],
+    '6': [1,3,5,6], 'm6': [1,3,5,6],
+    '9': [1,3,5,7,9], 'm9': [1,3,5,7,9], 'maj9': [1,3,5,7,9], 'add9': [1,3,5,9],
+    '7sus4': [1,4,5,7], '11': [1,3,5,7,9,11], '13': [1,3,5,7,9,13],
+    '5': [1,5], 'aug7': [1,3,5,7],
+  };
+
   // Standard tunings
   const GUITAR_TUNING = [
     { note: 'E', octave: 2 },  // 6th string (low)
@@ -189,19 +205,68 @@ const MusicTheory = (() => {
   }
 
   /**
-   * Get display-friendly chord notes
-   * Uses flats for flat keys
+   * Spell a single chord note correctly based on music theory (tertian stacking).
+   * Each interval degree uses the correct letter name from the root.
+   * e.g., C7's ♭7 → B♭ (not A#), because the 7th letter from C is B.
+   */
+  function spellChordNote(rootLetter, rootSemitone, intervalSemitone, degreeNum) {
+    const rootLetterIdx = LETTERS.indexOf(rootLetter);
+    const letterOffset = (degreeNum - 1) % 7;
+    const targetLetter = LETTERS[(rootLetterIdx + letterOffset) % 7];
+    const targetSemitone = (rootSemitone + intervalSemitone) % 12;
+    const naturalSemitone = LETTER_TO_SEMITONE[targetLetter];
+    const diff = (targetSemitone - naturalSemitone + 12) % 12;
+
+    let accidental = '';
+    if (diff === 1) accidental = '#';
+    else if (diff === 11) accidental = 'b';
+    else if (diff === 2) accidental = '##';
+    else if (diff === 10) accidental = 'bb';
+
+    return targetLetter + accidental;
+  }
+
+  /**
+   * Get display-friendly chord notes with theory-correct spelling.
+   * Uses proper enharmonic names based on interval stacking (thirds).
+   * e.g., C7 → ["C", "E", "G", "Bb"]  (not A#)
+   *        F7 → ["F", "A", "C", "Eb"]  (not D#)
    */
   function getChordNotesDisplay(chordName) {
-    const notes = getChordNotes(chordName);
     const parsed = parseChordName(chordName);
-    if (!parsed) return notes;
+    if (!parsed) return [];
 
-    // Use flats if the root uses a flat
-    const useFlats = parsed.root.includes('b');
-    if (useFlats) {
-      return notes.map(n => ENHARMONIC[n] || n);
+    const rootIdx = noteIndex(parsed.root);
+    if (rootIdx < 0) return [];
+
+    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
+    const intervals = CHORD_INTERVALS[intervalKey];
+    const degreeNums = CHORD_DEGREE_NUMS[intervalKey];
+    if (!intervals) return [];
+
+    // Fallback if degree nums not defined for this chord type
+    if (!degreeNums) {
+      const notes = intervals.map(i => NOTE_NAMES[(rootIdx + i) % 12]);
+      if (parsed.root.includes('b')) return notes.map(n => ENHARMONIC[n] || n);
+      return notes;
     }
+
+    const rootLetter = parsed.root[0];
+    let notes = intervals.map((interval, i) =>
+      spellChordNote(rootLetter, rootIdx, interval, degreeNums[i])
+    );
+
+    // Handle slash chord: put bass note first (inversion)
+    if (parsed.bassNote) {
+      const bassNorm = normalizeNote(parsed.bassNote);
+      const bassIdx = notes.findIndex(n => normalizeNote(n) === bassNorm);
+      if (bassIdx > 0) {
+        notes = [...notes.slice(bassIdx), ...notes.slice(0, bassIdx)];
+      } else if (bassIdx < 0) {
+        notes = [parsed.bassNote, ...notes];
+      }
+    }
+
     return notes;
   }
 
