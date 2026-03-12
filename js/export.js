@@ -138,7 +138,7 @@ const Export = (() => {
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
         const h = document.createElement('h3');
-        h.innerHTML = `${esc(title)}&nbsp;&nbsp;<a href="${viewerBase}?chords=${encodeURIComponent(chordList.join(','))}" target="_blank" style="font-size:13px;font-weight:500;color:#2563eb;text-decoration:none;">▶ 보기 🎹</a>`;
+        h.textContent = title;
         section.appendChild(h);
 
         const table = document.createElement('table');
@@ -234,6 +234,12 @@ const Export = (() => {
           keyLabel.textContent = `* ${primaryKey(metadata.key)} Key 기준`;
           section.appendChild(keyLabel);
         }
+
+        // View link below table
+        const viewLink = document.createElement('p');
+        viewLink.style.margin = '8px 0 0 0';
+        viewLink.innerHTML = `<a href="${viewerBase}?chords=${encodeURIComponent(chordList.join(','))}" target="_blank" style="color:#2563eb;text-decoration:none;font-size:13px;font-weight:500;">▶ ${esc(title)} 전체 보기 🎹</a>`;
+        section.appendChild(viewLink);
 
         return section;
       }
@@ -589,19 +595,21 @@ const Export = (() => {
       // Primary chords
       if (basicChords.length > 0) {
         const basicViewUrl = `${viewerBase}?chords=${encodeURIComponent(basicChords.join(','))}`;
-        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>&nbsp;&nbsp;<a href="${basicViewUrl}"><font color="#2563eb" size="2">▶ 보기 🎹</font></a>`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
+        html += `<p style="margin:8px 0 0 0;"><a href="${basicViewUrl}"><font color="#2563eb" size="2"><b>▶ 주요 코드 전체 보기 🎹</b></font></a></p>`;
       }
 
       // Advanced chords
       if (advancedChords.length > 0) {
         const advViewUrl = `${viewerBase}?chords=${encodeURIComponent(advancedChords.join(','))}`;
-        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>&nbsp;&nbsp;<a href="${advViewUrl}"><font color="#2563eb" size="2">▶ 보기 🎹</font></a>`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
+        html += `<p style="margin:8px 0 0 0;"><a href="${advViewUrl}"><font color="#2563eb" size="2"><b>▶ 심화 코드 전체 보기 🎹</b></font></a></p>`;
       }
     }
 
