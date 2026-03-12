@@ -269,7 +269,7 @@ const ChordAudio = (() => {
       if (notes.length === 0) { resolve(); return; }
 
       const now = ctx.currentTime;
-      let currentOctave = inst === 'guitar' ? 3 : 4;
+      let currentOctave = (inst === 'guitar' || inst === 'piano') ? 3 : 4;
 
       notes.forEach((note, i) => {
         if (i > 0) {

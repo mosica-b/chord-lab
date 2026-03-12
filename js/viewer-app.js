@@ -324,14 +324,14 @@ const ViewerApp = (() => {
       if (ChordAudio.getIsPlaying()) {
         ChordAudio.stopPlayback();
         btn.classList.remove('playing');
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
         // Remove highlight from all cards
         document.querySelectorAll('.chord-card').forEach(c => c.style.outline = '');
         return;
       }
 
       btn.classList.add('playing');
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
 
       await ChordAudio.playChordSequence(chords, 2.0, (name, idx) => {
         // Highlight current card
@@ -344,7 +344,7 @@ const ViewerApp = (() => {
       });
 
       btn.classList.remove('playing');
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
       document.querySelectorAll('.chord-card').forEach(c => c.style.outline = '');
     });
   }
