@@ -79,107 +79,53 @@ const Export = (() => {
         '7sus4': '7서스 4', 'aug7': '어그먼트 7', '5': '파워 코드',
       };
 
-      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
+      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
+      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const hasKey = !!metadata.key;
+      const colCount = hasKey ? 4 : 3;
 
-      // 2a. Basic triads table
-      if (basicChords.length > 0) {
-        const basicSection = document.createElement('div');
-        basicSection.style.marginBottom = '20px';
-        const basicTitle = document.createElement('h3');
-        basicTitle.textContent = '주요 화음';
-        basicSection.appendChild(basicTitle);
+      // Helper: build a chord table section
+      function buildChordTable(title, chordList, isCompact) {
+        const section = document.createElement('div');
+        section.style.marginBottom = '20px';
+        const h = document.createElement('h3');
+        h.textContent = title;
+        section.appendChild(h);
 
         const table = document.createElement('table');
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        ['코드', '타입', '구성음'].forEach(text => {
+        const headers = hasKey ? ['도수', '코드', '타입', '구성음'] : ['코드', '타입', '구성음'];
+        headers.forEach(text => {
           const th = document.createElement('th');
           th.textContent = text;
+          if (isCompact) th.style.fontSize = '13px';
           headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
         const tbody = document.createElement('tbody');
-        const groups = groupChordsByFamily(basicChords);
+        const groups = groupChordsByFamily(chordList);
         groups.forEach((group, gi) => {
           group.chords.forEach(name => {
             const row = document.createElement('tr');
-            const tdName = document.createElement('td');
-            tdName.style.fontWeight = '600';
-            const chordLink = document.createElement('a');
-            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-            chordLink.target = '_blank';
-            chordLink.style.color = '#2563eb';
-            chordLink.style.textDecoration = 'none';
-            chordLink.textContent = `${name} ▶`;
-            tdName.appendChild(chordLink);
-            row.appendChild(tdName);
+            const fs = isCompact ? '12px' : '14px';
 
-            const tdType = document.createElement('td');
-            tdType.style.fontSize = '13px';
-            tdType.style.color = '#666';
-            const parsed = MusicTheory.parseChordName(name);
-            if (parsed) {
-              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-              tdType.textContent = typeNames[intervalKey] || parsed.suffix || '메이저';
+            // Roman numeral column
+            if (hasKey) {
+              const tdDeg = document.createElement('td');
+              tdDeg.style.textAlign = 'center';
+              tdDeg.style.fontWeight = '600';
+              tdDeg.style.fontSize = isCompact ? '12px' : '14px';
+              tdDeg.style.color = '#555';
+              const info = getScaleDegreeInfo(name, metadata.key);
+              tdDeg.textContent = info ? info.roman : '';
+              row.appendChild(tdDeg);
             }
-            row.appendChild(tdType);
 
-            const tdNotes = document.createElement('td');
-            const notes = MusicTheory.getChordNotesDisplay(name);
-            const degrees = MusicTheory.getChordDegreeLabels(name);
-            tdNotes.innerHTML = `<b>${notes.map((n, i) => `${esc(n)}<span style="color:#999;font-size:11px;">(${esc(degrees[i] || '')})</span>`).join(', ')}</b>`;
-            row.appendChild(tdNotes);
-
-            tbody.appendChild(row);
-          });
-          if (gi < groups.length - 1) {
-            const sep = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = 3;
-            td.style.height = '6px';
-            td.style.padding = '0';
-            td.style.borderLeft = 'none';
-            td.style.borderRight = 'none';
-            td.style.background = '#f0f4f8';
-            sep.appendChild(td);
-            tbody.appendChild(sep);
-          }
-        });
-        table.appendChild(tbody);
-        basicSection.appendChild(table);
-        preview.appendChild(basicSection);
-      }
-
-      // 2b. Advanced chords (compact table)
-      if (advancedChords.length > 0) {
-        const advSection = document.createElement('div');
-        advSection.style.marginBottom = '20px';
-        const advTitle = document.createElement('h3');
-        advTitle.textContent = '심화 코드';
-        advSection.appendChild(advTitle);
-
-        const table = document.createElement('table');
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        ['코드', '타입', '구성음'].forEach(text => {
-          const th = document.createElement('th');
-          th.textContent = text;
-          th.style.fontSize = '13px';
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-
-        const tbody = document.createElement('tbody');
-        const advGroups = groupChordsByFamily(advancedChords);
-        advGroups.forEach((group, gi) => {
-          group.chords.forEach(name => {
-            const row = document.createElement('tr');
             const tdName = document.createElement('td');
-            tdName.style.fontSize = '13px';
+            tdName.style.fontSize = fs;
             const chordLink = document.createElement('a');
             chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
             chordLink.target = '_blank';
@@ -191,8 +137,8 @@ const Export = (() => {
             row.appendChild(tdName);
 
             const tdType = document.createElement('td');
-            tdType.style.fontSize = '12px';
-            tdType.style.color = '#888';
+            tdType.style.fontSize = isCompact ? '12px' : '13px';
+            tdType.style.color = isCompact ? '#888' : '#666';
             const parsed = MusicTheory.parseChordName(name);
             if (parsed) {
               const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
@@ -201,25 +147,25 @@ const Export = (() => {
             row.appendChild(tdType);
 
             const tdNotes = document.createElement('td');
-            tdNotes.style.fontSize = '12px';
+            tdNotes.style.fontSize = isCompact ? '12px' : '14px';
             const notes = MusicTheory.getChordNotesDisplay(name);
             const degrees = MusicTheory.getChordDegreeLabels(name);
             const triad = notes.slice(0, 3);
             const triadDeg = degrees.slice(0, 3);
             const ext = notes.slice(3);
             const extDeg = degrees.slice(3);
-            const fmtTriad = triad.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:10px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
-            const fmtExt = ext.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:10px;">(${esc(extDeg[i] || '')})</span>`).join(', ');
+            const fmtTriad = triad.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
+            const fmtExt = ext.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(extDeg[i] || '')})</span>`).join(', ');
             tdNotes.innerHTML = ext.length > 0 ? `${fmtTriad}, ${fmtExt}` : fmtTriad;
             row.appendChild(tdNotes);
 
             tbody.appendChild(row);
           });
-          if (gi < advGroups.length - 1) {
+          if (gi < groups.length - 1) {
             const sep = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 3;
-            td.style.height = '4px';
+            td.colSpan = colCount;
+            td.style.height = isCompact ? '4px' : '6px';
             td.style.padding = '0';
             td.style.borderLeft = 'none';
             td.style.borderRight = 'none';
@@ -229,8 +175,26 @@ const Export = (() => {
           }
         });
         table.appendChild(tbody);
-        advSection.appendChild(table);
-        preview.appendChild(advSection);
+        section.appendChild(table);
+
+        // Key label
+        if (hasKey) {
+          const keyLabel = document.createElement('p');
+          keyLabel.style.fontSize = '12px';
+          keyLabel.style.color = '#999';
+          keyLabel.style.margin = '6px 0 0 0';
+          keyLabel.textContent = `* ${metadata.key} Key 기준`;
+          section.appendChild(keyLabel);
+        }
+
+        return section;
+      }
+
+      if (basicChords.length > 0) {
+        preview.appendChild(buildChordTable('주요 화음', basicChords, false));
+      }
+      if (advancedChords.length > 0) {
+        preview.appendChild(buildChordTable('심화 코드', advancedChords, true));
       }
     }
 
@@ -454,19 +418,27 @@ const Export = (() => {
       html += chordLine + `<br>`;
     }
 
-    // Chord notes table - split into basic triads and advanced
+    // Chord notes table - split into primary and advanced, sorted by degree
     if (chords.length > 0) {
-      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
+      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
+      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const hasKey = !!metadata.key;
+      const colCount = hasKey ? 4 : 3;
 
-      // Basic triads
-      if (basicChords.length > 0) {
-        html += `<br><font size="4"><b>주요 화음</b></font><br>`;
-        html += `━━━━━━━━━━━━━━━━━━━━<br>`;
-        html += `<table width="100%" border="1" cellpadding="10" cellspacing="0">`;
-        html += `<tr bgcolor="#f0f0f0"><td align="center"><b>코드</b></td><td align="center"><b>타입</b></td><td align="center"><b>구성음</b></td></tr>`;
-        const bGroups = groupChordsByFamily(basicChords);
-        bGroups.forEach((group, gi) => {
+      // Helper: build Naver-compatible chord table
+      function buildNaverTable(chordList, isCompact) {
+        let t = '';
+        const pad = isCompact ? '6' : '10';
+        const sz = isCompact ? '2' : null;
+        t += `<table width="100%" border="1" cellpadding="${pad}" cellspacing="0">`;
+        const headerCells = hasKey ? ['도수', '코드', '타입', '구성음'] : ['코드', '타입', '구성음'];
+        t += `<tr bgcolor="#f0f0f0">`;
+        headerCells.forEach(h => {
+          t += sz ? `<td align="center"><font size="${sz}"><b>${h}</b></font></td>` : `<td align="center"><b>${h}</b></td>`;
+        });
+        t += `</tr>`;
+        const groups = groupChordsByFamily(chordList);
+        groups.forEach((group, gi) => {
           group.chords.forEach(name => {
             const notes = MusicTheory.getChordNotesDisplay(name);
             const deg = MusicTheory.getChordDegreeLabels(name);
@@ -478,48 +450,47 @@ const Export = (() => {
               typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
             }
             const fmtNotes = notes.map((n, i) => `<b>${esc(n)}</b><font color="#999999" size="1">(${esc(deg[i] || '')})</font>`).join(', ');
-            html += `<tr>`;
-            html += `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
-            html += `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
-            html += `<td align="center">${fmtNotes}</td>`;
-            html += `</tr>`;
+            t += `<tr>`;
+            if (hasKey) {
+              const info = getScaleDegreeInfo(name, metadata.key);
+              const roman = info ? info.roman : '';
+              t += isCompact
+                ? `<td align="center"><font size="2"><b>${esc(roman)}</b></font></td>`
+                : `<td align="center"><b>${esc(roman)}</b></td>`;
+            }
+            t += isCompact
+              ? `<td align="center"><font size="2"><a href="${chordUrl}"><b>${esc(name)} ▶</b></a></font></td>`
+              : `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
+            t += isCompact
+              ? `<td align="center"><font color="#888888" size="2">${esc(typeName)}</font></td>`
+              : `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
+            t += isCompact
+              ? `<td align="center"><font size="2">${fmtNotes}</font></td>`
+              : `<td align="center">${fmtNotes}</td>`;
+            t += `</tr>`;
           });
-          if (gi < bGroups.length - 1) {
-            html += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
+          if (gi < groups.length - 1) {
+            t += `<tr><td colspan="${colCount}" bgcolor="#eef2f7">&nbsp;</td></tr>`;
           }
         });
-        html += `</table>`;
+        t += `</table>`;
+        if (hasKey) {
+          t += `<font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font><br>`;
+        }
+        return t;
+      }
+
+      // Primary chords
+      if (basicChords.length > 0) {
+        html += `<br><font size="4"><b>주요 화음</b></font><br>`;
+        html += `━━━━━━━━━━━━━━━━━━━━<br>`;
+        html += buildNaverTable(basicChords, false);
       }
 
       // Advanced chords
       if (advancedChords.length > 0) {
         html += `<br><font size="3"><b>심화 코드</b></font><br>`;
-        html += `<table width="100%" border="1" cellpadding="6" cellspacing="0">`;
-        html += `<tr bgcolor="#f0f0f0"><td align="center"><font size="2"><b>코드</b></font></td><td align="center"><font size="2"><b>타입</b></font></td><td align="center"><font size="2"><b>구성음</b></font></td></tr>`;
-        const aGroups = groupChordsByFamily(advancedChords);
-        aGroups.forEach((group, gi) => {
-          group.chords.forEach(name => {
-            const notes = MusicTheory.getChordNotesDisplay(name);
-            const deg = MusicTheory.getChordDegreeLabels(name);
-            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-            const parsed = MusicTheory.parseChordName(name);
-            let typeName = '';
-            if (parsed) {
-              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-              typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
-            }
-            const fmtNotes = notes.map((n, i) => `<b>${esc(n)}</b><font color="#999999" size="1">(${esc(deg[i] || '')})</font>`).join(', ');
-            html += `<tr>`;
-            html += `<td align="center"><font size="2"><a href="${chordUrl}"><b>${esc(name)} ▶</b></a></font></td>`;
-            html += `<td align="center"><font color="#888888" size="2">${esc(typeName)}</font></td>`;
-            html += `<td align="center"><font size="2">${fmtNotes}</font></td>`;
-            html += `</tr>`;
-          });
-          if (gi < aGroups.length - 1) {
-            html += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
-          }
-        });
-        html += `</table>`;
+        html += buildNaverTable(advancedChords, true);
       }
     }
 
@@ -613,35 +584,44 @@ const Export = (() => {
     }
 
     if (chords.length > 0) {
-      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
+      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
+      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const hasKey = !!metadata.key;
+
+      function buildPlainTable(chordList) {
+        let t = '';
+        const groups = groupChordsByFamily(chordList);
+        groups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            const notesStr = notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ');
+            if (hasKey) {
+              const info = getScaleDegreeInfo(name, metadata.key);
+              const roman = info ? info.roman : '';
+              t += `${roman.padEnd(8)}${name.padEnd(10)}${notesStr}\n`;
+            } else {
+              t += `${name.padEnd(10)}${notesStr}\n`;
+            }
+          });
+          if (gi < groups.length - 1) t += '\n';
+        });
+        if (hasKey) {
+          t += `* ${metadata.key} Key 기준\n`;
+        }
+        return t;
+      }
 
       if (basicChords.length > 0) {
         text += `\n주요 화음\n`;
         text += `${'─'.repeat(30)}\n`;
-        const bGroups = groupChordsByFamily(basicChords);
-        bGroups.forEach((group, gi) => {
-          group.chords.forEach(name => {
-            const notes = MusicTheory.getChordNotesDisplay(name);
-            const deg = MusicTheory.getChordDegreeLabels(name);
-            text += `${name.padEnd(10)}${notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ')}\n`;
-          });
-          if (gi < bGroups.length - 1) text += '\n';
-        });
+        text += buildPlainTable(basicChords);
       }
 
       if (advancedChords.length > 0) {
         text += `\n심화 코드\n`;
         text += `${'─'.repeat(30)}\n`;
-        const aGroups = groupChordsByFamily(advancedChords);
-        aGroups.forEach((group, gi) => {
-          group.chords.forEach(name => {
-            const notes = MusicTheory.getChordNotesDisplay(name);
-            const deg = MusicTheory.getChordDegreeLabels(name);
-            text += `${name.padEnd(10)}${notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ')}\n`;
-          });
-          if (gi < aGroups.length - 1) text += '\n';
-        });
+        text += buildPlainTable(advancedChords);
       }
 
       const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
@@ -668,6 +648,61 @@ const Export = (() => {
     }
 
     return text;
+  }
+
+  /**
+   * Get scale degree info for a chord relative to a key
+   * e.g., "E7" in key "A" → { semitones: 7, roman: "V7" }
+   */
+  function getScaleDegreeInfo(chordName, key) {
+    if (!key) return null;
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed) return null;
+
+    const keyRoot = key.endsWith('m') ? key.slice(0, -1) : key;
+    const keyIdx = MusicTheory.noteIndex(keyRoot);
+    const chordIdx = MusicTheory.noteIndex(parsed.root);
+    if (keyIdx < 0 || chordIdx < 0) return null;
+
+    const semitones = ((chordIdx - keyIdx) % 12 + 12) % 12;
+
+    const suffix = parsed.suffix === 'major' ? '' : (parsed.suffix || '');
+    const intervalKey = MusicTheory.SUFFIX_MAP[suffix] || MusicTheory.SUFFIX_MAP[suffix.toLowerCase()] || 'major';
+
+    const minorQualities = new Set(['minor', 'm7', 'm6', 'dim', 'dim7', 'm7b5', 'm9']);
+    const isMinor = minorQualities.has(intervalKey);
+
+    const romanUpper = ['I','♭II','II','♭III','III','IV','♯IV','V','♭VI','VI','♭VII','VII'];
+    const romanLower = ['i','♭ii','ii','♭iii','iii','iv','♯iv','v','♭vi','vi','♭vii','vii'];
+
+    let roman = isMinor ? romanLower[semitones] : romanUpper[semitones];
+
+    if (intervalKey === 'dim' || intervalKey === 'dim7') roman += '°';
+    else if (intervalKey === 'm7b5') roman += 'ø';
+    else if (intervalKey === 'aug' || intervalKey === 'aug7') roman += '+';
+
+    const extMap = {
+      '7': '7', 'm7': '7', 'maj7': 'M7', 'dim7': '7', 'm7b5': '7',
+      '6': '6', 'm6': '6', '9': '9', 'm9': '9', 'maj9': 'M9',
+      'add9': 'add9', '7sus4': '7sus4', '11': '11', '13': '13',
+      'aug7': '7', 'sus2': 'sus2', 'sus4': 'sus4', '5': '5',
+    };
+    if (extMap[intervalKey]) roman += extMap[intervalKey];
+
+    return { semitones, roman };
+  }
+
+  /**
+   * Sort chords by scale degree (ascending from 1 to 7)
+   */
+  function sortByScaleDegree(chords, key) {
+    if (!key) return chords;
+    return [...chords].sort((a, b) => {
+      const aInfo = getScaleDegreeInfo(a, key);
+      const bInfo = getScaleDegreeInfo(b, key);
+      if (!aInfo || !bInfo) return 0;
+      return aInfo.semitones - bInfo.semitones;
+    });
   }
 
   /**
