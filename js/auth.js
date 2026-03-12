@@ -136,8 +136,6 @@ const Auth = (() => {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appContent').classList.remove('hidden');
     document.getElementById('appHeader').classList.remove('hidden');
-    const modal = document.getElementById('notationModal');
-    if (modal) modal.classList.remove('hidden');
     App.init();
   }
 
@@ -145,8 +143,6 @@ const Auth = (() => {
     document.getElementById('loginSection').classList.remove('hidden');
     document.getElementById('appContent').classList.add('hidden');
     document.getElementById('appHeader').classList.add('hidden');
-    const modal = document.getElementById('notationModal');
-    if (modal) modal.classList.add('hidden');
   }
 
   /* ── Lockout countdown ── */
