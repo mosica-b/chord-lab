@@ -60,7 +60,7 @@ const Export = (() => {
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
         let chordsHtml = basicLinks;
         if (advanced.length > 0) {
-          chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[심화 코드 보기]</a>`;
+          chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">▶ 전체 코드 보기</a>`;
         }
         allTableRows.push({ label: '사용 코드', valueHtml: chordsHtml });
       }
@@ -306,26 +306,6 @@ const Export = (() => {
       preview.appendChild(placeholderSection);
     }
 
-    // 5. Links (viewer only - streaming links are in info table)
-    if (chords.length > 0) {
-      const linksSection = document.createElement('div');
-      linksSection.style.marginTop = '20px';
-
-      const linksTitle = document.createElement('p');
-      linksTitle.style.fontWeight = '600';
-      linksTitle.style.marginBottom = '8px';
-      linksTitle.textContent = '관련 링크';
-      linksSection.appendChild(linksTitle);
-
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      const p = document.createElement('p');
-      p.style.margin = '4px 0';
-      p.style.fontSize = '14px';
-      p.innerHTML = `▶ <a href="${allUrl}" target="_blank" style="color:#2563eb;text-decoration:none;">코드 재생/표기 보기</a>`;
-      linksSection.appendChild(p);
-
-      preview.appendChild(linksSection);
-    }
   }
 
   function createNotationSection(title) {
@@ -428,7 +408,7 @@ const Export = (() => {
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
         let chordsValue = basicLinks;
         if (nAdvanced.length > 0) {
-          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}">[심화 코드 보기]</a>`;
+          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}">▶ 전체 코드 보기</a>`;
         }
         extraRows.push({ label: '사용 코드', value: chordsValue });
       }
@@ -568,12 +548,6 @@ const Export = (() => {
       html += `<br><font color="#999999">※ 코드 표기 이미지는 아래에 첨부</font><br>`;
     }
 
-    // Chord viewer link
-    if (chords.length > 0) {
-      html += `<blockquote><font size="4"><b>관련 링크</b></font></blockquote>`;
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      html += `▶ <a href="${allUrl}">코드 재생/표기 보기</a><br>`;
-    }
 
     return html;
   }
