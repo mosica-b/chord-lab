@@ -155,16 +155,7 @@ const ViewerApp = (() => {
           b.classList.toggle('active', parseInt(b.dataset.capo, 10) === capoPosition);
         });
         renderCards();
-        // Close top accordion after capo selection
-        const topBody = document.getElementById('topAccordionBody');
-        const topToggle = document.getElementById('topAccordionToggle');
-        const topHint = document.getElementById('topAccordionHint');
-        if (topBody) {
-          topBody.classList.remove('open');
-          if (topToggle) topToggle.classList.remove('open');
-          if (topHint) topHint.textContent = '열기';
-        }
-        // Close FAB accordion after capo selection
+        // Close FAB accordion after capo selection (top accordion stays as-is)
         const fabAccordion = document.getElementById('fabAccordion');
         if (fabAccordion) fabAccordion.classList.add('hidden');
       });
