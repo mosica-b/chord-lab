@@ -120,7 +120,7 @@ const SongDB = (() => {
         <div class="db-result-item" data-id="${s.id}">
           <div>
             <div class="db-result-title">${escapeHtml(s.song_name)}</div>
-            <div class="db-result-meta">${escapeHtml(s.artist || '아티스트 없음')}${s.key_signature ? ' · ' + s.key_signature : ''}</div>
+            <div class="db-result-meta">${escapeHtml(s.artist || '아티스트 없음')}${s.album_name ? ' · ' + escapeHtml(s.album_name) : ''}${s.key_signature ? ' · ' + s.key_signature : ''}</div>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-400">${date}</span>
