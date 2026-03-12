@@ -25,6 +25,7 @@ const Export = (() => {
     const title = document.createElement('h3');
     title.textContent = metadata.songName || '곡명 없음';
     infoSection.appendChild(title);
+    infoSection.appendChild(document.createElement('hr'));
 
     const infoRows = [
       { label: '아티스트', value: metadata.artist },
@@ -234,10 +235,13 @@ const Export = (() => {
       }
 
       if (basicChords.length > 0) {
+        preview.appendChild(document.createElement('hr'));
         preview.appendChild(buildChordTable('주요 화음', basicChords, false));
       }
       if (advancedChords.length > 0) {
+        preview.appendChild(document.createElement('hr'));
         preview.appendChild(buildChordTable('심화 코드', advancedChords, true));
+        preview.appendChild(document.createElement('hr'));
       }
     }
 
@@ -380,6 +384,7 @@ const Export = (() => {
       html += `<font size="5"><b>${esc(metadata.songName)}</b></font>`;
     }
     html += `</blockquote>`;
+    html += `<hr>`;
 
     // Song info table (outside blockquote)
     const infoRows = [
@@ -503,6 +508,7 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
+        html += `<hr>`;
         html += `<blockquote><font size="4"><b>주요 화음</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
@@ -511,10 +517,12 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
+        html += `<hr>`;
         html += `<blockquote><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
+        html += `<hr>`;
       }
     }
 
