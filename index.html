@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Song & Chord Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+      <h1 class="text-2xl font-bold text-gray-800">Song & Chord Lab</h1>
+      <p class="text-sm text-gray-500">네이버 블로그용 곡 정보 & 코드 표기 생성기</p>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <!-- 1. Song Metadata -->
+    <section class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">곡 정보</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">곡명</label>
+          <input type="text" id="songName" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="곡명을 입력하세요">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">아티스트</label>
+          <input type="text" id="artist" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="아티스트명">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">앨범명</label>
+          <input type="text" id="albumName" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="앨범명">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">템포 (BPM)</label>
+          <input type="number" id="tempo" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="120" min="20" max="300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">키 (Key)</label>
+          <select id="songKey" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">선택</option>
+            <option>C</option><option>C#</option><option>Db</option>
+            <option>D</option><option>D#</option><option>Eb</option>
+            <option>E</option><option>F</option><option>F#</option>
+            <option>Gb</option><option>G</option><option>G#</option>
+            <option>Ab</option><option>A</option><option>A#</option>
+            <option>Bb</option><option>B</option>
+            <option>Cm</option><option>C#m</option><option>Dm</option>
+            <option>D#m</option><option>Ebm</option><option>Em</option>
+            <option>Fm</option><option>F#m</option><option>Gm</option>
+            <option>G#m</option><option>Am</option><option>A#m</option>
+            <option>Bbm</option><option>Bm</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">카포 (Capo)</label>
+          <select id="capoPosition" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="0">카포 없음</option>
+            <option value="1">1프렛</option><option value="2">2프렛</option>
+            <option value="3">3프렛</option><option value="4">4프렛</option>
+            <option value="5">5프렛</option><option value="6">6프렛</option>
+            <option value="7">7프렛</option><option value="8">8프렛</option>
+            <option value="9">9프렛</option><option value="10">10프렛</option>
+            <option value="11">11프렛</option><option value="12">12프렛</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Chord Selection -->
+    <section class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">사용 코드</h2>
+      <div class="flex gap-2 mb-4">
+        <div class="relative flex-1">
+          <input type="text" id="chordSearch" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="코드 검색 (예: Am, C, G7, Fmaj7...)">
+          <div id="chordSuggestions" class="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto hidden"></div>
+        </div>
+        <button id="addChordBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition">추가</button>
+      </div>
+      <!-- Quick chord buttons -->
+      <div class="mb-4">
+        <p class="text-xs text-gray-500 mb-2">자주 쓰는 코드:</p>
+        <div id="quickChords" class="flex flex-wrap gap-1">
+        </div>
+      </div>
+      <!-- Selected chords -->
+      <div id="selectedChords" class="flex flex-wrap gap-2 min-h-[40px] p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+        <p id="chordPlaceholder" class="text-sm text-gray-400">코드를 추가해주세요</p>
+      </div>
+    </section>
+
+    <!-- 3. Chord Notes Table -->
+    <section id="chordNotesSection" class="bg-white rounded-lg shadow p-6 hidden">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">코드 구성음</h2>
+      <div id="chordNotesTable"></div>
+    </section>
+
+    <!-- 4. Capo Transposition Table -->
+    <section id="capoSection" class="bg-white rounded-lg shadow p-6 hidden">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">카포 변환표</h2>
+      <div id="capoTable"></div>
+    </section>
+
+    <!-- 5. Notation Rendering -->
+    <section id="notationSection" class="bg-white rounded-lg shadow p-6 hidden">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">코드 표기</h2>
+      <!-- Tab navigation -->
+      <div class="flex border-b mb-4">
+        <button class="notation-tab active px-4 py-2 text-sm font-medium border-b-2" data-tab="staff">오선표기</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="guitar-tab">기타 타브</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="ukulele-tab">우쿨렐레 타브</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="guitar-diagram">기타 다이어그램</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="ukulele-diagram">우쿨렐레 다이어그램</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="piano">피아노</button>
+      </div>
+      <!-- Tab content -->
+      <div id="tab-staff" class="notation-content"></div>
+      <div id="tab-guitar-tab" class="notation-content hidden"></div>
+      <div id="tab-ukulele-tab" class="notation-content hidden"></div>
+      <div id="tab-guitar-diagram" class="notation-content hidden"></div>
+      <div id="tab-ukulele-diagram" class="notation-content hidden"></div>
+      <div id="tab-piano" class="notation-content hidden"></div>
+    </section>
+
+    <!-- 6. Blog Preview -->
+    <section id="previewSection" class="bg-white rounded-lg shadow p-6 hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-700">블로그 미리보기</h2>
+        <div class="flex gap-2">
+          <button id="copyTextBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition">1. 텍스트 복사</button>
+          <button id="downloadOneImageBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition">2. 이미지 다운로드 (1장)</button>
+        </div>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+        <p class="text-xs text-blue-800 font-medium mb-1">네이버 블로그 붙여넣기 방법:</p>
+        <p class="text-xs text-blue-700">① "텍스트 복사" 클릭 → 블로그 에디터에 Ctrl+V (곡 정보 + 표 + 링크)</p>
+        <p class="text-xs text-blue-700">② "이미지 다운로드" 클릭 → 블로그 에디터에서 사진 추가 (오선보+타브+다이어그램+피아노 1장)</p>
+      </div>
+      <div id="blogPreview" class="border-2 border-gray-200 rounded-lg p-6 bg-white" style="max-width: 860px; margin: 0 auto;">
+        <!-- Blog content will be rendered here -->
+      </div>
+    </section>
+  </main>
+
+  <!-- VexFlow 3 (browser UMD build) -->
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@3.0.9/releases/vexflow-min.js"></script>
+  <!-- App scripts -->
+  <script src="js/music-theory.js"></script>
+  <script src="js/chord-db.js"></script>
+  <script src="js/renderers.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+/* Song & Chord Lab - Custom Styles */
+
+/* Notation tab styling */
+.notation-tab {
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.notation-tab:hover {
+  color: #374151;
+}
+
+.notation-tab.active {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Chord chip in selected list */
+.chord-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d4ed8;
+  cursor: default;
+  transition: background 0.2s;
+}
+
+.chord-chip:hover {
+  background: #dbeafe;
+}
+
+.chord-chip .remove-chord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #93c5fd;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  line-height: 1;
+}
+
+.chord-chip .remove-chord:hover {
+  background: #3b82f6;
+}
+
+/* Suggestion dropdown */
+#chordSuggestions .suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+#chordSuggestions .suggestion-item:hover {
+  background: #f3f4f6;
+}
+
+#chordSuggestions .suggestion-item.highlighted {
+  background: #eff6ff;
+}
+
+/* Quick chord button */
+.quick-chord-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #374151;
+}
+
+.quick-chord-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+/* Notation containers */
+.notation-content {
+  min-height: 120px;
+  overflow-x: auto;
+}
+
+.notation-content svg {
+  display: block;
+}
+
+/* Chord diagram grid */
+.diagram-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
+}
+
+.diagram-item {
+  text-align: center;
+}
+
+.diagram-item .chord-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+/* Piano keyboard */
+.piano-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.piano-chord {
+  text-align: center;
+}
+
+.piano-chord .chord-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+/* Blog preview styling */
+#blogPreview {
+  font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  line-height: 1.8;
+}
+
+#blogPreview h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #333;
+}
+
+#blogPreview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+#blogPreview table th {
+  background: #f5f5f5;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  font-weight: 600;
+  text-align: center;
+}
+
+#blogPreview table td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+#blogPreview .info-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+#blogPreview .info-label {
+  font-weight: 600;
+  color: #555;
+  min-width: 70px;
+}
+
+#blogPreview .info-value {
+  color: #1a1a1a;
+}
+
+#blogPreview .links-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+#blogPreview .links-section a {
+  color: #2563eb;
+  text-decoration: none;
+  margin-right: 16px;
+  font-size: 14px;
+}
+
+/* Selection highlight */
+.selection-highlight {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notation-tab {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
