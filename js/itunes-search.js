@@ -55,12 +55,13 @@ const ITunesSearch = (() => {
   async function searchGeniusLyrics(songName, artist) {
     if (!songName) return null;
     const query = `${artist || ''} ${songName}`.trim();
-    const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}`;
+    // Use access_token as query param (works with CORS proxies that don't forward headers)
+    const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}&access_token=${GENIUS_TOKEN}`;
 
-    // Try direct fetch first, then CORS proxy fallback
+    // Try direct fetch first, then allorigins CORS proxy fallback
     const attempts = [
-      () => fetch(geniusApiUrl, { headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` } }),
-      () => fetch(`https://corsproxy.io/?${encodeURIComponent(geniusApiUrl)}`, { headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` } }),
+      () => fetch(geniusApiUrl),
+      () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(geniusApiUrl)}`),
     ];
 
     for (const attempt of attempts) {
