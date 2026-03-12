@@ -44,6 +44,9 @@ const App = (() => {
     // Load saved state from localStorage
     loadState();
 
+    // Initialize DB UI (save/load buttons)
+    if (typeof SongDB !== 'undefined') SongDB.initUI();
+
     console.log('Song & Chord Lab initialized');
   }
 
@@ -761,6 +764,42 @@ const App = (() => {
     }
   }
 
+  /**
+   * Load song data from DB into the app
+   */
+  function loadFromDB(songData) {
+    Object.assign(state.metadata, songData.metadata);
+    state.selectedChords = songData.selectedChords || [];
+    state.capoPosition = songData.capoPosition || 0;
+
+    // Update form fields
+    document.getElementById('songName').value = state.metadata.songName || '';
+    document.getElementById('artist').value = state.metadata.artist || '';
+    document.getElementById('albumName').value = state.metadata.albumName || '';
+    document.getElementById('lyricsIntro').value = state.metadata.lyricsIntro || '';
+    document.getElementById('composer').value = state.metadata.composer || '';
+    document.getElementById('lyricist').value = state.metadata.lyricist || '';
+    document.getElementById('tempo').value = state.metadata.tempo || '';
+    document.getElementById('timeSignature').value = state.metadata.timeSignature || '';
+    const keyVal = state.metadata.key || '';
+    const keySelect = document.getElementById('songKey');
+    if (keyVal && !keySelect.querySelector(`option[value="${keyVal}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = keyVal;
+      opt.textContent = keyVal;
+      keySelect.appendChild(opt);
+    }
+    keySelect.value = keyVal;
+    document.getElementById('capoPosition').value = state.capoPosition;
+
+    // Mark lyrics as auto (came from DB, not manually typed now)
+    _autoLyrics = false;
+
+    renderSelectedChords();
+    saveState();
+    updateAll();
+  }
+
   // Initialization is now called by auth.js after login
-  return { init, state, addChord, removeChord };
+  return { init, state, addChord, removeChord, loadFromDB };
 })();
