@@ -60,15 +60,8 @@ const Export = (() => {
 
     preview.appendChild(infoSection);
 
-    // 2. Chord Notes Table
+    // 2. Chord Notes Table - split into triads and advanced
     if (chords.length > 0) {
-      const notesSection = document.createElement('div');
-      notesSection.style.marginBottom = '20px';
-
-      const notesTitle = document.createElement('h3');
-      notesTitle.textContent = '코드 구성음';
-      notesSection.appendChild(notesTitle);
-
       const typeNames = {
         'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
         '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
@@ -80,78 +73,159 @@ const Export = (() => {
         '7sus4': '7서스 4', 'aug7': '어그먼트 7', '5': '파워 코드',
       };
 
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      ['코드', '타입', '구성음'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
+      const basicChords = chords.filter(c => isTriadChord(c));
+      const advancedChords = chords.filter(c => !isTriadChord(c));
 
-      const tbody = document.createElement('tbody');
-      const groups = groupChordsByFamily(chords);
-      groups.forEach((group, gi) => {
-        group.chords.forEach(name => {
-          const row = document.createElement('tr');
-          const tdName = document.createElement('td');
-          tdName.style.fontWeight = '600';
-          const chordLink = document.createElement('a');
-          chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-          chordLink.target = '_blank';
-          chordLink.style.color = '#2563eb';
-          chordLink.style.textDecoration = 'none';
-          chordLink.textContent = `${name} ▶`;
-          tdName.appendChild(chordLink);
-          row.appendChild(tdName);
+      // 2a. Basic triads table
+      if (basicChords.length > 0) {
+        const basicSection = document.createElement('div');
+        basicSection.style.marginBottom = '20px';
+        const basicTitle = document.createElement('h3');
+        basicTitle.textContent = '기본 3화음';
+        basicSection.appendChild(basicTitle);
 
-          const tdType = document.createElement('td');
-          tdType.style.fontSize = '13px';
-          tdType.style.color = '#666';
-          const parsed = MusicTheory.parseChordName(name);
-          if (parsed) {
-            const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-            tdType.textContent = typeNames[intervalKey] || parsed.suffix || '메이저';
-          }
-          row.appendChild(tdType);
-
-          const tdNotes = document.createElement('td');
-          const notes = MusicTheory.getChordNotesDisplay(name);
-          const degrees = MusicTheory.getChordDegreeLabels(name);
-          const triad = notes.slice(0, 3);
-          const triadDeg = degrees.slice(0, 3);
-          const extensions = notes.slice(3);
-          const extDeg = degrees.slice(3);
-          const fmtTriad = triad.map((n, i) => `${esc(n)}<span style="color:#999;font-size:11px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
-          if (extensions.length > 0) {
-            const fmtExt = extensions.map((n, i) => `${esc(n)}(${esc(extDeg[i] || '')})`).join(', ');
-            tdNotes.innerHTML = `<b>${fmtTriad}</b> <span style="color:#888;font-size:12px;">+${fmtExt}</span>`;
-          } else {
-            tdNotes.innerHTML = `<b>${fmtTriad}</b>`;
-          }
-          row.appendChild(tdNotes);
-
-          tbody.appendChild(row);
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['코드', '타입', '구성음'].forEach(text => {
+          const th = document.createElement('th');
+          th.textContent = text;
+          headerRow.appendChild(th);
         });
-        // Add separator between groups
-        if (gi < groups.length - 1) {
-          const sep = document.createElement('tr');
-          const td = document.createElement('td');
-          td.colSpan = 3;
-          td.style.height = '6px';
-          td.style.padding = '0';
-          td.style.borderLeft = 'none';
-          td.style.borderRight = 'none';
-          td.style.background = '#f0f4f8';
-          sep.appendChild(td);
-          tbody.appendChild(sep);
-        }
-      });
-      table.appendChild(tbody);
-      notesSection.appendChild(table);
-      preview.appendChild(notesSection);
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        const groups = groupChordsByFamily(basicChords);
+        groups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const row = document.createElement('tr');
+            const tdName = document.createElement('td');
+            tdName.style.fontWeight = '600';
+            const chordLink = document.createElement('a');
+            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            chordLink.target = '_blank';
+            chordLink.style.color = '#2563eb';
+            chordLink.style.textDecoration = 'none';
+            chordLink.textContent = `${name} ▶`;
+            tdName.appendChild(chordLink);
+            row.appendChild(tdName);
+
+            const tdType = document.createElement('td');
+            tdType.style.fontSize = '13px';
+            tdType.style.color = '#666';
+            const parsed = MusicTheory.parseChordName(name);
+            if (parsed) {
+              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+              tdType.textContent = typeNames[intervalKey] || parsed.suffix || '메이저';
+            }
+            row.appendChild(tdType);
+
+            const tdNotes = document.createElement('td');
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const degrees = MusicTheory.getChordDegreeLabels(name);
+            tdNotes.innerHTML = `<b>${notes.map((n, i) => `${esc(n)}<span style="color:#999;font-size:11px;">(${esc(degrees[i] || '')})</span>`).join(', ')}</b>`;
+            row.appendChild(tdNotes);
+
+            tbody.appendChild(row);
+          });
+          if (gi < groups.length - 1) {
+            const sep = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.style.height = '6px';
+            td.style.padding = '0';
+            td.style.borderLeft = 'none';
+            td.style.borderRight = 'none';
+            td.style.background = '#f0f4f8';
+            sep.appendChild(td);
+            tbody.appendChild(sep);
+          }
+        });
+        table.appendChild(tbody);
+        basicSection.appendChild(table);
+        preview.appendChild(basicSection);
+      }
+
+      // 2b. Advanced chords (compact table)
+      if (advancedChords.length > 0) {
+        const advSection = document.createElement('div');
+        advSection.style.marginBottom = '20px';
+        const advTitle = document.createElement('h3');
+        advTitle.textContent = '심화 코드';
+        advSection.appendChild(advTitle);
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        ['코드', '타입', '구성음'].forEach(text => {
+          const th = document.createElement('th');
+          th.textContent = text;
+          th.style.fontSize = '13px';
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        const advGroups = groupChordsByFamily(advancedChords);
+        advGroups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const row = document.createElement('tr');
+            const tdName = document.createElement('td');
+            tdName.style.fontSize = '13px';
+            const chordLink = document.createElement('a');
+            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            chordLink.target = '_blank';
+            chordLink.style.color = '#2563eb';
+            chordLink.style.textDecoration = 'none';
+            chordLink.style.fontWeight = '600';
+            chordLink.textContent = `${name} ▶`;
+            tdName.appendChild(chordLink);
+            row.appendChild(tdName);
+
+            const tdType = document.createElement('td');
+            tdType.style.fontSize = '12px';
+            tdType.style.color = '#888';
+            const parsed = MusicTheory.parseChordName(name);
+            if (parsed) {
+              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+              tdType.textContent = typeNames[intervalKey] || parsed.suffix || '메이저';
+            }
+            row.appendChild(tdType);
+
+            const tdNotes = document.createElement('td');
+            tdNotes.style.fontSize = '12px';
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const degrees = MusicTheory.getChordDegreeLabels(name);
+            const triad = notes.slice(0, 3);
+            const triadDeg = degrees.slice(0, 3);
+            const ext = notes.slice(3);
+            const extDeg = degrees.slice(3);
+            const fmtTriad = triad.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:10px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
+            const fmtExt = ext.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:10px;">(${esc(extDeg[i] || '')})</span>`).join(', ');
+            tdNotes.innerHTML = ext.length > 0 ? `${fmtTriad}, ${fmtExt}` : fmtTriad;
+            row.appendChild(tdNotes);
+
+            tbody.appendChild(row);
+          });
+          if (gi < advGroups.length - 1) {
+            const sep = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.style.height = '4px';
+            td.style.padding = '0';
+            td.style.borderLeft = 'none';
+            td.style.borderRight = 'none';
+            td.style.background = '#f0f4f8';
+            sep.appendChild(td);
+            tbody.appendChild(sep);
+          }
+        });
+        table.appendChild(tbody);
+        advSection.appendChild(table);
+        preview.appendChild(advSection);
+      }
     }
 
     // 3. Capo Transposition Table
@@ -368,45 +442,73 @@ const Export = (() => {
       html += `<b>사용 코드</b>&nbsp;&nbsp;&nbsp;${chordLinks}&nbsp;&nbsp;<a href="${allUrl}">[전체 보기]</a><br>`;
     }
 
-    // Chord notes table
+    // Chord notes table - split into basic triads and advanced
     if (chords.length > 0) {
-      html += `<br><font size="4"><b>코드 구성음</b></font><br>`;
-      html += `━━━━━━━━━━━━━━━━━━━━<br>`;
-      html += `<table width="100%" border="1" cellpadding="10" cellspacing="0">`;
-      html += `<tr bgcolor="#f0f0f0"><td align="center"><b>코드</b></td><td align="center"><b>타입</b></td><td align="center"><b>구성음</b></td></tr>`;
-      const naverGroups = groupChordsByFamily(chords);
-      naverGroups.forEach((group, gi) => {
-        group.chords.forEach(name => {
-          const notes = MusicTheory.getChordNotesDisplay(name);
-          const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-          const parsed = MusicTheory.parseChordName(name);
-          let typeName = '';
-          if (parsed) {
-            const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-            typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
+      const basicChords = chords.filter(c => isTriadChord(c));
+      const advancedChords = chords.filter(c => !isTriadChord(c));
+
+      // Basic triads
+      if (basicChords.length > 0) {
+        html += `<br><font size="4"><b>기본 3화음</b></font><br>`;
+        html += `━━━━━━━━━━━━━━━━━━━━<br>`;
+        html += `<table width="100%" border="1" cellpadding="10" cellspacing="0">`;
+        html += `<tr bgcolor="#f0f0f0"><td align="center"><b>코드</b></td><td align="center"><b>타입</b></td><td align="center"><b>구성음</b></td></tr>`;
+        const bGroups = groupChordsByFamily(basicChords);
+        bGroups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            const parsed = MusicTheory.parseChordName(name);
+            let typeName = '';
+            if (parsed) {
+              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+              typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
+            }
+            const fmtNotes = notes.map((n, i) => `<b>${esc(n)}</b><font color="#999999" size="1">(${esc(deg[i] || '')})</font>`).join(', ');
+            html += `<tr>`;
+            html += `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
+            html += `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
+            html += `<td align="center">${fmtNotes}</td>`;
+            html += `</tr>`;
+          });
+          if (gi < bGroups.length - 1) {
+            html += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
           }
-          html += `<tr>`;
-          html += `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
-          html += `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
-          const nDeg = MusicTheory.getChordDegreeLabels(name);
-          const nTriad = notes.slice(0, 3);
-          const nTriadDeg = nDeg.slice(0, 3);
-          const nExt = notes.slice(3);
-          const nExtDeg = nDeg.slice(3);
-          const nFmtTriad = nTriad.map((n, i) => `${esc(n)}<font color="#999999" size="1">(${esc(nTriadDeg[i] || '')})</font>`).join(', ');
-          if (nExt.length > 0) {
-            const nFmtExt = nExt.map((n, i) => `${esc(n)}(${esc(nExtDeg[i] || '')})`).join(', ');
-            html += `<td align="center"><b>${nFmtTriad}</b> <font color="#888888" size="2">+${nFmtExt}</font></td>`;
-          } else {
-            html += `<td align="center"><b>${nFmtTriad}</b></td>`;
-          }
-          html += `</tr>`;
         });
-        if (gi < naverGroups.length - 1) {
-          html += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
-        }
-      });
-      html += `</table>`;
+        html += `</table>`;
+      }
+
+      // Advanced chords
+      if (advancedChords.length > 0) {
+        html += `<br><font size="3"><b>심화 코드</b></font><br>`;
+        html += `<table width="100%" border="1" cellpadding="6" cellspacing="0">`;
+        html += `<tr bgcolor="#f0f0f0"><td align="center"><font size="2"><b>코드</b></font></td><td align="center"><font size="2"><b>타입</b></font></td><td align="center"><font size="2"><b>구성음</b></font></td></tr>`;
+        const aGroups = groupChordsByFamily(advancedChords);
+        aGroups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            const parsed = MusicTheory.parseChordName(name);
+            let typeName = '';
+            if (parsed) {
+              const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+              typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
+            }
+            const fmtNotes = notes.map((n, i) => `<b>${esc(n)}</b><font color="#999999" size="1">(${esc(deg[i] || '')})</font>`).join(', ');
+            html += `<tr>`;
+            html += `<td align="center"><font size="2"><a href="${chordUrl}"><b>${esc(name)} ▶</b></a></font></td>`;
+            html += `<td align="center"><font color="#888888" size="2">${esc(typeName)}</font></td>`;
+            html += `<td align="center"><font size="2">${fmtNotes}</font></td>`;
+            html += `</tr>`;
+          });
+          if (gi < aGroups.length - 1) {
+            html += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
+          }
+        });
+        html += `</table>`;
+      }
     }
 
     // Capo table
@@ -489,23 +591,36 @@ const Export = (() => {
     });
 
     if (chords.length > 0) {
-      text += `\n코드 구성음\n`;
-      text += `${'─'.repeat(30)}\n`;
-      const textGroups = groupChordsByFamily(chords);
-      textGroups.forEach((group, gi) => {
-        group.chords.forEach(name => {
-          const notes = MusicTheory.getChordNotesDisplay(name);
-          const pDeg = MusicTheory.getChordDegreeLabels(name);
-          const pTriad = notes.slice(0, 3).map((n, i) => `${n}(${pDeg[i] || ''})`);
-          const pExt = notes.slice(3).map((n, i) => `${n}(${pDeg[i + 3] || ''})`);
-          if (pExt.length > 0) {
-            text += `${name.padEnd(10)}${pTriad.join(', ')} +${pExt.join(', ')}\n`;
-          } else {
-            text += `${name.padEnd(10)}${pTriad.join(', ')}\n`;
-          }
+      const basicChords = chords.filter(c => isTriadChord(c));
+      const advancedChords = chords.filter(c => !isTriadChord(c));
+
+      if (basicChords.length > 0) {
+        text += `\n기본 3화음\n`;
+        text += `${'─'.repeat(30)}\n`;
+        const bGroups = groupChordsByFamily(basicChords);
+        bGroups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            text += `${name.padEnd(10)}${notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ')}\n`;
+          });
+          if (gi < bGroups.length - 1) text += '\n';
         });
-        if (gi < textGroups.length - 1) text += '\n';
-      });
+      }
+
+      if (advancedChords.length > 0) {
+        text += `\n심화 코드\n`;
+        text += `${'─'.repeat(30)}\n`;
+        const aGroups = groupChordsByFamily(advancedChords);
+        aGroups.forEach((group, gi) => {
+          group.chords.forEach(name => {
+            const notes = MusicTheory.getChordNotesDisplay(name);
+            const deg = MusicTheory.getChordDegreeLabels(name);
+            text += `${name.padEnd(10)}${notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ')}\n`;
+          });
+          if (gi < aGroups.length - 1) text += '\n';
+        });
+      }
 
       const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
       const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
@@ -531,6 +646,17 @@ const Export = (() => {
     }
 
     return text;
+  }
+
+  /**
+   * Check if a chord is a basic triad (3 notes or fewer)
+   */
+  function isTriadChord(name) {
+    const parsed = MusicTheory.parseChordName(name);
+    if (!parsed) return false;
+    const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[(parsed.suffix || '').toLowerCase()] || 'major';
+    const intervals = MusicTheory.CHORD_INTERVALS[intervalKey];
+    return intervals && intervals.length <= 3;
   }
 
   /**
