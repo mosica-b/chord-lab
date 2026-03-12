@@ -203,6 +203,122 @@
   font-size: 14px;
 }
 
+/* Notation type table */
+.notation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.notation-table th {
+  background: #f9fafb;
+  padding: 10px 16px;
+  border: 1px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+}
+
+.notation-table td {
+  padding: 10px 16px;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.notation-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.notation-row:hover {
+  background: #eff6ff;
+}
+
+.notation-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.notation-link:hover {
+  text-decoration: underline;
+}
+
+/* Notation modal */
+.notation-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.notation-modal-overlay.hidden {
+  display: none;
+}
+
+.notation-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 95vw;
+  max-height: 90vh;
+  width: fit-content;
+  min-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.notation-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.notation-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.notation-modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 20px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.notation-modal-close:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.notation-modal-body {
+  padding: 24px;
+  overflow: auto;
+  max-height: calc(90vh - 80px);
+}
+
+.notation-modal-body .notation-content {
+  min-height: auto;
+}
+
 /* Selection highlight */
 .selection-highlight {
   outline: 3px solid #3b82f6;

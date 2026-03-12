@@ -407,25 +407,55 @@ const App = (() => {
   // Notation Tabs
   // =========================================
   function setupNotationTabs() {
-    const tabs = document.querySelectorAll('.notation-tab');
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Update tab active state
-        tabs.forEach(t => {
-          t.classList.remove('active');
-          t.style.borderColor = 'transparent';
-        });
-        tab.classList.add('active');
-        tab.style.borderColor = '';
+    const tabNames = {
+      'staff': '오선표기',
+      'guitar-tab': '기타 타브',
+      'ukulele-tab': '우쿨렐레 타브',
+      'guitar-diagram': '기타 다이어그램',
+      'ukulele-diagram': '우쿨렐레 다이어그램',
+      'piano': '피아노'
+    };
 
-        // Show corresponding content
-        const targetTab = tab.dataset.tab;
-        document.querySelectorAll('.notation-content').forEach(content => {
-          content.classList.add('hidden');
-        });
-        const target = document.getElementById(`tab-${targetTab}`);
-        if (target) target.classList.remove('hidden');
+    const overlay = document.getElementById('notationModal');
+    const modalTitle = document.getElementById('notationModalTitle');
+    const modalBody = document.getElementById('notationModalBody');
+    const modalClose = document.getElementById('notationModalClose');
+
+    function openModal(tabKey) {
+      const source = document.getElementById(`tab-${tabKey}`);
+      if (!source) return;
+      modalTitle.textContent = tabNames[tabKey] || tabKey;
+      modalBody.innerHTML = '';
+      modalBody.appendChild(source.cloneNode(true));
+      const cloned = modalBody.querySelector('.notation-content');
+      if (cloned) cloned.classList.remove('hidden');
+      overlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      overlay.classList.add('hidden');
+      document.body.style.overflow = '';
+      modalBody.innerHTML = '';
+    }
+
+    // Table row click
+    document.querySelectorAll('.notation-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(row.dataset.tab);
       });
+    });
+
+    // Close handlers
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    if (overlay) overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        closeModal();
+      }
     });
   }
 
