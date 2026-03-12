@@ -137,7 +137,7 @@ const ITunesSearch = (() => {
    * @param {number} [maxLines=4] - Max lines to return
    * @returns {Promise<string|null>} First few lines or null on failure
    */
-  async function fetchLyricsIntro(songName, artist, altSongName, maxLines = 4) {
+  async function fetchLyricsIntro(songName, artist, altSongName, maxLines = 2) {
     if (!songName) return null;
 
     // Build query list: original, then alternate
@@ -190,7 +190,7 @@ const ITunesSearch = (() => {
           .filter(l => l);
 
         if (lines.length === 0) continue;
-        return lines.slice(0, maxLines).join('\n');
+        return lines.slice(0, maxLines).join('\n') + '\n...';
       } catch (e) {
         // Try next query
       }
