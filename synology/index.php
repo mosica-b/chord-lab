@@ -148,6 +148,43 @@ $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_name ON songs(song_name)");
 $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist)");
 $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_updated ON songs(updated_at DESC)");
 
+/* ── FTS5 Full-Text Search (trigram: substring matching with index) ── */
+$ftsAvailable = false;
+try {
+    $db->exec("CREATE VIRTUAL TABLE IF NOT EXISTS songs_fts USING fts5(
+        song_name, artist,
+        content='songs',
+        content_rowid='id',
+        tokenize='trigram'
+    )");
+
+    // Triggers to keep FTS index in sync with songs table
+    $db->exec("CREATE TRIGGER IF NOT EXISTS songs_fts_ins AFTER INSERT ON songs BEGIN
+        INSERT INTO songs_fts(rowid, song_name, artist) VALUES (new.id, new.song_name, new.artist);
+    END");
+
+    $db->exec("CREATE TRIGGER IF NOT EXISTS songs_fts_del AFTER DELETE ON songs BEGIN
+        INSERT INTO songs_fts(songs_fts, rowid, song_name, artist) VALUES('delete', old.id, old.song_name, old.artist);
+    END");
+
+    $db->exec("CREATE TRIGGER IF NOT EXISTS songs_fts_upd AFTER UPDATE ON songs BEGIN
+        INSERT INTO songs_fts(songs_fts, rowid, song_name, artist) VALUES('delete', old.id, old.song_name, old.artist);
+        INSERT INTO songs_fts(rowid, song_name, artist) VALUES (new.id, new.song_name, new.artist);
+    END");
+
+    // Rebuild FTS index if songs exist but FTS is empty (first run on existing DB)
+    $ftsCount = (int)$db->query("SELECT COUNT(*) FROM songs_fts")->fetchColumn();
+    $songsCount = (int)$db->query("SELECT COUNT(*) FROM songs")->fetchColumn();
+    if ($ftsCount === 0 && $songsCount > 0) {
+        $db->exec("INSERT INTO songs_fts(songs_fts) VALUES('rebuild')");
+    }
+
+    $ftsAvailable = true;
+} catch (Exception $e) {
+    // FTS5 or trigram tokenizer not available — fall back to LIKE
+    $ftsAvailable = false;
+}
+
 /* ── Router ── */
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -155,31 +192,59 @@ $limit = 20;
 
 switch ($action) {
 
-    /* ── Search ── */
+    /* ── Search (FTS5 trigram → LIKE fallback) ── */
     case 'search':
-        $q = '%' . ($_GET['q'] ?? '') . '%';
+        $rawQ = trim($_GET['q'] ?? '');
         $page = max(1, intval($_GET['page'] ?? 1));
         $offset = ($page - 1) * $limit;
 
-        $stmt = $db->prepare(
-            "SELECT id, song_name, artist, album_name, key_signature, updated_at
-             FROM songs
-             WHERE song_name LIKE :q OR artist LIKE :q
-             ORDER BY updated_at DESC
-             LIMIT :limit OFFSET :offset"
-        );
-        $stmt->bindValue(':q', $q, PDO::PARAM_STR);
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
+        // FTS5 trigram requires at least 3 chars; shorter queries use LIKE
+        if ($ftsAvailable && mb_strlen($rawQ, 'UTF-8') >= 3) {
+            // Quote the query to treat as literal string (escape internal quotes)
+            $ftsQ = '"' . str_replace('"', '""', $rawQ) . '"';
 
-        $countStmt = $db->prepare(
-            "SELECT COUNT(*) FROM songs WHERE song_name LIKE :q OR artist LIKE :q"
-        );
-        $countStmt->execute([':q' => $q]);
-        $total = (int)$countStmt->fetchColumn();
+            $stmt = $db->prepare(
+                "SELECT s.id, s.song_name, s.artist, s.album_name, s.key_signature, s.updated_at
+                 FROM songs s
+                 JOIN songs_fts fts ON s.id = fts.rowid
+                 WHERE songs_fts MATCH :q
+                 ORDER BY s.updated_at DESC
+                 LIMIT :limit OFFSET :offset"
+            );
+            $stmt->bindValue(':q', $ftsQ, PDO::PARAM_STR);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
 
-        logRequest('search', 200, "q={$_GET['q']}, results=$total");
+            $countStmt = $db->prepare(
+                "SELECT COUNT(*) FROM songs s JOIN songs_fts fts ON s.id = fts.rowid WHERE songs_fts MATCH :q"
+            );
+            $countStmt->execute([':q' => $ftsQ]);
+            $total = (int)$countStmt->fetchColumn();
+        } else {
+            // Fallback: LIKE (short queries or FTS5 unavailable)
+            $q = '%' . $rawQ . '%';
+            $stmt = $db->prepare(
+                "SELECT id, song_name, artist, album_name, key_signature, updated_at
+                 FROM songs
+                 WHERE song_name LIKE :q OR artist LIKE :q
+                 ORDER BY updated_at DESC
+                 LIMIT :limit OFFSET :offset"
+            );
+            $stmt->bindValue(':q', $q, PDO::PARAM_STR);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $countStmt = $db->prepare(
+                "SELECT COUNT(*) FROM songs WHERE song_name LIKE :q OR artist LIKE :q"
+            );
+            $countStmt->execute([':q' => $q]);
+            $total = (int)$countStmt->fetchColumn();
+        }
+
+        $engine = ($ftsAvailable && mb_strlen($rawQ, 'UTF-8') >= 3) ? 'FTS5' : 'LIKE';
+        logRequest('search', 200, "q=$rawQ, engine=$engine, results=$total");
         echo json_encode([
             'songs' => $stmt->fetchAll(PDO::FETCH_ASSOC),
             'total' => $total,
