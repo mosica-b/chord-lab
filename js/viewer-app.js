@@ -61,6 +61,16 @@ const ViewerApp = (() => {
     setupResetOrder();
     setupCustomCombo();
     render();
+
+    // Open accordion by default on initial load
+    const topBody = document.getElementById('topAccordionBody');
+    const topToggle = document.getElementById('topAccordionToggle');
+    const topHint = document.getElementById('topAccordionHint');
+    if (topBody && chords.length > 0) {
+      topBody.classList.add('open');
+      if (topToggle) topToggle.classList.add('open');
+      if (topHint) topHint.textContent = '접기';
+    }
   }
 
   // =========================================
@@ -125,7 +135,13 @@ const ViewerApp = (() => {
         currentType = btn.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        // Don't close accordion — keep open so user can see capo selector
+        // Non-capo types (staff, piano) → close accordion immediately
+        if (!CAPO_TYPES.has(currentType)) {
+          topBody.classList.remove('open');
+          topToggle.classList.remove('open');
+          if (topHint) topHint.textContent = '열기';
+        }
+        // Capo types → keep accordion open so user can select capo
       });
     });
 
@@ -142,6 +158,15 @@ const ViewerApp = (() => {
           b.classList.toggle('active', parseInt(b.dataset.capo, 10) === capoPosition);
         });
         renderCards();
+        // Close top accordion after capo selection
+        const topBody = document.getElementById('topAccordionBody');
+        const topToggle = document.getElementById('topAccordionToggle');
+        const topHint = document.getElementById('topAccordionHint');
+        if (topBody) {
+          topBody.classList.remove('open');
+          if (topToggle) topToggle.classList.remove('open');
+          if (topHint) topHint.textContent = '열기';
+        }
       });
     });
   }
