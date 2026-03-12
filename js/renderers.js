@@ -17,11 +17,11 @@ const Renderers = (() => {
 
     const width = Math.max(chords.length * 120 + 80, 400);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
-    renderer.resize(width, 220);
+    renderer.resize(width, 280);
     const context = renderer.getContext();
     context.setFont('Arial', 10);
 
-    const stave = new VF.Stave(10, 60, width - 20);
+    const stave = new VF.Stave(10, 100, width - 20);
     stave.addClef('treble');
     stave.setContext(context).draw();
 
