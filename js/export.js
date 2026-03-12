@@ -46,8 +46,8 @@ const Export = (() => {
       row.style.fontSize = '14px';
 
       if (isChords && chords.length > 0) {
-        const basic = chords.filter(c => isTriadChord(c));
-        const advanced = chords.filter(c => !isTriadChord(c));
+        const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
+        const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
         const basicLinks = basic.map(c => {
           const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
           return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:500;" target="_blank">${esc(c)}</a>`;
@@ -79,15 +79,15 @@ const Export = (() => {
         '7sus4': '7서스 4', 'aug7': '어그먼트 7', '5': '파워 코드',
       };
 
-      const basicChords = chords.filter(c => isTriadChord(c));
-      const advancedChords = chords.filter(c => !isTriadChord(c));
+      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
 
       // 2a. Basic triads table
       if (basicChords.length > 0) {
         const basicSection = document.createElement('div');
         basicSection.style.marginBottom = '20px';
         const basicTitle = document.createElement('h3');
-        basicTitle.textContent = '기본 3화음';
+        basicTitle.textContent = '주요 화음';
         basicSection.appendChild(basicTitle);
 
         const table = document.createElement('table');
@@ -440,8 +440,8 @@ const Export = (() => {
 
     // 사용 코드 (triads + advanced link)
     if (chords.length > 0) {
-      const nBasic = chords.filter(c => isTriadChord(c));
-      const nAdvanced = chords.filter(c => !isTriadChord(c));
+      const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
       const basicLinks = nBasic.map(c => {
         const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
         return `<a href="${url}">${esc(c)}</a>`;
@@ -456,12 +456,12 @@ const Export = (() => {
 
     // Chord notes table - split into basic triads and advanced
     if (chords.length > 0) {
-      const basicChords = chords.filter(c => isTriadChord(c));
-      const advancedChords = chords.filter(c => !isTriadChord(c));
+      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
 
       // Basic triads
       if (basicChords.length > 0) {
-        html += `<br><font size="4"><b>기본 3화음</b></font><br>`;
+        html += `<br><font size="4"><b>주요 화음</b></font><br>`;
         html += `━━━━━━━━━━━━━━━━━━━━<br>`;
         html += `<table width="100%" border="1" cellpadding="10" cellspacing="0">`;
         html += `<tr bgcolor="#f0f0f0"><td align="center"><b>코드</b></td><td align="center"><b>타입</b></td><td align="center"><b>구성음</b></td></tr>`;
@@ -603,8 +603,8 @@ const Export = (() => {
 
     // 사용 코드 (triads only, with advanced note)
     if (chords.length > 0) {
-      const ptBasic = chords.filter(c => isTriadChord(c));
-      const ptAdv = chords.filter(c => !isTriadChord(c));
+      const ptBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const ptAdv = chords.filter(c => !isPrimaryChord(c, metadata.key));
       if (ptBasic.length > 0) {
         text += `사용 코드   ${ptBasic.join(', ')}`;
         if (ptAdv.length > 0) text += ` ... +심화 코드 ${ptAdv.length}개`;
@@ -613,11 +613,11 @@ const Export = (() => {
     }
 
     if (chords.length > 0) {
-      const basicChords = chords.filter(c => isTriadChord(c));
-      const advancedChords = chords.filter(c => !isTriadChord(c));
+      const basicChords = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const advancedChords = chords.filter(c => !isPrimaryChord(c, metadata.key));
 
       if (basicChords.length > 0) {
-        text += `\n기본 3화음\n`;
+        text += `\n주요 화음\n`;
         text += `${'─'.repeat(30)}\n`;
         const bGroups = groupChordsByFamily(basicChords);
         bGroups.forEach((group, gi) => {
@@ -679,6 +679,32 @@ const Export = (() => {
     const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[(parsed.suffix || '').toLowerCase()] || 'major';
     const intervals = MusicTheory.CHORD_INTERVALS[intervalKey];
     return intervals && intervals.length <= 3;
+  }
+
+  /**
+   * Get the dominant 7th (V7) chord name for a given key
+   * e.g., key "A" → "E7", key "Am" → "E7", key "Eb" → "Bb7"
+   */
+  function getDominant7th(key) {
+    if (!key) return null;
+    const root = key.endsWith('m') ? key.slice(0, -1) : key;
+    const rootIdx = MusicTheory.noteIndex(root);
+    if (rootIdx < 0) return null;
+    const vIdx = (rootIdx + 7) % 12;
+    let vRoot = MusicTheory.NOTE_NAMES[vIdx];
+    if (root.includes('b') && MusicTheory.ENHARMONIC[vRoot]) {
+      vRoot = MusicTheory.ENHARMONIC[vRoot];
+    }
+    return vRoot + '7';
+  }
+
+  /**
+   * Check if a chord is a primary chord (triad or V7 of the key)
+   */
+  function isPrimaryChord(name, key) {
+    if (isTriadChord(name)) return true;
+    const v7 = getDominant7th(key);
+    return v7 && name === v7;
   }
 
   /**
