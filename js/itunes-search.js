@@ -190,7 +190,7 @@ const ITunesSearch = (() => {
           .filter(l => l);
 
         if (lines.length === 0) continue;
-        return lines.slice(0, maxLines).join('\n') + '\n...';
+        return lines.slice(0, maxLines).join('\n');
       } catch (e) {
         // Try next query
       }
