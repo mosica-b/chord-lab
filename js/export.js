@@ -38,7 +38,7 @@ const Export = (() => {
       { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
-    const viewerBase = 'https://eunsongseo.github.io/mosica-chord-lab/viewer.html';
+    const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
 
     infoRows.forEach(({ label, value, isChords }) => {
       const row = document.createElement('p');
@@ -366,7 +366,7 @@ const Export = (() => {
    * Avoids CSS style attributes which Naver strips
    */
   function generateNaverHTML(metadata, chords, capoPosition) {
-    const viewerBase = 'https://eunsongseo.github.io/mosica-chord-lab/viewer.html';
+    const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
       '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
@@ -623,7 +623,7 @@ const Export = (() => {
         text += buildPlainTable(advancedChords);
       }
 
-      const viewerBase = 'https://eunsongseo.github.io/mosica-chord-lab/viewer.html';
+      const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
       const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
       text += `\n▶ 코드 재생/표기 보기: ${allUrl}\n`;
     }
