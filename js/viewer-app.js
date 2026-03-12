@@ -47,7 +47,7 @@ const ViewerApp = (() => {
     // Top accordion
     const topLabel = document.getElementById('topAccordionLabel');
     if (topLabel) topLabel.textContent = tabObj.label;
-    document.querySelectorAll('#topAccordionBody .instrument-tab').forEach(btn => {
+    document.querySelectorAll('#topAccordionBody .top-accordion-row').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.type === currentType);
     });
     // FAB accordion
@@ -90,7 +90,7 @@ const ViewerApp = (() => {
     // --- Top accordion ---
     const topToggle = document.getElementById('topAccordionToggle');
     const topBody = document.getElementById('topAccordionBody');
-    const topBtns = topBody.querySelectorAll('.instrument-tab');
+    const topBtns = topBody.querySelectorAll('.top-accordion-row');
 
     // Set initial label
     syncAllSelectors();
