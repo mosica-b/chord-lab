@@ -596,9 +596,16 @@ const Export = (() => {
       html += `</table>`;
     }
 
-    // Image placeholder
+    // Notation type table
     if (chords.length > 0) {
-      html += `<br><font color="#999999">※ 코드 표기 이미지는 아래에 첨부</font><br>`;
+      html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
+      html += `<table bgcolor="#dddddd" cellspacing="1" cellpadding="0" style="width:100%">`;
+      html += `<tr><td align="center" bgcolor="#f5f5f5"><b>표기 유형</b></td></tr>`;
+      const notationLabels = ['오선표기', '기타 타브', '우쿨렐레 타브', '기타 다이어그램', '우쿨렐레 다이어그램', '피아노'];
+      notationLabels.forEach(label => {
+        html += `<tr><td align="center" bgcolor="#ffffff">${esc(label)}</td></tr>`;
+      });
+      html += `</table>`;
     }
 
 

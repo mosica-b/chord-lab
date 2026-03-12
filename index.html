@@ -136,43 +136,17 @@
     <!-- 5. Notation Rendering -->
     <section id="notationSection" class="bg-white rounded-lg shadow p-6 hidden">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">코드 표기</h2>
-      <!-- Notation type table -->
-      <table class="notation-table">
-        <thead>
-          <tr>
-            <th>표기 유형</th>
-            <th>보기</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="notation-row" data-tab="staff">
-            <td>오선표기</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-          <tr class="notation-row" data-tab="guitar-tab">
-            <td>기타 타브</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-          <tr class="notation-row" data-tab="ukulele-tab">
-            <td>우쿨렐레 타브</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-          <tr class="notation-row" data-tab="guitar-diagram">
-            <td>기타 다이어그램</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-          <tr class="notation-row" data-tab="ukulele-diagram">
-            <td>우쿨렐레 다이어그램</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-          <tr class="notation-row" data-tab="piano">
-            <td>피아노</td>
-            <td><a href="#" class="notation-link">보기 &rarr;</a></td>
-          </tr>
-        </tbody>
-      </table>
-      <!-- Hidden rendering targets -->
-      <div id="tab-staff" class="notation-content hidden"></div>
+      <!-- Tab navigation -->
+      <div class="flex border-b mb-4">
+        <button class="notation-tab active px-4 py-2 text-sm font-medium border-b-2" data-tab="staff">오선표기</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="guitar-tab">기타 타브</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="ukulele-tab">우쿨렐레 타브</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="guitar-diagram">기타 다이어그램</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="ukulele-diagram">우쿨렐레 다이어그램</button>
+        <button class="notation-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent" data-tab="piano">피아노</button>
+      </div>
+      <!-- Tab content -->
+      <div id="tab-staff" class="notation-content"></div>
       <div id="tab-guitar-tab" class="notation-content hidden"></div>
       <div id="tab-ukulele-tab" class="notation-content hidden"></div>
       <div id="tab-guitar-diagram" class="notation-content hidden"></div>
