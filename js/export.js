@@ -582,7 +582,7 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>주요 코드</b></font>`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
@@ -590,7 +590,7 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>심화 코드</b></font>`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
@@ -599,7 +599,7 @@ const Export = (() => {
 
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
-      html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
+      html += `<blockquote style="margin:0;"><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
@@ -623,7 +623,7 @@ const Export = (() => {
 
     // Notation type table with viewer links
     if (chords.length > 0) {
-      html += `<hr style="margin:4px 0 0 0;"><blockquote style="margin:0 0 2px 0;"><font size="3"><b>코드 표기</b></font></blockquote>`;
+      html += `<blockquote style="margin:0;"><font size="3"><b>코드 표기</b></font></blockquote>`;
       const chordsParam = encodeURIComponent(chords.join(','));
       const notationItems = [
         { key: 'staff', label: '오선표기' },
