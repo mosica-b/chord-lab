@@ -185,6 +185,8 @@ const ViewerApp = (() => {
     document.querySelectorAll('.capo-shape-label').forEach(label => {
       label.style.display = (showCapo && capoPosition > 0) ? '' : 'none';
     });
+    // In horizontal mode, re-render since there are no per-card panels to toggle
+    if (horizontalMode) renderCards();
   }
 
   // =========================================
