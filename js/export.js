@@ -469,9 +469,6 @@ const Export = (() => {
               : `<td align="center">${fmtNotes}</td>`;
             t += `</tr>`;
           });
-          if (gi < groups.length - 1) {
-            t += `<tr><td colspan="3" bgcolor="#eef2f7">&nbsp;</td></tr>`;
-          }
         });
         t += `</table>`;
         if (hasKey) {
