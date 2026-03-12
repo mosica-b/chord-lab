@@ -441,7 +441,7 @@ const Export = (() => {
       const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
-        html += `<tr><td width="80" align="center" bgcolor="#eef2f7"><b>${esc(label)}</b></td><td bgcolor="${rowBg}">${value}</td></tr>`;
+        html += `<tr><td width="80" align="center" bgcolor="#eef2f7"><b>${esc(label)}</b></td><td align="center" bgcolor="${rowBg}">${value}</td></tr>`;
       });
       html += `</table>`;
     }
