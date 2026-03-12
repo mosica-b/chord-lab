@@ -104,6 +104,19 @@
       </div>
     </section>
 
+    <!-- Global notation tab bar -->
+    <section id="globalTabBar" class="bg-white rounded-lg shadow p-3 mb-6 hidden">
+      <div class="flex flex-wrap gap-2 items-center">
+        <span class="text-sm font-medium text-gray-600 mr-1">표기:</span>
+        <button class="instrument-tab active" data-type="staff">오선보</button>
+        <button class="instrument-tab" data-type="guitar-tab">기타 타브</button>
+        <button class="instrument-tab" data-type="guitar-diagram">기타 다이어그램</button>
+        <button class="instrument-tab" data-type="ukulele-tab">우쿨렐레 타브</button>
+        <button class="instrument-tab" data-type="ukulele-diagram">우쿨렐레 다이어그램</button>
+        <button class="instrument-tab" data-type="piano">피아노</button>
+      </div>
+    </section>
+
     <!-- Chord cards -->
     <div id="chordCards" class="space-y-6"></div>
 
@@ -122,6 +135,6 @@
   <script src="js/renderers.js"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=2"></script>
-  <script src="js/viewer-app.js?v=2"></script>
+  <script src="js/viewer-app.js?v=3"></script>
 </body>
 </html>
