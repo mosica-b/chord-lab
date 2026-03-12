@@ -93,8 +93,26 @@ const ChordDB = (() => {
    * Normalize root key for DB lookup
    * The DB uses sharps, not flats
    */
-  function normalizeKey(key) {
-    // DB keys: C, Csharp, D, Eb, E, F, Fsharp, G, Ab, A, Bb, B
+  function normalizeKey(key, instrument) {
+    if (instrument === 'ukulele') {
+      // Ukulele DB keys: A, Ab, B, Bb, C, D, Db, E, Eb, F, G, Gb
+      const ukeKeyMap = {
+        'C': 'C',
+        'C#': 'Db', 'Db': 'Db',
+        'D': 'D',
+        'D#': 'Eb', 'Eb': 'Eb',
+        'E': 'E',
+        'F': 'F',
+        'F#': 'Gb', 'Gb': 'Gb',
+        'G': 'G',
+        'G#': 'Ab', 'Ab': 'Ab',
+        'A': 'A',
+        'A#': 'Bb', 'Bb': 'Bb',
+        'B': 'B',
+      };
+      return ukeKeyMap[key] || key;
+    }
+    // Guitar DB keys: C, Csharp, D, Eb, E, F, Fsharp, G, Ab, A, Bb, B
     const keyMap = {
       'C': 'C',
       'C#': 'Csharp', 'Db': 'Csharp',
@@ -152,7 +170,7 @@ const ChordDB = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
-    const dbKey = normalizeKey(parsed.root);
+    const dbKey = normalizeKey(parsed.root, 'ukulele');
     const dbSuffix = normalizeSuffix(parsed.suffix);
 
     const keyChords = ukuleleData.chords[dbKey];
