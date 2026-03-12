@@ -31,53 +31,92 @@ const ChordAudio = (() => {
   function getInstrument() { return currentInstrument; }
 
   // =========================================
-  // Piano: Hammer strike → rich harmonics → long sustain
+  // Piano: FM Synthesis (DX7-style) for realistic piano tone
+  // Carrier + Modulator creates harmonic-rich, bell-like piano timbre
   // =========================================
   function playPianoNote(ctx, dest, freq, now, duration) {
-    const gain = ctx.createGain();
-    gain.connect(dest);
-    // Piano envelope: percussive attack, gentle decay, long release
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.22, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.15);
-    gain.gain.exponentialRampToValueAtTime(0.06, now + duration * 0.7);
-    gain.gain.linearRampToValueAtTime(0.001, now + duration);
+    // Master output with envelope
+    const masterGain = ctx.createGain();
+    masterGain.connect(dest);
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(0.18, now + 0.005);   // hammer strike
+    masterGain.gain.exponentialRampToValueAtTime(0.10, now + 0.08); // quick initial decay
+    masterGain.gain.exponentialRampToValueAtTime(0.06, now + duration * 0.5);
+    masterGain.gain.linearRampToValueAtTime(0.001, now + duration);
 
-    // Fundamental
-    const o1 = ctx.createOscillator();
-    o1.type = 'sine';
-    o1.frequency.value = freq;
-    const g1 = ctx.createGain(); g1.gain.value = 0.5;
-    o1.connect(g1); g1.connect(gain);
+    // --- FM Pair 1: main piano tone ---
+    // Modulator (controls brightness/harmonics)
+    const mod1 = ctx.createOscillator();
+    mod1.type = 'sine';
+    mod1.frequency.value = freq * 2; // ratio 2:1
+    const mod1Gain = ctx.createGain();
+    // Modulation depth decays = brightness fades like real piano
+    mod1Gain.gain.setValueAtTime(freq * 1.5, now);           // bright at hammer strike
+    mod1Gain.gain.exponentialRampToValueAtTime(freq * 0.2, now + 0.15); // fades quickly
+    mod1Gain.gain.exponentialRampToValueAtTime(freq * 0.05, now + duration * 0.5);
+    mod1.connect(mod1Gain);
 
-    // 2nd partial (octave)
-    const o2 = ctx.createOscillator();
-    o2.type = 'sine';
-    o2.frequency.value = freq * 2;
-    const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0.25, now);
-    g2.gain.exponentialRampToValueAtTime(0.05, now + 0.4);
-    o2.connect(g2); g2.connect(gain);
+    // Carrier (fundamental tone)
+    const car1 = ctx.createOscillator();
+    car1.type = 'sine';
+    car1.frequency.value = freq;
+    mod1Gain.connect(car1.frequency); // FM connection
+    const car1Gain = ctx.createGain();
+    car1Gain.gain.value = 0.35;
+    car1.connect(car1Gain);
+    car1Gain.connect(masterGain);
 
-    // 3rd partial (adds richness)
-    const o3 = ctx.createOscillator();
-    o3.type = 'sine';
-    o3.frequency.value = freq * 3;
-    const g3 = ctx.createGain();
-    g3.gain.setValueAtTime(0.12, now);
-    g3.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-    o3.connect(g3); g3.connect(gain);
+    // --- FM Pair 2: adds upper register shimmer ---
+    const mod2 = ctx.createOscillator();
+    mod2.type = 'sine';
+    mod2.frequency.value = freq * 3;
+    const mod2Gain = ctx.createGain();
+    mod2Gain.gain.setValueAtTime(freq * 0.8, now);
+    mod2Gain.gain.exponentialRampToValueAtTime(freq * 0.02, now + 0.1);
+    mod2.connect(mod2Gain);
 
-    // 4th partial (hammer brightness, decays fast)
-    const o4 = ctx.createOscillator();
-    o4.type = 'sine';
-    o4.frequency.value = freq * 4;
-    const g4 = ctx.createGain();
-    g4.gain.setValueAtTime(0.08, now);
-    g4.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-    o4.connect(g4); g4.connect(gain);
+    const car2 = ctx.createOscillator();
+    car2.type = 'sine';
+    car2.frequency.value = freq * 2;
+    mod2Gain.connect(car2.frequency);
+    const car2Gain = ctx.createGain();
+    car2Gain.gain.setValueAtTime(0.15, now);
+    car2Gain.gain.exponentialRampToValueAtTime(0.03, now + 0.3);
+    car2.connect(car2Gain);
+    car2Gain.connect(masterGain);
 
-    [o1, o2, o3, o4].forEach(o => { o.start(now); o.stop(now + duration); });
+    // --- Hammer noise (percussive attack transient) ---
+    const noiseLen = ctx.sampleRate * 0.02;
+    const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const nd = noiseBuf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) {
+      nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noiseLen, 2);
+    }
+    const noiseSrc = ctx.createBufferSource();
+    noiseSrc.buffer = noiseBuf;
+    const noiseFilt = ctx.createBiquadFilter();
+    noiseFilt.type = 'bandpass';
+    noiseFilt.frequency.value = freq * 4;
+    noiseFilt.Q.value = 0.8;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.12, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+    noiseSrc.connect(noiseFilt);
+    noiseFilt.connect(noiseGain);
+    noiseGain.connect(masterGain);
+    noiseSrc.start(now);
+
+    // --- Subtle string resonance (detuned for warmth) ---
+    const res = ctx.createOscillator();
+    res.type = 'sine';
+    res.frequency.value = freq * 1.001; // very slight detune
+    const resGain = ctx.createGain();
+    resGain.gain.setValueAtTime(0.08, now);
+    resGain.gain.exponentialRampToValueAtTime(0.02, now + 0.5);
+    res.connect(resGain);
+    resGain.connect(masterGain);
+
+    [mod1, car1, mod2, car2, res].forEach(o => { o.start(now); o.stop(now + duration); });
   }
 
   // =========================================
