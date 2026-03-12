@@ -10,6 +10,7 @@ const App = (() => {
       artist: '',
       albumName: '',
       tempo: '',
+      timeSignature: '',
       key: '',
     },
     selectedChords: [],
@@ -47,12 +48,13 @@ const App = (() => {
   // Metadata Form
   // =========================================
   function setupMetadataListeners() {
-    const fields = ['songName', 'artist', 'albumName', 'tempo', 'songKey'];
+    const fields = ['songName', 'artist', 'albumName', 'tempo', 'timeSignature', 'songKey'];
 
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener('input', () => {
+      const event = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(event, () => {
         const key = id === 'songKey' ? 'key' : id;
         state.metadata[key] = el.value;
         saveState();
@@ -482,6 +484,7 @@ const App = (() => {
       document.getElementById('artist').value = state.metadata.artist || '';
       document.getElementById('albumName').value = state.metadata.albumName || '';
       document.getElementById('tempo').value = state.metadata.tempo || '';
+      document.getElementById('timeSignature').value = state.metadata.timeSignature || '';
       document.getElementById('songKey').value = state.metadata.key || '';
       document.getElementById('capoPosition').value = state.capoPosition;
 

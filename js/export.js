@@ -30,6 +30,7 @@ const Export = (() => {
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      { label: '박자', value: metadata.timeSignature },
       { label: '키', value: metadata.key },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
       { label: '사용 코드', value: chords.join(', '), isChords: true },
@@ -315,6 +316,7 @@ const Export = (() => {
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      { label: '박자', value: metadata.timeSignature },
       { label: '키', value: metadata.key },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
     ].filter(r => r.value);
@@ -424,6 +426,7 @@ const Export = (() => {
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      { label: '박자', value: metadata.timeSignature },
       { label: '키', value: metadata.key },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
       { label: '사용 코드', value: chords.join(', ') },
