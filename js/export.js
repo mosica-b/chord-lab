@@ -479,14 +479,13 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<br><font size="4"><b>주요 화음</b></font><br>`;
-        html += `<hr>`;
+        html += `<blockquote><font size="4"><b>주요 화음</b></font></blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<br><font size="3"><b>심화 코드</b></font><br>`;
+        html += `<blockquote><font size="3"><b>심화 코드</b></font></blockquote>`;
         html += buildNaverTable(advancedChords, true);
       }
     }
@@ -523,8 +522,7 @@ const Export = (() => {
 
     // Links
     if (chords.length > 0 || metadata.songName || metadata.artist) {
-      html += `<br><font size="4"><b>관련 링크</b></font><br>`;
-      html += `<hr>`;
+      html += `<blockquote><font size="4"><b>관련 링크</b></font></blockquote>`;
 
       if (chords.length > 0) {
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
