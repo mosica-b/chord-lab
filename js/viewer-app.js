@@ -184,7 +184,7 @@ const ViewerApp = (() => {
 
     // Header: chord name + notes + play button
     const header = document.createElement('div');
-    header.className = 'flex items-center justify-between mb-4';
+    header.className = 'card-header';
 
     const left = document.createElement('div');
     const title = document.createElement('h2');
