@@ -2,12 +2,21 @@
  * Viewer App Module
  * Chord viewer page logic - reads URL params, renders notation cards, plays audio
  * Global tab bar switches all cards at once
+ * Everyone can drag-reorder badges (session only, refreshes to original)
+ * Custom combo builder: drag or tap chords to build & play custom progressions
  */
 const ViewerApp = (() => {
   let chords = [];
-  let defaultType = null; // e.g. 'staff', 'guitar-diagram', 'piano'
+  let originalChords = []; // preserved from URL, for reset
+  let customChords = [];
+  let defaultType = null;
   let currentType = 'staff';
   const isAdmin = !!sessionStorage.getItem('chord_lab_auth');
+
+  // Drag tracking (shared between main badges and custom combo)
+  let dragSource = null;  // 'main' | 'custom'
+  let dragChordName = '';
+  let dragIdx = -1;
 
   const TABS = [
     { id: 'staff', label: '오선보', instrument: 'piano' },
@@ -22,7 +31,6 @@ const ViewerApp = (() => {
   async function init() {
     await ChordDB.load();
 
-    // Parse URL params
     const params = new URLSearchParams(window.location.search);
     const chordsParam = params.get('chords');
     const typeParam = params.get('type');
@@ -30,13 +38,14 @@ const ViewerApp = (() => {
     if (chordsParam) {
       chords = chordsParam.split(',').map(c => c.trim()).filter(Boolean);
     }
+    originalChords = chords.slice(); // save original order
+
     if (typeParam) {
       const validTypes = TABS.map(t => t.id);
       if (validTypes.includes(typeParam)) defaultType = typeParam;
     }
     currentType = defaultType || 'staff';
 
-    // Show admin controls (chord add input) only for logged-in users
     if (isAdmin) {
       const adminControls = document.getElementById('adminControls');
       if (adminControls) adminControls.style.display = '';
@@ -45,26 +54,28 @@ const ViewerApp = (() => {
     setupGlobalTabs();
     if (isAdmin) setupAddChord();
     setupPlayAll();
+    setupResetOrder();
+    setupCustomCombo();
     render();
   }
 
-  // Sync all selectors (top accordion + fab accordion) to match currentType
+  // =========================================
+  // Global notation tab switching
+  // =========================================
+
   function syncAllSelectors() {
     const tabObj = TABS.find(t => t.id === currentType) || TABS[0];
-    // Top accordion
     const topLabel = document.getElementById('topAccordionLabel');
     if (topLabel) topLabel.textContent = tabObj.label;
     document.querySelectorAll('#topAccordionBody .top-accordion-row').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.type === currentType);
     });
-    // FAB accordion
     document.querySelectorAll('#fabAccordion .fab-accordion-item').forEach(item => {
       item.classList.toggle('active', item.dataset.type === currentType);
     });
   }
 
   function setupGlobalTabs() {
-    // --- FAB accordion (bottom) ---
     const fabAccordion = document.getElementById('fabAccordion');
     const fabBtn = document.getElementById('fabNotation');
     const fabTop = document.getElementById('fabTop');
@@ -94,12 +105,8 @@ const ViewerApp = (() => {
       }
     });
 
-    // --- Top accordion ---
     const topToggle = document.getElementById('topAccordionToggle');
     const topBody = document.getElementById('topAccordionBody');
-    const topBtns = topBody.querySelectorAll('.top-accordion-row');
-
-    // Set initial label
     syncAllSelectors();
 
     const topHint = document.getElementById('topAccordionHint');
@@ -109,12 +116,11 @@ const ViewerApp = (() => {
       if (topHint) topHint.textContent = isOpen ? '접기' : '열기';
     });
 
-    topBtns.forEach(btn => {
+    topBody.querySelectorAll('.top-accordion-row').forEach(btn => {
       btn.addEventListener('click', () => {
         currentType = btn.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        // Close accordion after selection
         topBody.classList.remove('open');
         topToggle.classList.remove('open');
         if (topHint) topHint.textContent = '열기';
@@ -123,11 +129,9 @@ const ViewerApp = (() => {
   }
 
   function switchAllPanels(typeId) {
-    // Switch all notation panels
     document.querySelectorAll('.notation-panel').forEach(p => {
       p.classList.toggle('active', p.dataset.type === typeId);
     });
-    // Update all play buttons
     const tab = TABS.find(t => t.id === typeId);
     const instLabel = instrumentLabels[tab ? tab.instrument : 'piano'];
     document.querySelectorAll('.card-play-btn').forEach(btn => {
@@ -138,62 +142,210 @@ const ViewerApp = (() => {
     });
   }
 
-  function render() {
+  // =========================================
+  // Render
+  // =========================================
+
+  function render(skipURLUpdate) {
     renderBadges();
     renderCards();
-    updateURL();
+    renderCustomAddBtns();
+    renderCustomCombo();
+    updateResetBtn();
+    if (!skipURLUpdate) updateURL();
 
     const emptyState = document.getElementById('emptyState');
     const cardsContainer = document.getElementById('chordCards');
     const fabContainer = document.getElementById('fabContainer');
     const topAccordion = document.getElementById('topAccordion');
+    const customSection = document.getElementById('customComboSection');
 
     if (chords.length === 0) {
       emptyState.classList.remove('hidden');
       cardsContainer.classList.add('hidden');
       if (fabContainer) fabContainer.style.display = 'none';
       if (topAccordion) topAccordion.classList.add('hidden');
+      if (customSection) customSection.style.display = 'none';
     } else {
       emptyState.classList.add('hidden');
       cardsContainer.classList.remove('hidden');
       if (fabContainer) fabContainer.style.display = '';
       if (topAccordion) topAccordion.classList.remove('hidden');
+      if (customSection) customSection.style.display = '';
     }
   }
+
+  // =========================================
+  // Reset Order
+  // =========================================
+
+  function setupResetOrder() {
+    const btn = document.getElementById('resetOrderBtn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      chords = originalChords.slice();
+      render(true); // skip URL update (already matches original)
+    });
+  }
+
+  function updateResetBtn() {
+    const btn = document.getElementById('resetOrderBtn');
+    if (!btn) return;
+    // Show if current order differs from original
+    const changed = chords.length === originalChords.length
+      && chords.some((c, i) => c !== originalChords[i]);
+    btn.classList.toggle('visible', changed);
+  }
+
+  // =========================================
+  // Badge rendering (everyone can drag to reorder)
+  // =========================================
 
   function renderBadges() {
     const container = document.getElementById('chordBadges');
     container.innerHTML = '';
 
-    chords.forEach(name => {
+    chords.forEach((name, i) => {
       const badge = document.createElement('span');
       badge.className = 'chord-chip';
+      badge.draggable = true;
+      badge.dataset.index = i;
+      badge.dataset.chord = name;
+
       if (isAdmin) {
         badge.innerHTML = `${esc(name)}<button class="remove-chord" title="제거">&times;</button>`;
-        badge.querySelector('.remove-chord').addEventListener('click', () => {
-          chords = chords.filter(c => c !== name);
+        badge.querySelector('.remove-chord').addEventListener('click', (e) => {
+          e.stopPropagation();
+          chords.splice(i, 1);
+          // Also update original for admin add/remove
+          originalChords = chords.slice();
           render();
         });
       } else {
         badge.textContent = name;
       }
+
+      // --- Desktop drag & drop ---
+      badge.addEventListener('dragstart', (e) => {
+        dragSource = 'main';
+        dragChordName = name;
+        dragIdx = i;
+        badge.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'copyMove';
+        e.dataTransfer.setData('text/plain', name);
+      });
+      badge.addEventListener('dragend', () => {
+        badge.style.opacity = '';
+        dragSource = null;
+        dragChordName = '';
+        dragIdx = -1;
+        container.querySelectorAll('.chord-chip').forEach(b => b.classList.remove('drag-over'));
+      });
+      badge.addEventListener('dragover', (e) => {
+        if (dragSource !== 'main') return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        badge.classList.add('drag-over');
+      });
+      badge.addEventListener('dragleave', () => {
+        badge.classList.remove('drag-over');
+      });
+      badge.addEventListener('drop', (e) => {
+        e.preventDefault();
+        badge.classList.remove('drag-over');
+        if (dragSource !== 'main' || dragIdx < 0 || dragIdx === i) return;
+        const moved = chords.splice(dragIdx, 1)[0];
+        chords.splice(i, 0, moved);
+        render(true); // skip URL update → reorder is session-only
+      });
+
+      // --- Touch drag ---
+      let touchClone = null;
+      let touchStartIdx = -1;
+
+      badge.addEventListener('touchstart', (e) => {
+        if (e.target.classList.contains('remove-chord')) return;
+        touchStartIdx = i;
+        dragSource = 'main';
+        dragChordName = name;
+        const touch = e.touches[0];
+        touchClone = badge.cloneNode(true);
+        touchClone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.8;
+          left:${touch.clientX - 30}px;top:${touch.clientY - 15}px;`;
+        document.body.appendChild(touchClone);
+        badge.style.opacity = '0.4';
+      }, { passive: true });
+
+      badge.addEventListener('touchmove', (e) => {
+        if (!touchClone) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchClone.style.left = `${touch.clientX - 30}px`;
+        touchClone.style.top = `${touch.clientY - 15}px`;
+        // Clear all highlights
+        container.querySelectorAll('.chord-chip').forEach(b => b.classList.remove('drag-over'));
+        const customZone = document.getElementById('customComboZone');
+        if (customZone) customZone.classList.remove('drag-over');
+        // Highlight target
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (el) {
+          if (el.closest('.chord-chip') && el.closest('#chordBadges')) {
+            el.closest('.chord-chip').classList.add('drag-over');
+          } else if (el.closest('#customComboZone')) {
+            customZone.classList.add('drag-over');
+          }
+        }
+      }, { passive: false });
+
+      badge.addEventListener('touchend', (e) => {
+        if (!touchClone) return;
+        const touch = e.changedTouches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const customZone = document.getElementById('customComboZone');
+
+        if (el && el.closest('#customComboZone')) {
+          // Dropped on custom zone → add chord
+          customChords.push(name);
+          renderCustomCombo();
+        } else {
+          // Check reorder within badges
+          const target = el && el.closest('.chord-chip');
+          if (target && target.closest('#chordBadges')) {
+            const targetIdx = Array.from(container.children).indexOf(target);
+            if (targetIdx >= 0 && targetIdx !== touchStartIdx) {
+              const moved = chords.splice(touchStartIdx, 1)[0];
+              chords.splice(targetIdx, 0, moved);
+              render(true);
+            }
+          }
+        }
+
+        badge.style.opacity = '';
+        touchClone.remove();
+        touchClone = null;
+        if (customZone) customZone.classList.remove('drag-over');
+        container.querySelectorAll('.chord-chip').forEach(b => b.classList.remove('drag-over'));
+        dragSource = null;
+        dragChordName = '';
+      });
+
       container.appendChild(badge);
     });
   }
 
+  // =========================================
+  // Card rendering (unchanged)
+  // =========================================
+
   function renderCards() {
     const container = document.getElementById('chordCards');
     container.innerHTML = '';
-
-    // Phase 1: Insert all cards into DOM (stabilises scrollbar & layout)
     const cardPairs = [];
     chords.forEach(name => {
       const card = createChordCard(name);
       container.appendChild(card);
       cardPairs.push({ card, name });
     });
-
-    // Phase 2: Render notations after all cards are in DOM so width is accurate
     cardPairs.forEach(({ card, name }) => {
       renderCardNotations(card, name);
     });
@@ -218,7 +370,6 @@ const ViewerApp = (() => {
     card.className = 'chord-card';
     card.id = `card-${chordName}`;
 
-    // Header: chord name + notes + play button
     const header = document.createElement('div');
     header.className = 'card-header';
 
@@ -228,7 +379,6 @@ const ViewerApp = (() => {
     title.textContent = chordName;
     left.appendChild(title);
 
-    // Chord notes display
     const notesDiv = document.createElement('div');
     notesDiv.className = 'flex flex-wrap gap-1';
     const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
@@ -239,7 +389,6 @@ const ViewerApp = (() => {
       notesDiv.appendChild(badge);
     });
 
-    // Chord type
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
@@ -261,7 +410,6 @@ const ViewerApp = (() => {
     }
     left.appendChild(notesDiv);
 
-    // Play button (uses global tab's instrument)
     const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
     const playBtn = document.createElement('button');
     playBtn.className = 'play-btn card-play-btn';
@@ -282,7 +430,6 @@ const ViewerApp = (() => {
     header.appendChild(playBtn);
     card.appendChild(header);
 
-    // Create empty notation panels (rendering happens after DOM insertion)
     TABS.forEach(({ id }) => {
       const panel = document.createElement('div');
       panel.className = `notation-panel${id === currentType ? ' active' : ''}`;
@@ -292,6 +439,10 @@ const ViewerApp = (() => {
 
     return card;
   }
+
+  // =========================================
+  // Admin: add chord
+  // =========================================
 
   function setupAddChord() {
     const input = document.getElementById('addChordInput');
@@ -304,6 +455,7 @@ const ViewerApp = (() => {
       if (!parsed) return;
       if (!chords.includes(name)) {
         chords.push(name);
+        originalChords = chords.slice(); // admin add updates original
         render();
       }
       input.value = '';
@@ -311,12 +463,268 @@ const ViewerApp = (() => {
 
     btn.addEventListener('click', addFromInput);
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addFromInput();
-      }
+      if (e.key === 'Enter') { e.preventDefault(); addFromInput(); }
     });
   }
+
+  // =========================================
+  // Custom Combo Builder
+  // =========================================
+
+  function setupCustomCombo() {
+    const zone = document.getElementById('customComboZone');
+    if (!zone) return;
+
+    // Desktop drop on zone (append to end)
+    zone.addEventListener('dragover', (e) => {
+      if (dragSource === 'main' || dragSource === 'custom') {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = dragSource === 'main' ? 'copy' : 'move';
+        zone.classList.add('drag-over');
+      }
+    });
+    zone.addEventListener('dragleave', (e) => {
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove('drag-over');
+      }
+    });
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (dragSource === 'main' && dragChordName) {
+        customChords.push(dragChordName);
+        renderCustomCombo();
+      }
+      // custom → custom reorder is handled by chip drop handlers
+    });
+
+    // Play button
+    const playBtn = document.getElementById('customPlayBtn');
+    playBtn.addEventListener('click', () => {
+      if (playBtn.classList.contains('playing')) {
+        ChordAudio.stopPlayback();
+        resetCustomPlayUI();
+        resetPlayAllUI();
+        return;
+      }
+      playCustomCombo();
+    });
+
+    // Clear button
+    const clearBtn = document.getElementById('customClearBtn');
+    clearBtn.addEventListener('click', () => {
+      customChords = [];
+      renderCustomCombo();
+    });
+  }
+
+  function renderCustomAddBtns() {
+    const container = document.getElementById('customAddBtns');
+    if (!container) return;
+    container.innerHTML = '';
+    chords.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'custom-add-btn';
+      btn.textContent = `+ ${name}`;
+      btn.addEventListener('click', () => {
+        customChords.push(name);
+        renderCustomCombo();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function renderCustomCombo() {
+    const zone = document.getElementById('customComboZone');
+    const playBtn = document.getElementById('customPlayBtn');
+    const clearBtn = document.getElementById('customClearBtn');
+    if (!zone) return;
+
+    zone.innerHTML = '';
+
+    if (customChords.length === 0) {
+      const hint = document.createElement('span');
+      hint.className = 'drop-hint';
+      hint.textContent = '코드를 끌어다 놓거나 위 버튼을 눌러 추가하세요';
+      zone.appendChild(hint);
+      if (playBtn) playBtn.style.display = 'none';
+      if (clearBtn) clearBtn.style.display = 'none';
+      return;
+    }
+
+    if (playBtn) playBtn.style.display = '';
+    if (clearBtn) clearBtn.style.display = '';
+
+    customChords.forEach((name, i) => {
+      // Arrow between chips
+      if (i > 0) {
+        const arrow = document.createElement('span');
+        arrow.className = 'custom-arrow';
+        arrow.textContent = '→';
+        zone.appendChild(arrow);
+      }
+
+      const chip = document.createElement('span');
+      chip.className = 'custom-combo-chip';
+      chip.draggable = true;
+      chip.dataset.index = i;
+      chip.dataset.chord = name;
+      chip.innerHTML = `${esc(name)}<button class="remove-custom" title="제거">&times;</button>`;
+
+      chip.querySelector('.remove-custom').addEventListener('click', (e) => {
+        e.stopPropagation();
+        customChords.splice(i, 1);
+        renderCustomCombo();
+      });
+
+      // Drag to reorder within custom zone
+      chip.addEventListener('dragstart', (e) => {
+        dragSource = 'custom';
+        dragChordName = name;
+        dragIdx = i;
+        chip.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', name);
+      });
+      chip.addEventListener('dragend', () => {
+        chip.style.opacity = '';
+        dragSource = null;
+        dragChordName = '';
+        dragIdx = -1;
+        zone.querySelectorAll('.custom-combo-chip').forEach(c => c.classList.remove('drag-over'));
+      });
+      chip.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (dragSource === 'custom') {
+          e.dataTransfer.dropEffect = 'move';
+          chip.classList.add('drag-over');
+        } else if (dragSource === 'main') {
+          e.dataTransfer.dropEffect = 'copy';
+          chip.classList.add('drag-over');
+        }
+      });
+      chip.addEventListener('dragleave', () => {
+        chip.classList.remove('drag-over');
+      });
+      chip.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // prevent zone-level drop
+        chip.classList.remove('drag-over');
+        if (dragSource === 'custom' && dragIdx >= 0 && dragIdx !== i) {
+          const moved = customChords.splice(dragIdx, 1)[0];
+          customChords.splice(i, 0, moved);
+          renderCustomCombo();
+        } else if (dragSource === 'main' && dragChordName) {
+          // Insert after this chip
+          customChords.splice(i + 1, 0, dragChordName);
+          renderCustomCombo();
+        }
+      });
+
+      // Touch drag for custom chips
+      let touchClone = null;
+      let touchStartIdx = -1;
+
+      chip.addEventListener('touchstart', (e) => {
+        if (e.target.classList.contains('remove-custom')) return;
+        touchStartIdx = i;
+        dragSource = 'custom';
+        dragChordName = name;
+        const touch = e.touches[0];
+        touchClone = chip.cloneNode(true);
+        touchClone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:0.8;
+          left:${touch.clientX - 30}px;top:${touch.clientY - 12}px;`;
+        document.body.appendChild(touchClone);
+        chip.style.opacity = '0.4';
+      }, { passive: true });
+
+      chip.addEventListener('touchmove', (e) => {
+        if (!touchClone) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchClone.style.left = `${touch.clientX - 30}px`;
+        touchClone.style.top = `${touch.clientY - 12}px`;
+        zone.querySelectorAll('.custom-combo-chip').forEach(c => c.classList.remove('drag-over'));
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (el && el.closest('.custom-combo-chip')) {
+          el.closest('.custom-combo-chip').classList.add('drag-over');
+        }
+      }, { passive: false });
+
+      chip.addEventListener('touchend', (e) => {
+        if (!touchClone) return;
+        const touch = e.changedTouches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const target = el && el.closest('.custom-combo-chip');
+        if (target) {
+          const targetIdx = parseInt(target.dataset.index);
+          if (!isNaN(targetIdx) && targetIdx !== touchStartIdx) {
+            const moved = customChords.splice(touchStartIdx, 1)[0];
+            customChords.splice(targetIdx, 0, moved);
+            renderCustomCombo();
+          }
+        }
+        chip.style.opacity = '';
+        touchClone.remove();
+        touchClone = null;
+        zone.querySelectorAll('.custom-combo-chip').forEach(c => c.classList.remove('drag-over'));
+        dragSource = null;
+        dragChordName = '';
+      });
+
+      zone.appendChild(chip);
+    });
+  }
+
+  // =========================================
+  // Custom combo playback
+  // =========================================
+
+  let customPlayGen = 0;
+
+  function resetCustomPlayUI() {
+    const btn = document.getElementById('customPlayBtn');
+    if (!btn) return;
+    btn.classList.remove('playing');
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생';
+    btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+    btn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+    document.querySelectorAll('#customComboZone .custom-combo-chip').forEach(c => c.classList.remove('playing'));
+    hidePlaybackModal();
+  }
+
+  async function playCustomCombo() {
+    if (customChords.length === 0) return;
+
+    // Cancel any main playback
+    resetPlayAllUI();
+
+    customPlayGen++;
+    const myGen = customPlayGen;
+
+    const btn = document.getElementById('customPlayBtn');
+    btn.classList.add('playing');
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
+    btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+    btn.classList.add('bg-red-500', 'hover:bg-red-600');
+
+    const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
+    await ChordAudio.playChordSequence(customChords, 2.0, (name, idx) => {
+      if (myGen !== customPlayGen) return;
+      const chips = document.querySelectorAll('#customComboZone .custom-combo-chip');
+      chips.forEach(c => c.classList.remove('playing'));
+      if (idx >= 0 && idx < chips.length) chips[idx].classList.add('playing');
+      showPlaybackModal(name);
+    }, currentTab.instrument);
+
+    if (myGen === customPlayGen) {
+      resetCustomPlayUI();
+    }
+  }
+
+  // =========================================
+  // Playback modal (bottom sheet)
+  // =========================================
 
   function showPlaybackModal(chordName) {
     const modal = document.getElementById('playbackModal');
@@ -327,7 +735,6 @@ const ViewerApp = (() => {
 
     titleEl.textContent = chordName;
 
-    // Chord type
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
@@ -344,7 +751,6 @@ const ViewerApp = (() => {
       typeEl.textContent = '';
     }
 
-    // Notes badges
     notesEl.innerHTML = '';
     MusicTheory.getChordNotesDisplay(chordName).forEach(n => {
       const badge = document.createElement('span');
@@ -353,7 +759,6 @@ const ViewerApp = (() => {
       notesEl.appendChild(badge);
     });
 
-    // Render current notation type into modal
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
     const singleChord = [chordName];
@@ -374,6 +779,10 @@ const ViewerApp = (() => {
     document.getElementById('playbackModal').classList.remove('show');
   }
 
+  // =========================================
+  // Main play all
+  // =========================================
+
   function highlightBadge(idx) {
     const badges = document.querySelectorAll('#chordBadges .chord-chip');
     badges.forEach(b => b.classList.remove('playing'));
@@ -386,7 +795,7 @@ const ViewerApp = (() => {
     document.querySelectorAll('#chordBadges .chord-chip').forEach(b => b.classList.remove('playing'));
   }
 
-  let playAllGen = 0; // prevent stale UI updates
+  let playAllGen = 0;
 
   function resetPlayAllUI() {
     const btn = document.getElementById('playAllBtn');
@@ -399,11 +808,16 @@ const ViewerApp = (() => {
   function setupPlayAll() {
     const btn = document.getElementById('playAllBtn');
     btn.addEventListener('click', async () => {
-      if (ChordAudio.getIsPlaying()) {
+      // If main is playing, stop
+      if (btn.classList.contains('playing')) {
         ChordAudio.stopPlayback();
         resetPlayAllUI();
+        resetCustomPlayUI();
         return;
       }
+
+      // Cancel any custom playback
+      resetCustomPlayUI();
 
       playAllGen++;
       const myGen = playAllGen;
@@ -417,12 +831,15 @@ const ViewerApp = (() => {
         showPlaybackModal(name);
       });
 
-      // Only reset UI if this is still the active playback
       if (myGen === playAllGen) {
         resetPlayAllUI();
       }
     });
   }
+
+  // =========================================
+  // URL & Utility
+  // =========================================
 
   function updateURL() {
     const url = new URL(window.location);
