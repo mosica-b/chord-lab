@@ -386,32 +386,41 @@ const ViewerApp = (() => {
     document.querySelectorAll('#chordBadges .chord-chip').forEach(b => b.classList.remove('playing'));
   }
 
+  let playAllGen = 0; // prevent stale UI updates
+
+  function resetPlayAllUI() {
+    const btn = document.getElementById('playAllBtn');
+    btn.classList.remove('playing');
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
+    clearBadgeHighlights();
+    hidePlaybackModal();
+  }
+
   function setupPlayAll() {
     const btn = document.getElementById('playAllBtn');
     btn.addEventListener('click', async () => {
       if (ChordAudio.getIsPlaying()) {
         ChordAudio.stopPlayback();
-        btn.classList.remove('playing');
-        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
-        clearBadgeHighlights();
-        hidePlaybackModal();
+        resetPlayAllUI();
         return;
       }
+
+      playAllGen++;
+      const myGen = playAllGen;
 
       btn.classList.add('playing');
       btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
 
       await ChordAudio.playChordSequence(chords, 2.0, (name, idx) => {
-        // Highlight badge
+        if (myGen !== playAllGen) return;
         highlightBadge(idx);
-        // Show bottom modal with notation
         showPlaybackModal(name);
       });
 
-      btn.classList.remove('playing');
-      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 전체 재생';
-      clearBadgeHighlights();
-      hidePlaybackModal();
+      // Only reset UI if this is still the active playback
+      if (myGen === playAllGen) {
+        resetPlayAllUI();
+      }
     });
   }
 

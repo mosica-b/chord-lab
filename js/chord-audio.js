@@ -299,21 +299,33 @@ const ChordAudio = (() => {
     });
   }
 
+  let playbackGen = 0; // generation counter to cancel stale sequences
+
   async function playChordSequence(chordNames, interval = 1.8, onChordStart, instrument) {
-    if (isPlaying) return;
+    // Stop any existing playback first
+    isPlaying = false;
+    playbackGen++;
+    const myGen = playbackGen;
+
+    // Brief yield to let previous sequence's awaits settle
+    await new Promise(r => setTimeout(r, 30));
+    if (myGen !== playbackGen) return; // another call superseded us
+
     isPlaying = true;
 
     for (let i = 0; i < chordNames.length; i++) {
-      if (!isPlaying) break;
+      if (!isPlaying || myGen !== playbackGen) break;
       if (onChordStart) onChordStart(chordNames[i], i);
       await playChord(chordNames[i], interval - 0.2, instrument);
+      if (myGen !== playbackGen) break;
       await new Promise(r => setTimeout(r, 200));
     }
 
-    isPlaying = false;
+    // Only reset if we're still the active sequence
+    if (myGen === playbackGen) isPlaying = false;
   }
 
-  function stopPlayback() { isPlaying = false; }
+  function stopPlayback() { isPlaying = false; playbackGen++; }
   function getIsPlaying() { return isPlaying; }
 
   return {
