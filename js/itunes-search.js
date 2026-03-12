@@ -129,55 +129,73 @@ const ITunesSearch = (() => {
   }
 
   /**
-   * Fetch lyrics intro (first few lines) from a Genius lyrics page URL.
-   * Uses CORS proxies to fetch the page HTML, then parses
-   * div[data-lyrics-container="true"] elements for lyrics text.
-   * @param {string} geniusUrl - Full Genius lyrics page URL
-   * @param {number} maxLines - Max lines to return (default: 4)
+   * Fetch lyrics intro (first few lines) using LRCLIB API.
+   * LRCLIB is a free, open-source lyrics database with CORS support.
+   * @param {string} songName - Song name
+   * @param {string} artist - Artist name
+   * @param {string} [altSongName] - Alternate song name (e.g. English from iTunes)
+   * @param {number} [maxLines=4] - Max lines to return
    * @returns {Promise<string|null>} First few lines or null on failure
    */
-  async function fetchLyricsIntro(geniusUrl, maxLines = 4) {
-    if (!geniusUrl) return null;
+  async function fetchLyricsIntro(songName, artist, altSongName, maxLines = 4) {
+    if (!songName) return null;
 
-    const proxies = [
-      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    ];
+    // Build query list: original, then alternate
+    const queries = [`${songName} ${artist || ''}`.trim()];
+    if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
+      queries.push(`${altSongName} ${artist || ''}`.trim());
+    }
 
-    for (const makeUrl of proxies) {
+    for (const query of queries) {
       try {
-        const res = await fetch(makeUrl(geniusUrl), { signal: AbortSignal.timeout(8000) });
+        const res = await fetch(
+          `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`,
+          { signal: AbortSignal.timeout(5000) }
+        );
         if (!res.ok) continue;
-        const html = await res.text();
-        if (html.length < 1000) continue; // too small, likely an error page
 
-        // Parse HTML and extract lyrics containers
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const containers = doc.querySelectorAll('[data-lyrics-container="true"]');
-        if (containers.length === 0) continue;
+        const results = await res.json();
+        if (!results || results.length === 0) continue;
 
-        // Extract text, converting <br> to newlines
-        let fullText = '';
-        containers.forEach(el => {
-          el.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-          fullText += el.textContent + '\n';
-        });
+        // Find best match with plainLyrics
+        const songLower = (songName || '').toLowerCase();
+        const artistLower = (artist || '').toLowerCase();
+        let best = null;
 
-        // Clean up: trim, remove empty lines, skip metadata & [Section] headers
-        const metaPattern = /\bContributor|Translation|Romanization|\bLyrics\b|Embed\b/i;
-        const lines = fullText
+        // Pass 1: match both track name and artist
+        for (const r of results) {
+          if (!r.plainLyrics) continue;
+          const tn = (r.trackName || '').toLowerCase();
+          const an = (r.artistName || '').toLowerCase();
+          if (tn.includes(songLower) && an.includes(artistLower)) { best = r; break; }
+        }
+        // Pass 2: match track name only
+        if (!best) {
+          for (const r of results) {
+            if (!r.plainLyrics) continue;
+            if ((r.trackName || '').toLowerCase().includes(songLower)) { best = r; break; }
+          }
+        }
+        // Pass 3: first result with lyrics
+        if (!best) {
+          best = results.find(r => r.plainLyrics);
+        }
+
+        if (!best || !best.plainLyrics) continue;
+
+        // Extract first N non-empty lines
+        const lines = best.plainLyrics
           .split('\n')
           .map(l => l.trim())
-          .filter(l => l && !l.startsWith('[') && !metaPattern.test(l));
+          .filter(l => l);
 
         if (lines.length === 0) continue;
-
         return lines.slice(0, maxLines).join('\n');
       } catch (e) {
-        // Try next proxy
+        // Try next query
       }
     }
-    console.warn('Lyrics intro fetch failed: all proxies exhausted');
+    console.warn('LRCLIB lyrics fetch failed for:', songName);
     return null;
   }
 

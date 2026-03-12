@@ -134,10 +134,10 @@ const App = (() => {
         updatePreview();
       }
 
-      // Step 3: Auto-fetch lyrics intro (non-blocking)
+      // Step 3: Auto-fetch lyrics intro via LRCLIB (non-blocking)
       // Skip if user has manually typed lyrics
-      if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
-        ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+      if (!state.metadata.lyricsIntro || _autoLyrics) {
+        ITunesSearch.fetchLyricsIntro(songName, artist, altSongName).then(intro => {
           if (intro) {
             state.metadata.lyricsIntro = intro;
             _autoLyrics = true;
@@ -223,9 +223,9 @@ const App = (() => {
           saveState();
           updatePreview();
 
-          // Auto-fetch lyrics intro
-          if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
-            ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+          // Auto-fetch lyrics intro via LRCLIB
+          if (!state.metadata.lyricsIntro || _autoLyrics) {
+            ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName).then(intro => {
               if (intro) {
                 state.metadata.lyricsIntro = intro;
                 _autoLyrics = true;
@@ -268,9 +268,9 @@ const App = (() => {
           saveState();
           updatePreview();
 
-          // Auto-fetch lyrics intro
-          if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
-            ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
+          // Auto-fetch lyrics intro via LRCLIB
+          if (!state.metadata.lyricsIntro || _autoLyrics) {
+            ITunesSearch.fetchLyricsIntro(songName, artist, altName).then(intro => {
               if (intro) {
                 state.metadata.lyricsIntro = intro;
                 _autoLyrics = true;
