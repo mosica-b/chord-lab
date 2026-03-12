@@ -761,12 +761,6 @@ const App = (() => {
     }
   }
 
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-  return { state, addChord, removeChord };
+  // Initialization is now called by auth.js after login
+  return { init, state, addChord, removeChord };
 })();
