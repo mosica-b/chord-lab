@@ -491,7 +491,7 @@ const Export = (() => {
         extraRows.push({ label: '음원', value: `<a href="https://music.youtube.com/search?q=${query}">YouTube Music</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
-      html += `<table width="100%" bgcolor="#999999" border="0" cellpadding="8" cellspacing="1">`;
+      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0">`;
       const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
@@ -512,7 +512,7 @@ const Export = (() => {
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
-        t += `<table width="100%" bgcolor="#999999" border="0" cellpadding="${pad}" cellspacing="1">`;
+        t += `<table width="100%" border="1" bordercolor="#999999" cellpadding="${pad}" cellspacing="0">`;
         const headerCells = ['코드', '타입', '구성음'];
         t += `<tr>`;
         headerCells.forEach(h => {
@@ -579,7 +579,7 @@ const Export = (() => {
 
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
-      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" bgcolor="#999999" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
@@ -613,7 +613,7 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
-      html += `<table width="100%" bgcolor="#999999" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
