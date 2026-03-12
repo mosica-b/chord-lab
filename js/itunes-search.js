@@ -55,28 +55,37 @@ const ITunesSearch = (() => {
   async function searchGeniusLyrics(songName, artist) {
     if (!songName) return null;
     const query = `${artist || ''} ${songName}`.trim();
-    try {
-      const res = await fetch(`https://api.genius.com/search?q=${encodeURIComponent(query)}`, {
-        headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` }
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      const hits = data.response && data.response.hits;
-      if (!hits || hits.length === 0) return null;
+    const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}`;
 
-      // Find best match
-      const songLower = songName.toLowerCase();
-      for (const hit of hits) {
-        const s = hit.result;
-        if (s.title && s.title.toLowerCase().includes(songLower)) {
-          return s.url;
+    // Try direct fetch first, then CORS proxy fallback
+    const attempts = [
+      () => fetch(geniusApiUrl, { headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` } }),
+      () => fetch(`https://corsproxy.io/?${encodeURIComponent(geniusApiUrl)}`, { headers: { 'Authorization': `Bearer ${GENIUS_TOKEN}` } }),
+    ];
+
+    for (const attempt of attempts) {
+      try {
+        const res = await attempt();
+        if (!res.ok) continue;
+        const data = await res.json();
+        const hits = data.response && data.response.hits;
+        if (!hits || hits.length === 0) return null;
+
+        // Find best match
+        const songLower = songName.toLowerCase();
+        for (const hit of hits) {
+          const s = hit.result;
+          if (s.title && s.title.toLowerCase().includes(songLower)) {
+            return s.url;
+          }
         }
+        return hits[0].result.url;
+      } catch (e) {
+        // Try next attempt
       }
-      return hits[0].result.url;
-    } catch (e) {
-      console.warn('Genius search failed:', e);
-      return null;
     }
+    console.warn('Genius search failed: all attempts exhausted');
+    return null;
   }
 
   return { searchAlbum, searchGeniusLyrics };

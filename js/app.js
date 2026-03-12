@@ -50,6 +50,8 @@ const App = (() => {
   // =========================================
   // Metadata Form
   // =========================================
+  let autoSearchTimer = null;
+
   function setupMetadataListeners() {
     const fields = ['songName', 'artist', 'albumName', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey'];
 
@@ -62,6 +64,12 @@ const App = (() => {
         state.metadata[key] = el.value;
         saveState();
         updatePreview();
+
+        // Auto-search APIs when songName or artist changes
+        if (id === 'songName' || id === 'artist') {
+          clearTimeout(autoSearchTimer);
+          autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
+        }
       });
     });
 
@@ -72,6 +80,46 @@ const App = (() => {
         saveState();
         updateAll();
       });
+    }
+  }
+
+  // =========================================
+  // Auto API Search (iTunes + Genius)
+  // =========================================
+  async function autoSearchAPIs() {
+    const { songName, artist } = state.metadata;
+    if (!songName) return;
+
+    try {
+      const [album, geniusUrl] = await Promise.all([
+        ITunesSearch.searchAlbum(songName, artist),
+        ITunesSearch.searchGeniusLyrics(songName, artist),
+      ]);
+
+      let changed = false;
+
+      if (album) {
+        if (album.albumName && !state.metadata.albumName) {
+          state.metadata.albumName = album.albumName;
+          document.getElementById('albumName').value = album.albumName;
+          changed = true;
+        }
+        if (album.trackViewUrl) {
+          state.metadata.appleMusicUrl = album.trackViewUrl;
+          changed = true;
+        }
+      }
+      if (geniusUrl) {
+        state.metadata.geniusUrl = geniusUrl;
+        changed = true;
+      }
+
+      if (changed) {
+        saveState();
+        updatePreview();
+      }
+    } catch (e) {
+      console.warn('Auto API search failed:', e);
     }
   }
 
@@ -175,10 +223,9 @@ const App = (() => {
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
           }
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
-          if (album && album.albumName) {
-            saveState();
-            updatePreview();
-          } else {
+          saveState();
+          updatePreview();
+          if (!album || !album.albumName) {
             alert('앨범을 찾지 못했습니다.');
           }
         } catch (e) {
@@ -620,6 +667,11 @@ const App = (() => {
       // Restore UI
       renderSelectedChords();
       updateAll();
+
+      // Auto-fetch API URLs if missing
+      if (state.metadata.songName && (!state.metadata.geniusUrl || !state.metadata.appleMusicUrl)) {
+        autoSearchAPIs();
+      }
     } catch (e) {
       console.warn('Failed to load state:', e);
     }
