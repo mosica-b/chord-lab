@@ -35,22 +35,11 @@ const Export = (() => {
       { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
-    infoRows.forEach(({ label, value, isChords }) => {
+    infoRows.forEach(({ label, value }) => {
       const row = document.createElement('p');
       row.style.margin = '4px 0';
       row.style.fontSize = '14px';
-
-      if (isChords && chords.length > 0) {
-        const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
-        const chordLinks = chords.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
-          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:500;" target="_blank">${c}</a>`;
-        }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-        row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${chordLinks}&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[전체 보기]</a>`;
-      } else {
-        row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${value}`;
-      }
+      row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
       infoSection.appendChild(row);
     });
 
@@ -77,18 +66,11 @@ const Export = (() => {
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
       chords.forEach(name => {
         const row = document.createElement('tr');
         const tdName = document.createElement('td');
         tdName.style.fontWeight = '600';
-        const chordLink = document.createElement('a');
-        chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-        chordLink.target = '_blank';
-        chordLink.style.color = '#2563eb';
-        chordLink.style.textDecoration = 'none';
-        chordLink.textContent = `${name} ▶`;
-        tdName.appendChild(chordLink);
+        tdName.textContent = name;
         row.appendChild(tdName);
 
         const tdNotes = document.createElement('td');
@@ -200,6 +182,17 @@ const Export = (() => {
 
       preview.appendChild(linksSection);
     }
+
+    // 6. Viewer link (single clean URL)
+    if (chords.length > 0) {
+      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      const viewerP = document.createElement('p');
+      viewerP.style.margin = '15px 0';
+      viewerP.style.fontSize = '14px';
+      viewerP.innerHTML = `▶ 코드 재생/표기 보기: <a href="${allUrl}" target="_blank" style="color:#2563eb;text-decoration:none;">${allUrl}</a>`;
+      preview.appendChild(viewerP);
+    }
   }
 
   function createNotationSection(title) {
@@ -270,16 +263,8 @@ const Export = (() => {
       { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
-    infoRows.forEach(({ label, value, isChords }) => {
-      if (isChords && chords.length > 0) {
-        html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}</p>`;
-        // Viewer link as visible URL text
-        const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-        html += `<p style="margin:2px 0;font-size:13px;">▶ 코드 재생/표기 보기: <a href="${allUrl}" style="color:#2563eb;text-decoration:none;">${allUrl}</a></p>`;
-      } else {
-        html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}</p>`;
-      }
+    infoRows.forEach(({ label, value }) => {
+      html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}</p>`;
     });
 
     // Chord notes table
@@ -291,16 +276,12 @@ const Export = (() => {
       html += `<thead><tr style="background:#f5f5f5;">`;
       html += `<th style="border:1px solid #ddd;padding:8px;font-weight:bold;">코드</th>`;
       html += `<th style="border:1px solid #ddd;padding:8px;font-weight:bold;">구성음</th>`;
-      html += `<th style="border:1px solid #ddd;padding:8px;font-weight:bold;">재생</th>`;
       html += `</tr></thead><tbody>`;
-      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
       chords.forEach(name => {
         const notes = MusicTheory.getChordNotesDisplay(name);
-        const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
         html += `<tr>`;
         html += `<td style="border:1px solid #ddd;padding:8px;font-weight:bold;">${esc(name)}</td>`;
         html += `<td style="border:1px solid #ddd;padding:8px;">${esc(notes.join(', '))}</td>`;
-        html += `<td style="border:1px solid #ddd;padding:8px;font-size:12px;word-break:break-all;text-align:left;"><a href="${chordUrl}" style="color:#2563eb;text-decoration:none;">${chordUrl}</a></td>`;
         html += `</tr>`;
       });
       html += `</tbody></table>`;
@@ -359,6 +340,14 @@ const Export = (() => {
       });
     }
 
+    // Viewer link (single clean URL at the bottom)
+    if (chords.length > 0) {
+      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      html += `<br>`;
+      html += `<p style="font-size:14px;margin:10px 0;">▶ 코드 재생/표기 보기: <a href="${allUrl}" style="color:#2563eb;text-decoration:none;">${allUrl}</a></p>`;
+    }
+
     html += '</div>';
     return html;
   }
@@ -388,17 +377,16 @@ const Export = (() => {
     });
 
     if (chords.length > 0) {
-      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      text += `\n▶ 코드 재생/표기 보기: ${allUrl}\n`;
-
       text += `\n코드 구성음\n`;
       text += `${'─'.repeat(30)}\n`;
       chords.forEach(name => {
         const notes = MusicTheory.getChordNotesDisplay(name);
-        const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
-        text += `${name.padEnd(8)}${notes.join(', ')}  ${chordUrl}\n`;
+        text += `${name.padEnd(8)}${notes.join(', ')}\n`;
       });
+
+      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      text += `\n▶ 코드 재생/표기 보기: ${allUrl}\n`;
     }
 
     if (capoPosition > 0 && chords.length > 0) {
