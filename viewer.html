@@ -421,6 +421,54 @@
     .top-accordion-row.active .row-check {
       opacity: 1;
     }
+
+    /* Capo selector */
+    .capo-row {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-top: 1px solid #e5e7eb;
+      background: #fafbfc;
+    }
+    .capo-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+    .capo-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .capo-btn {
+      min-width: 36px;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .capo-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+    .capo-btn.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    /* Capo label on cards */
+    .capo-shape-label {
+      font-size: 12px;
+      color: #2563eb;
+      font-weight: 500;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -484,6 +532,19 @@
         <button class="top-accordion-row" data-type="ukulele-tab"><span class="row-icon">🪕</span>우쿨렐레 타브<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="ukulele-diagram"><span class="row-icon">🪕</span>우쿨렐레 다이어그램<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="piano"><span class="row-icon">🎹</span>피아노<span class="row-check">✓</span></button>
+        <div id="capoRow" class="capo-row">
+          <span class="capo-label">카포</span>
+          <div class="capo-buttons">
+            <button class="capo-btn active" data-capo="0">없음</button>
+            <button class="capo-btn" data-capo="1">1</button>
+            <button class="capo-btn" data-capo="2">2</button>
+            <button class="capo-btn" data-capo="3">3</button>
+            <button class="capo-btn" data-capo="4">4</button>
+            <button class="capo-btn" data-capo="5">5</button>
+            <button class="capo-btn" data-capo="6">6</button>
+            <button class="capo-btn" data-capo="7">7</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -533,6 +594,19 @@
     <button class="fab-accordion-item" data-type="ukulele-tab">🪕 우쿨렐레 타브</button>
     <button class="fab-accordion-item" data-type="ukulele-diagram">🪕 우쿨렐레 다이어그램</button>
     <button class="fab-accordion-item" data-type="piano">🎹 피아노</button>
+    <div id="fabCapoRow" class="capo-row" style="border-top:1px solid #e5e7eb;">
+      <span class="capo-label">카포</span>
+      <div class="capo-buttons">
+        <button class="capo-btn active" data-capo="0">없음</button>
+        <button class="capo-btn" data-capo="1">1</button>
+        <button class="capo-btn" data-capo="2">2</button>
+        <button class="capo-btn" data-capo="3">3</button>
+        <button class="capo-btn" data-capo="4">4</button>
+        <button class="capo-btn" data-capo="5">5</button>
+        <button class="capo-btn" data-capo="6">6</button>
+        <button class="capo-btn" data-capo="7">7</button>
+      </div>
+    </div>
   </div>
 
   <!-- VexFlow 3 -->
@@ -543,6 +617,6 @@
   <script src="js/renderers.js?v=2"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=2"></script>
-  <script src="js/viewer-app.js?v=11"></script>
+  <script src="js/viewer-app.js?v=12"></script>
 </body>
 </html>

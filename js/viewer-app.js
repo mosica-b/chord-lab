@@ -11,6 +11,8 @@ const ViewerApp = (() => {
   let customChords = [];
   let defaultType = null;
   let currentType = 'staff';
+  let capoPosition = 0;
+  const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
   const isAdmin = !!sessionStorage.getItem('chord_lab_auth');
 
   // Drag tracking (shared between main badges and custom combo)
@@ -121,9 +123,23 @@ const ViewerApp = (() => {
         currentType = btn.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        topBody.classList.remove('open');
-        topToggle.classList.remove('open');
-        if (topHint) topHint.textContent = '열기';
+        // Don't close accordion — keep open so user can see capo selector
+      });
+    });
+
+    // Capo buttons (both top and FAB)
+    setupCapoButtons();
+  }
+
+  function setupCapoButtons() {
+    document.querySelectorAll('.capo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        capoPosition = parseInt(btn.dataset.capo, 10);
+        // Sync all capo buttons (top + FAB)
+        document.querySelectorAll('.capo-btn').forEach(b => {
+          b.classList.toggle('active', parseInt(b.dataset.capo, 10) === capoPosition);
+        });
+        renderCards();
       });
     });
   }
@@ -139,6 +155,15 @@ const ViewerApp = (() => {
       if (!btn.classList.contains('playing')) {
         btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
       }
+    });
+    // Show/hide capo row and card labels
+    const showCapo = CAPO_TYPES.has(typeId);
+    const capoRow = document.getElementById('capoRow');
+    const fabCapoRow = document.getElementById('fabCapoRow');
+    if (capoRow) capoRow.style.display = showCapo ? 'flex' : 'none';
+    if (fabCapoRow) fabCapoRow.style.display = showCapo ? 'flex' : 'none';
+    document.querySelectorAll('.capo-shape-label').forEach(label => {
+      label.style.display = (showCapo && capoPosition > 0) ? '' : 'none';
     });
   }
 
@@ -171,6 +196,12 @@ const ViewerApp = (() => {
       if (fabContainer) fabContainer.style.display = '';
       if (topAccordion) topAccordion.classList.remove('hidden');
       if (customRow) customRow.style.display = '';
+      // Sync capo row visibility with current type
+      const showCapo = CAPO_TYPES.has(currentType);
+      const capoRow = document.getElementById('capoRow');
+      const fabCapoRow = document.getElementById('fabCapoRow');
+      if (capoRow) capoRow.style.display = showCapo ? 'flex' : 'none';
+      if (fabCapoRow) fabCapoRow.style.display = showCapo ? 'flex' : 'none';
     }
   }
 
@@ -360,9 +391,15 @@ const ViewerApp = (() => {
   }
 
   function renderCardNotations(card, chordName) {
-    const singleChord = [chordName];
+    const transposedName = capoPosition > 0
+      ? MusicTheory.transposeChord(chordName, -capoPosition)
+      : chordName;
+
     card.querySelectorAll('.notation-panel').forEach(panel => {
-      switch (panel.dataset.type) {
+      const type = panel.dataset.type;
+      const useChord = CAPO_TYPES.has(type) && capoPosition > 0 ? transposedName : chordName;
+      const singleChord = [useChord];
+      switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
         case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
         case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
@@ -371,6 +408,17 @@ const ViewerApp = (() => {
         case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
       }
     });
+
+    // Update capo label on card
+    const capoLabel = card.querySelector('.capo-shape-label');
+    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+      if (capoLabel) {
+        capoLabel.textContent = `카포 ${capoPosition} → ${transposedName} 폼`;
+        capoLabel.style.display = '';
+      }
+    } else {
+      if (capoLabel) capoLabel.style.display = 'none';
+    }
   }
 
   function createChordCard(chordName) {
@@ -417,6 +465,12 @@ const ViewerApp = (() => {
       }
     }
     left.appendChild(notesDiv);
+
+    // Capo shape label
+    const capoLabel = document.createElement('div');
+    capoLabel.className = 'capo-shape-label';
+    capoLabel.style.display = 'none';
+    left.appendChild(capoLabel);
 
     const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
     const playBtn = document.createElement('button');
@@ -753,7 +807,10 @@ const ViewerApp = (() => {
 
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
-    const singleChord = [chordName];
+    const transposedName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+      ? MusicTheory.transposeChord(chordName, -capoPosition)
+      : chordName;
+    const singleChord = [transposedName];
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
       case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
