@@ -37,7 +37,10 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">앨범명</label>
-          <input type="text" id="albumName" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="앨범명 (자동 검색)">
+          <div class="flex gap-1">
+            <input type="text" id="albumName" class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="앨범명">
+            <button id="searchAlbumBtn" class="bg-gray-200 text-gray-600 px-2 py-1 rounded-lg text-xs hover:bg-gray-300 transition whitespace-nowrap" title="iTunes에서 앨범 검색">검색</button>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">작곡</label>

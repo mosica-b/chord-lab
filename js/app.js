@@ -137,6 +137,33 @@ const App = (() => {
         input.value = '';
       }
     });
+
+    // Album search button
+    const searchBtn = document.getElementById('searchAlbumBtn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', async () => {
+        const { songName, artist } = state.metadata;
+        if (!songName && !artist) return;
+        searchBtn.textContent = '...';
+        searchBtn.disabled = true;
+        try {
+          const album = await ITunesSearch.searchAlbum(songName, artist);
+          if (album && album.albumName) {
+            state.metadata.albumName = album.albumName;
+            document.getElementById('albumName').value = album.albumName;
+            saveState();
+            updatePreview();
+          } else {
+            alert('앨범을 찾지 못했습니다.');
+          }
+        } catch (e) {
+          console.warn('Album search failed:', e);
+        } finally {
+          searchBtn.textContent = '검색';
+          searchBtn.disabled = false;
+        }
+      });
+    }
   }
 
   // =========================================
