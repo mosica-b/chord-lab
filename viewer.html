@@ -161,6 +161,41 @@
     .input-section {
       overflow: hidden;
     }
+    /* Horizontal mode */
+    .horizontal-toggle {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 8px; border: 1px solid #d1d5db;
+      background: white; color: #6b7280; font-size: 13px; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .horizontal-toggle:hover { background: #f9fafb; border-color: #9ca3af; }
+    .horizontal-toggle.active { background: #eff6ff; color: #2563eb; border-color: #93c5fd; }
+    .horizontal-toggle svg { transition: transform 0.2s; }
+    .horizontal-toggle.active svg { color: #2563eb; }
+
+    #chordCards.horizontal-mode {
+      display: flex !important;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 16px;
+      padding-bottom: 12px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    #chordCards.horizontal-mode > .chord-card {
+      flex: 0 0 auto;
+      width: 300px;
+      scroll-snap-align: start;
+    }
+    @media (max-width: 640px) {
+      #chordCards.horizontal-mode > .chord-card {
+        width: 260px;
+      }
+    }
+    /* Hide scrollbar but keep scrollable */
+    #chordCards.horizontal-mode::-webkit-scrollbar { height: 4px; }
+    #chordCards.horizontal-mode::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
     @media (max-width: 480px) {
       .chord-card { padding: 14px; }
       .fab-container { padding: 0 16px; bottom: 16px; }
@@ -479,7 +514,13 @@
         <h1 class="text-xl font-bold text-gray-800">Chord Viewer</h1>
         <p class="text-sm text-gray-500">코드 표기 & 소리 확인</p>
       </div>
-      <a id="backToLabLink" href="index.html" class="text-sm text-blue-500 hover:text-blue-700 whitespace-nowrap flex-shrink-0" style="display:none;"><span class="hidden sm:inline">Song &amp; Chord </span>Lab &rarr;</a>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="horizontalToggle" class="horizontal-toggle" title="가로 모드">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 2v4M16 2v4M8 18v4M16 18v4"/></svg>
+          가로
+        </button>
+        <a id="backToLabLink" href="index.html" class="text-sm text-blue-500 hover:text-blue-700 whitespace-nowrap flex-shrink-0" style="display:none;"><span class="hidden sm:inline">Song &amp; Chord </span>Lab &rarr;</a>
+      </div>
     </div>
   </header>
 

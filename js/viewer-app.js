@@ -60,6 +60,7 @@ const ViewerApp = (() => {
     setupPlayAll();
     setupResetOrder();
     setupCustomCombo();
+    setupHorizontalToggle();
     render();
 
     // Open accordion by default on initial load
@@ -901,6 +902,21 @@ const ViewerApp = (() => {
       if (myGen === playAllGen) {
         resetPlayAllUI();
       }
+    });
+  }
+
+  // =========================================
+  // Horizontal mode toggle
+  // =========================================
+
+  function setupHorizontalToggle() {
+    const btn = document.getElementById('horizontalToggle');
+    const cards = document.getElementById('chordCards');
+    if (!btn || !cards) return;
+
+    btn.addEventListener('click', () => {
+      const isActive = btn.classList.toggle('active');
+      cards.classList.toggle('horizontal-mode', isActive);
     });
   }
 
