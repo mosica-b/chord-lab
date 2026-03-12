@@ -95,9 +95,11 @@ const ViewerApp = (() => {
     // Set initial label
     syncAllSelectors();
 
+    const topHint = document.getElementById('topAccordionHint');
     topToggle.addEventListener('click', () => {
       const isOpen = topBody.classList.toggle('open');
       topToggle.classList.toggle('open', isOpen);
+      if (topHint) topHint.textContent = isOpen ? '접기' : '열기';
     });
 
     topBtns.forEach(btn => {
@@ -108,6 +110,7 @@ const ViewerApp = (() => {
         // Close accordion after selection
         topBody.classList.remove('open');
         topToggle.classList.remove('open');
+        if (topHint) topHint.textContent = '열기';
       });
     });
   }

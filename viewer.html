@@ -298,11 +298,11 @@
 
     <!-- Top notation accordion -->
     <div class="top-accordion hidden" id="topAccordion">
-      <button class="top-accordion-toggle" id="topAccordionToggle">
+      <button class="top-accordion-toggle open" id="topAccordionToggle">
         <span>🎼 표기: <span id="topAccordionLabel">오선보</span></span>
-        <svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        <span style="display:flex;align-items:center;gap:6px;"><span id="topAccordionHint" style="font-size:12px;font-weight:400;color:#9ca3af;">접기</span><svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
       </button>
-      <div class="top-accordion-body" id="topAccordionBody">
+      <div class="top-accordion-body open" id="topAccordionBody">
         <button class="top-accordion-row active" data-type="staff"><span class="row-icon">🎼</span>오선보<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="guitar-tab"><span class="row-icon">🎸</span>기타 타브<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="guitar-diagram"><span class="row-icon">🎸</span>기타 다이어그램<span class="row-check">✓</span></button>
