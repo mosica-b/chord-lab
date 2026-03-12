@@ -49,6 +49,22 @@ const Export = (() => {
       // Info rows
       const allTableRows = [...infoRows];
 
+      // 사용 코드 row (after 키/카포)
+      if (chords.length > 0) {
+        const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
+        const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
+        const basicLinks = basic.map(c => {
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
+        }).join(', ');
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        let chordsHtml = basicLinks;
+        if (advanced.length > 0) {
+          chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[심화 코드 보기]</a>`;
+        }
+        allTableRows.push({ label: '사용 코드', valueHtml: chordsHtml });
+      }
+
       // Link rows
       if (metadata.songName || metadata.artist) {
         const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
@@ -86,27 +102,6 @@ const Export = (() => {
     }
 
     preview.appendChild(infoSection);
-
-    // 사용 코드 (separate, centered)
-    if (chords.length > 0) {
-      const chordRow = document.createElement('p');
-      chordRow.style.margin = '12px 0';
-      chordRow.style.fontSize = '14px';
-      chordRow.style.textAlign = 'center';
-      const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
-      const basicLinks = basic.map(c => {
-        const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
-        return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
-      }).join(', ');
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      let chordsHtml = `<b>사용 코드</b>&nbsp;&nbsp;&nbsp;${basicLinks}`;
-      if (advanced.length > 0) {
-        chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[심화 코드 보기]</a>`;
-      }
-      chordRow.innerHTML = chordsHtml;
-      preview.appendChild(chordRow);
-    }
 
     // 2. Chord Notes Table - split into triads and advanced
     if (chords.length > 0) {
@@ -410,42 +405,44 @@ const Export = (() => {
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
     ].filter(r => r.value);
 
-    if (infoRows.length > 0) {
-      // Build link rows for the info table
+    if (infoRows.length > 0 || chords.length > 0) {
+      // Build extra rows for the info table
+      const extraRows = [];
+
+      // 사용 코드 row
+      if (chords.length > 0) {
+        const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
+        const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
+        const basicLinks = nBasic.map(c => {
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          return `<a href="${url}"><b>${esc(c)}</b></a>`;
+        }).join(', ');
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        let chordsValue = basicLinks;
+        if (nAdvanced.length > 0) {
+          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}">[심화 코드 보기]</a>`;
+        }
+        extraRows.push({ label: '사용 코드', value: chordsValue });
+      }
+
+      // Link rows
       const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
       const query = encodeURIComponent(q);
       const lyricsQuery = encodeURIComponent(`${q} 가사`);
-      const linkRows = [];
       if (metadata.songName || metadata.artist) {
         const geniusLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : `https://genius.com/search?q=${query}`;
         const appleMusicLink = metadata.appleMusicUrl ? esc(metadata.appleMusicUrl) : `https://music.apple.com/search?term=${query}`;
-        linkRows.push({ label: '가사', value: `<a href="${geniusLink}">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube</a>` });
-        linkRows.push({ label: '음원', value: `<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
+        extraRows.push({ label: '가사', value: `<a href="${geniusLink}">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube</a>` });
+        extraRows.push({ label: '음원', value: `<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
       html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="8" cellspacing="1">`;
-      const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...linkRows];
+      const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
         html += `<tr><td width="80" align="center" bgcolor="#eef2f7"><b>${esc(label)}</b></td><td bgcolor="${rowBg}">${value}</td></tr>`;
       });
       html += `</table>`;
-    }
-
-    // 사용 코드 (outside blockquote, centered)
-    if (chords.length > 0) {
-      const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
-      const basicLinks = nBasic.map(c => {
-        const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
-        return `<a href="${url}"><b>${esc(c)}</b></a>`;
-      }).join(', ');
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      let chordLine = `<b>사용 코드</b>&nbsp;&nbsp;&nbsp;${basicLinks}`;
-      if (nAdvanced.length > 0) {
-        chordLine += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}">[심화 코드 보기]</a>`;
-      }
-      html += `<p align="center">${chordLine}</p>`;
     }
 
     // Chord notes table - split into primary and advanced, sorted by degree
