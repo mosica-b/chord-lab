@@ -235,12 +235,6 @@ const Export = (() => {
           section.appendChild(keyLabel);
         }
 
-        // View link below table
-        const viewLink = document.createElement('p');
-        viewLink.style.margin = '8px 0 0 0';
-        viewLink.innerHTML = `<a href="${viewerBase}?chords=${encodeURIComponent(chordList.join(','))}" target="_blank" style="color:#2563eb;text-decoration:none;font-size:13px;font-weight:500;">▶ ${esc(title)} 전체 보기 🎹</a>`;
-        section.appendChild(viewLink);
-
         return section;
       }
 
@@ -594,22 +588,18 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        const basicViewUrl = `${viewerBase}?chords=${encodeURIComponent(basicChords.join(','))}`;
         html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
-        html += `<p style="margin:8px 0 0 0;"><a href="${basicViewUrl}"><font color="#2563eb" size="2"><b>▶ 주요 코드 전체 보기 🎹</b></font></a></p>`;
       }
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        const advViewUrl = `${viewerBase}?chords=${encodeURIComponent(advancedChords.join(','))}`;
         html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
-        html += `<p style="margin:8px 0 0 0;"><a href="${advViewUrl}"><font color="#2563eb" size="2"><b>▶ 심화 코드 전체 보기 🎹</b></font></a></p>`;
       }
     }
 
@@ -735,15 +725,13 @@ const Export = (() => {
       const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
 
       if (basicChords.length > 0) {
-        const basicUrl = `${viewerBase}?chords=${encodeURIComponent(basicChords.join(','))}`;
-        text += `\n주요 코드  ▶ 보기 🎹 ${basicUrl}\n`;
+        text += `\n주요 코드\n`;
         text += `${'─'.repeat(30)}\n`;
         text += buildPlainTable(basicChords);
       }
 
       if (advancedChords.length > 0) {
-        const advUrl = `${viewerBase}?chords=${encodeURIComponent(advancedChords.join(','))}`;
-        text += `\n심화 코드  ▶ 보기 🎹 ${advUrl}\n`;
+        text += `\n심화 코드\n`;
         text += `${'─'.repeat(30)}\n`;
         text += buildPlainTable(advancedChords);
       }
