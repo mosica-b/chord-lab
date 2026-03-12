@@ -88,8 +88,9 @@
     }
     .playback-modal-header {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      gap: 4px;
       margin-bottom: 8px;
     }
     .playback-modal-title {
@@ -106,10 +107,13 @@
       display: flex;
       gap: 4px;
       flex-wrap: wrap;
+      justify-content: center;
     }
     .playback-modal-content {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      display: flex;
+      justify-content: center;
     }
     /* Notation panel scrollable on overflow */
     .notation-panel.active {
