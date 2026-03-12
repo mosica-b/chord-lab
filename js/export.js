@@ -78,7 +78,7 @@ const Export = (() => {
         let lyricsHtml = '';
         if (metadata.lyricsIntro) {
           lyricsHtml += `${esc(metadata.lyricsIntro).replace(/\n/g, '<br>')}<br>`;
-          lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#999;font-size:12px;text-decoration:none;">...(가사 전체 보기)</a>`;
+          lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#2563eb;font-size:13px;text-decoration:underline;">...(가사 전체 보기)</a>`;
         } else {
           lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">가사 전체 보기</a>`;
         }
@@ -481,7 +481,7 @@ const Export = (() => {
         let lyricsValue = '';
         if (metadata.lyricsIntro) {
           lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
-          lyricsValue += `<font color="#999999" size="2"><a href="${geniusLink}">&hellip;(가사 전체 보기)</a></font>`;
+          lyricsValue += `<a href="${geniusLink}"><b>&hellip;(가사 전체 보기)</b></a>`;
         } else {
           lyricsValue += `<a href="${geniusLink}">가사 전체 보기</a>`;
         }
