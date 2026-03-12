@@ -64,6 +64,7 @@ const Export = (() => {
         if (advanced.length > 0) {
           chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;font-size:12px;text-decoration:none;" target="_blank">전체 코드 보기</a> 🎹`;
         }
+        chordsHtml += `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>`;
         allTableRows.push({ label: '사용 코드', valueHtml: chordsHtml });
       }
 
@@ -137,7 +138,7 @@ const Export = (() => {
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
         const h = document.createElement('h3');
-        h.textContent = title;
+        h.innerHTML = `${esc(title)}&nbsp;&nbsp;<a href="${viewerBase}?chords=${encodeURIComponent(chordList.join(','))}" target="_blank" style="font-size:13px;font-weight:500;color:#2563eb;text-decoration:none;">▶ 보기 🎹</a>`;
         section.appendChild(h);
 
         const table = document.createElement('table');
@@ -487,6 +488,7 @@ const Export = (() => {
         if (nAdvanced.length > 0) {
           chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
         }
+        chordsValue += `<br><font color="#999999" size="1">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</font>`;
         extraRows.push({ label: '사용 코드', value: chordsValue });
       }
 
@@ -586,7 +588,8 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>`;
+        const basicViewUrl = `${viewerBase}?chords=${encodeURIComponent(basicChords.join(','))}`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>&nbsp;&nbsp;<a href="${basicViewUrl}"><font color="#2563eb" size="2">▶ 보기 🎹</font></a>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
@@ -594,7 +597,8 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>`;
+        const advViewUrl = `${viewerBase}?chords=${encodeURIComponent(advancedChords.join(','))}`;
+        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>&nbsp;&nbsp;<a href="${advViewUrl}"><font color="#2563eb" size="2">▶ 보기 🎹</font></a>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
@@ -687,6 +691,7 @@ const Export = (() => {
         text += `사용 코드   ${ptBasic.join(', ')}`;
         if (ptAdv.length > 0) text += ` ... +심화 코드 ${ptAdv.length}개`;
         text += '\n';
+        text += `저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼\n`;
       }
     }
 
@@ -719,19 +724,22 @@ const Export = (() => {
         return t;
       }
 
+      const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
+
       if (basicChords.length > 0) {
-        text += `\n주요 코드\n`;
+        const basicUrl = `${viewerBase}?chords=${encodeURIComponent(basicChords.join(','))}`;
+        text += `\n주요 코드  ▶ 보기 🎹 ${basicUrl}\n`;
         text += `${'─'.repeat(30)}\n`;
         text += buildPlainTable(basicChords);
       }
 
       if (advancedChords.length > 0) {
-        text += `\n심화 코드\n`;
+        const advUrl = `${viewerBase}?chords=${encodeURIComponent(advancedChords.join(','))}`;
+        text += `\n심화 코드  ▶ 보기 🎹 ${advUrl}\n`;
         text += `${'─'.repeat(30)}\n`;
         text += buildPlainTable(advancedChords);
       }
 
-      const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
       const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
       text += `\n▶ 코드 재생/표기 보기: ${allUrl}\n`;
     }
