@@ -15,16 +15,10 @@
       <p class="text-sm text-gray-400 text-center mb-6">관리자 로그인</p>
       <form id="loginForm" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">이메일</label>
-          <input type="email" id="loginEmail" required autocomplete="email"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="admin@example.com">
-        </div>
-        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">비밀번호</label>
           <input type="password" id="loginPassword" required autocomplete="current-password"
             class="w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="비밀번호">
+            placeholder="비밀번호를 입력하세요">
         </div>
         <p id="loginError" class="text-red-500 text-xs min-h-[1rem]"></p>
         <button type="submit" class="w-full bg-blue-500 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-600 transition">로그인</button>
@@ -40,7 +34,6 @@
         <p class="text-sm text-gray-500">네이버 블로그용 곡 정보 & 코드 표기 생성기</p>
       </div>
       <div class="flex items-center gap-3">
-        <span id="userEmail" class="text-xs text-gray-400"></span>
         <button id="changePwBtn" class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">비밀번호 변경</button>
         <button id="logoutBtn" class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">로그아웃</button>
       </div>
@@ -249,11 +242,6 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="js/firebase-config.js?v=1"></script>
-
   <!-- App scripts -->
   <script src="js/music-theory.js?v=7"></script>
   <script src="js/chord-db.js?v=8"></script>
@@ -264,6 +252,6 @@
   <script src="js/app.js?v=11"></script>
 
   <!-- Auth (must be after app.js) -->
-  <script src="js/auth.js?v=2"></script>
+  <script src="js/auth.js?v=3"></script>
 </body>
 </html>

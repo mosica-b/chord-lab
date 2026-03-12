@@ -1,80 +1,91 @@
 /**
  * Authentication Module
- * Manages Firebase Auth login gate for the admin panel.
+ * Simple SHA-256 password gate for admin panel.
+ * No external service required.
  */
 const Auth = (() => {
+  // Default password hash (SHA-256 of initial password)
+  const DEFAULT_HASH = '51f83d4b7f969a7883ea333eca0ecb42e9dc5e8437e50630feccee8bdb07d172';
+  const STORAGE_KEY = 'chord_lab_pw_hash';
+  const SESSION_KEY = 'chord_lab_auth';
+
   let appInitialized = false;
 
+  /** Compute SHA-256 hex digest of a string */
+  async function sha256(text) {
+    const data = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /** Get the stored password hash (or default) */
+  function getHash() {
+    return localStorage.getItem(STORAGE_KEY) || DEFAULT_HASH;
+  }
+
+  /** Show the app, hide login */
+  function showApp() {
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appContent').classList.remove('hidden');
+    document.getElementById('appHeader').classList.remove('hidden');
+    const modal = document.getElementById('notationModal');
+    if (modal) modal.classList.remove('hidden');
+
+    if (!appInitialized) {
+      appInitialized = true;
+      App.init();
+    }
+  }
+
+  /** Show login, hide app */
+  function showLogin() {
+    document.getElementById('loginSection').classList.remove('hidden');
+    document.getElementById('appContent').classList.add('hidden');
+    document.getElementById('appHeader').classList.add('hidden');
+    const modal = document.getElementById('notationModal');
+    if (modal) modal.classList.add('hidden');
+    appInitialized = false;
+  }
+
   function init() {
-    const loginSection = document.getElementById('loginSection');
-    const appContent = document.getElementById('appContent');
-    const appHeader = document.getElementById('appHeader');
-    const notationModal = document.getElementById('notationModal');
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
     const logoutBtn = document.getElementById('logoutBtn');
-    const userEmail = document.getElementById('userEmail');
 
-    // Listen for auth state changes
-    firebase.auth().onAuthStateChanged(user => {
-      if (user) {
-        // Authenticated — show app
-        loginSection.classList.add('hidden');
-        appContent.classList.remove('hidden');
-        appHeader.classList.remove('hidden');
-        if (notationModal) notationModal.classList.remove('hidden');
-        if (userEmail) userEmail.textContent = user.email;
-
-        // Initialize app only once
-        if (!appInitialized) {
-          appInitialized = true;
-          App.init();
-        }
-      } else {
-        // Not authenticated — show login
-        loginSection.classList.remove('hidden');
-        appContent.classList.add('hidden');
-        appHeader.classList.add('hidden');
-        if (notationModal) notationModal.classList.add('hidden');
-        loginError.textContent = '';
-        appInitialized = false;
-      }
-    });
+    // Check session (persists until tab/browser closed)
+    if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+      showApp();
+    }
 
     // Login form submit
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
       const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-      if (!email || !password) return;
+      if (!password) return;
 
       submitBtn.disabled = true;
-      submitBtn.textContent = '로그인 중...';
+      submitBtn.textContent = '확인 중...';
       loginError.textContent = '';
 
-      try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-      } catch (err) {
-        const messages = {
-          'auth/user-not-found': '등록되지 않은 계정입니다.',
-          'auth/wrong-password': '비밀번호가 올바르지 않습니다.',
-          'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
-          'auth/too-many-requests': '너무 많은 시도가 있었습니다. 잠시 후 다시 시도해주세요.',
-          'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
-        };
-        loginError.textContent = messages[err.code] || '로그인에 실패했습니다.';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '로그인';
+      const hash = await sha256(password);
+      if (hash === getHash()) {
+        sessionStorage.setItem(SESSION_KEY, 'true');
+        showApp();
+      } else {
+        loginError.textContent = '비밀번호가 올바르지 않습니다.';
       }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = '로그인';
     });
 
     // Logout
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        firebase.auth().signOut();
+        sessionStorage.removeItem(SESSION_KEY);
+        showLogin();
       });
     }
 
@@ -112,6 +123,13 @@ const Auth = (() => {
         changePwError.textContent = '';
         changePwSuccess.textContent = '';
 
+        // Verify current password
+        const currentHash = await sha256(currentPw);
+        if (currentHash !== getHash()) {
+          changePwError.textContent = '현재 비밀번호가 올바르지 않습니다.';
+          return;
+        }
+
         if (newPw.length < 8) {
           changePwError.textContent = '새 비밀번호는 8자 이상이어야 합니다.';
           return;
@@ -124,25 +142,13 @@ const Auth = (() => {
         submitBtn.disabled = true;
         submitBtn.textContent = '변경 중...';
 
-        try {
-          const user = firebase.auth().currentUser;
-          const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPw);
-          await user.reauthenticateWithCredential(credential);
-          await user.updatePassword(newPw);
-          changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
-          changePwForm.reset();
-        } catch (err) {
-          const messages = {
-            'auth/wrong-password': '현재 비밀번호가 올바르지 않습니다.',
-            'auth/invalid-credential': '현재 비밀번호가 올바르지 않습니다.',
-            'auth/weak-password': '비밀번호가 너무 약합니다. 더 강한 비밀번호를 사용해주세요.',
-            'auth/too-many-requests': '너무 많은 시도입니다. 잠시 후 다시 시도해주세요.',
-          };
-          changePwError.textContent = messages[err.code] || '비밀번호 변경에 실패했습니다.';
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = '비밀번호 변경';
-        }
+        const newHash = await sha256(newPw);
+        localStorage.setItem(STORAGE_KEY, newHash);
+        changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
+        changePwForm.reset();
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = '비밀번호 변경';
       });
     }
   }
