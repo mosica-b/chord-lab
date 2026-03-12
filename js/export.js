@@ -385,14 +385,27 @@ const Export = (() => {
 
   /**
    * Copy formatted text to clipboard for Naver blog
-   * Renders clean HTML into a temp DOM element and copies via execCommand
-   * This preserves <a> links when pasting into Naver Smart Editor
+   * Uses Clipboard API to write exact HTML (preserves table border attributes).
+   * Falls back to execCommand for older browsers.
    */
   async function copyTextToClipboard(metadata, chords, capoPosition) {
     try {
       const html = generateNaverHTML(metadata, chords, capoPosition);
 
-      // Create temp off-screen element, render HTML, select & copy
+      // Clipboard API: writes exact HTML without browser re-serialization
+      if (navigator.clipboard && window.ClipboardItem) {
+        const htmlBlob = new Blob([html], { type: 'text/html' });
+        const textBlob = new Blob([stripHtml(html)], { type: 'text/plain' });
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob,
+          })
+        ]);
+        return true;
+      }
+
+      // Fallback: execCommand (may lose some table attributes)
       const tmp = document.createElement('div');
       tmp.style.position = 'fixed';
       tmp.style.left = '-9999px';
@@ -412,6 +425,13 @@ const Export = (() => {
       console.error('Copy failed:', e);
       return false;
     }
+  }
+
+  /** Strip HTML tags for plain text fallback */
+  function stripHtml(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
   }
 
   /**
