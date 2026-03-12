@@ -51,6 +51,7 @@ const App = (() => {
   // Metadata Form
   // =========================================
   let autoSearchTimer = null;
+  let _autoLyrics = false; // true when lyricsIntro was auto-populated
 
   function setupMetadataListeners() {
     const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey'];
@@ -65,9 +66,22 @@ const App = (() => {
         saveState();
         updatePreview();
 
+        // Mark lyrics as manually edited
+        if (id === 'lyricsIntro') {
+          _autoLyrics = false;
+        }
+
         // Auto-search APIs when songName or artist changes
         if (id === 'songName' || id === 'artist') {
           clearTimeout(autoSearchTimer);
+          // Clear previous auto-fetched data for the old song
+          if (_autoLyrics) {
+            state.metadata.lyricsIntro = '';
+            const lyricsEl = document.getElementById('lyricsIntro');
+            if (lyricsEl) lyricsEl.value = '';
+            _autoLyrics = false;
+          }
+          state.metadata.geniusUrl = '';
           autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
         }
       });
@@ -121,10 +135,12 @@ const App = (() => {
       }
 
       // Step 3: Auto-fetch lyrics intro (non-blocking)
-      if (geniusUrl && !state.metadata.lyricsIntro) {
+      // Skip if user has manually typed lyrics
+      if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
         ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
-          if (intro && !state.metadata.lyricsIntro) {
+          if (intro) {
             state.metadata.lyricsIntro = intro;
+            _autoLyrics = true;
             const el = document.getElementById('lyricsIntro');
             if (el) el.value = intro;
             saveState();
@@ -208,10 +224,11 @@ const App = (() => {
           updatePreview();
 
           // Auto-fetch lyrics intro
-          if (geniusUrl && !state.metadata.lyricsIntro) {
+          if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
             ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
-              if (intro && !state.metadata.lyricsIntro) {
+              if (intro) {
                 state.metadata.lyricsIntro = intro;
+                _autoLyrics = true;
                 const el = document.getElementById('lyricsIntro');
                 if (el) el.value = intro;
                 saveState();
@@ -252,10 +269,11 @@ const App = (() => {
           updatePreview();
 
           // Auto-fetch lyrics intro
-          if (geniusUrl && !state.metadata.lyricsIntro) {
+          if (geniusUrl && (!state.metadata.lyricsIntro || _autoLyrics)) {
             ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
-              if (intro && !state.metadata.lyricsIntro) {
+              if (intro) {
                 state.metadata.lyricsIntro = intro;
+                _autoLyrics = true;
                 const el = document.getElementById('lyricsIntro');
                 if (el) el.value = intro;
                 saveState();
@@ -690,7 +708,8 @@ const App = (() => {
   // =========================================
   function saveState() {
     try {
-      localStorage.setItem('songChordLab', JSON.stringify(state));
+      const data = Object.assign({}, state, { _autoLyrics });
+      localStorage.setItem('songChordLab', JSON.stringify(data));
     } catch (e) {
       console.warn('Failed to save state:', e);
     }
@@ -725,6 +744,9 @@ const App = (() => {
       }
       keySelect.value = keyVal;
       document.getElementById('capoPosition').value = state.capoPosition;
+
+      // Restore auto-lyrics flag
+      _autoLyrics = !!parsed._autoLyrics;
 
       // Restore UI
       renderSelectedChords();
