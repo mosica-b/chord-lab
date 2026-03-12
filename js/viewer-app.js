@@ -111,38 +111,43 @@ const ViewerApp = (() => {
     }
     left.appendChild(notesDiv);
 
-    // Play button
+    // Play button (uses current tab's instrument)
     const playBtn = document.createElement('button');
     playBtn.className = 'play-btn';
-    playBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생';
+    playBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 피아노 재생';
     playBtn.addEventListener('click', async () => {
+      const instLabel = instrumentLabels[cardInstrument];
       playBtn.classList.add('playing');
-      playBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중';
-      await ChordAudio.playChord(chordName, 2.0);
+      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> ${instLabel} 재생 중`;
+      await ChordAudio.playChord(chordName, 2.0, cardInstrument);
       playBtn.classList.remove('playing');
-      playBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생';
+      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
     });
 
     header.appendChild(left);
     header.appendChild(playBtn);
     card.appendChild(header);
 
-    // Instrument tabs
+    // Instrument tabs with associated audio instrument
     const tabs = [
-      { id: 'staff', label: '오선보' },
-      { id: 'guitar-tab', label: '기타 타브' },
-      { id: 'guitar-diagram', label: '기타 다이어그램' },
-      { id: 'ukulele-tab', label: '우쿨렐레 타브' },
-      { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
-      { id: 'piano', label: '피아노' },
+      { id: 'staff', label: '오선보', instrument: 'piano' },
+      { id: 'guitar-tab', label: '기타 타브', instrument: 'guitar' },
+      { id: 'guitar-diagram', label: '기타 다이어그램', instrument: 'guitar' },
+      { id: 'ukulele-tab', label: '우쿨렐레 타브', instrument: 'ukulele' },
+      { id: 'ukulele-diagram', label: '우쿨렐레 다이어그램', instrument: 'ukulele' },
+      { id: 'piano', label: '피아노', instrument: 'piano' },
     ];
+
+    // Track current instrument for this card
+    let cardInstrument = 'piano';
+    const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
 
     const tabBar = document.createElement('div');
     tabBar.className = 'flex flex-wrap gap-2 mb-4';
 
     const panels = {};
 
-    tabs.forEach(({ id, label }, i) => {
+    tabs.forEach(({ id, label, instrument }, i) => {
       const btn = document.createElement('button');
       btn.className = `instrument-tab${i === 0 ? ' active' : ''}`;
       btn.textContent = label;
@@ -153,6 +158,11 @@ const ViewerApp = (() => {
         btn.classList.add('active');
         Object.values(panels).forEach(p => p.classList.remove('active'));
         panels[id].classList.add('active');
+
+        // Update instrument for this card's play button
+        cardInstrument = instrument;
+        const instLabel = instrumentLabels[instrument];
+        playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
       });
 
       tabBar.appendChild(btn);
