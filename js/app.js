@@ -91,11 +91,8 @@ const App = (() => {
     if (!songName) return;
 
     try {
-      const [album, geniusUrl] = await Promise.all([
-        ITunesSearch.searchAlbum(songName, artist),
-        ITunesSearch.searchGeniusLyrics(songName, artist),
-      ]);
-
+      // Step 1: iTunes first (to get English trackName for Genius search)
+      const album = await ITunesSearch.searchAlbum(songName, artist);
       let changed = false;
 
       if (album) {
@@ -109,6 +106,10 @@ const App = (() => {
           changed = true;
         }
       }
+
+      // Step 2: Genius search with English trackName as alternate query
+      const altSongName = album?.trackName || null;
+      const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName);
       if (geniusUrl) {
         state.metadata.geniusUrl = geniusUrl;
         changed = true;
@@ -119,7 +120,7 @@ const App = (() => {
         updatePreview();
       }
 
-      // Auto-fetch lyrics intro (non-blocking, runs after main search)
+      // Step 3: Auto-fetch lyrics intro (non-blocking)
       if (geniusUrl && !state.metadata.lyricsIntro) {
         ITunesSearch.fetchLyricsIntro(geniusUrl).then(intro => {
           if (intro && !state.metadata.lyricsIntro) {
@@ -192,10 +193,7 @@ const App = (() => {
 
         // Search album via iTunes + Genius lyrics
         if (result.songName || result.artist) {
-          const [album, geniusUrl] = await Promise.all([
-            ITunesSearch.searchAlbum(result.songName, result.artist),
-            ITunesSearch.searchGeniusLyrics(result.songName, result.artist),
-          ]);
+          const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
           if (album) {
             if (album.albumName && !state.metadata.albumName) {
               state.metadata.albumName = album.albumName;
@@ -203,6 +201,8 @@ const App = (() => {
             }
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
           }
+          const altName = album?.trackName || null;
+          const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
           updatePreview();
@@ -239,15 +239,14 @@ const App = (() => {
         searchBtn.textContent = '...';
         searchBtn.disabled = true;
         try {
-          const [album, geniusUrl] = await Promise.all([
-            ITunesSearch.searchAlbum(songName, artist),
-            ITunesSearch.searchGeniusLyrics(songName, artist),
-          ]);
+          const album = await ITunesSearch.searchAlbum(songName, artist);
           if (album && album.albumName) {
             state.metadata.albumName = album.albumName;
             document.getElementById('albumName').value = album.albumName;
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
           }
+          const altName = album?.trackName || null;
+          const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altName);
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
           updatePreview();
