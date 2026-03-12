@@ -51,6 +51,8 @@ const ViewerApp = (() => {
     if (isAdmin) {
       const adminControls = document.getElementById('adminControls');
       if (adminControls) adminControls.style.display = '';
+      const backToLabLink = document.getElementById('backToLabLink');
+      if (backToLabLink) backToLabLink.style.display = '';
     }
 
     setupGlobalTabs();
