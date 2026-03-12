@@ -291,7 +291,7 @@ const Export = (() => {
       preview.appendChild(capoSection);
     }
 
-    // 4. Notation Table (replaces image placeholder)
+    // 4. Notation Cards (modal-like)
     if (chords.length > 0) {
       const notationSection = document.createElement('div');
       notationSection.style.marginBottom = '20px';
@@ -300,19 +300,6 @@ const Export = (() => {
       notationTitle.textContent = '코드 표기';
       notationSection.appendChild(notationTitle);
 
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const thType = document.createElement('th');
-      thType.textContent = '표기 유형';
-      headerRow.appendChild(thType);
-      const thView = document.createElement('th');
-      thView.textContent = '보기';
-      headerRow.appendChild(thView);
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
       const notationTypes = [
         { key: 'staff', label: '오선표기' },
         { key: 'guitar-tab', label: '기타 타브' },
@@ -322,38 +309,31 @@ const Export = (() => {
         { key: 'piano', label: '피아노' }
       ];
       notationTypes.forEach(({ key, label }) => {
-        const row = document.createElement('tr');
-        const tdLabel = document.createElement('td');
-        tdLabel.textContent = label;
-        row.appendChild(tdLabel);
-        const tdLink = document.createElement('td');
-        const link = document.createElement('a');
-        link.href = '#';
-        link.textContent = '보기 →';
-        link.style.color = '#2563eb';
-        link.style.textDecoration = 'none';
-        link.style.cursor = 'pointer';
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          const modal = document.getElementById('notationModal');
-          const modalTitle = document.getElementById('notationModalTitle');
-          const modalBody = document.getElementById('notationModalBody');
-          const source = document.getElementById(`tab-${key}`);
-          if (!source || !modal) return;
-          modalTitle.textContent = label;
-          modalBody.innerHTML = '';
-          modalBody.appendChild(source.cloneNode(true));
-          const cloned = modalBody.querySelector('.notation-content');
-          if (cloned) cloned.classList.remove('hidden');
-          modal.classList.remove('hidden');
-          document.body.style.overflow = 'hidden';
-        });
-        tdLink.appendChild(link);
-        row.appendChild(tdLink);
-        tbody.appendChild(row);
+        const card = document.createElement('div');
+        card.style.border = '1px solid #ddd';
+        card.style.borderRadius = '8px';
+        card.style.marginBottom = '12px';
+        card.style.overflow = 'hidden';
+
+        const header = document.createElement('div');
+        header.style.background = '#f5f5f5';
+        header.style.padding = '10px 16px';
+        header.style.fontWeight = '600';
+        header.style.fontSize = '14px';
+        header.style.borderBottom = '1px solid #ddd';
+        header.textContent = label;
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        body.style.padding = '16px';
+        body.style.textAlign = 'center';
+        body.style.color = '#aaa';
+        body.style.fontSize = '13px';
+        body.textContent = '이미지 첨부';
+        card.appendChild(body);
+
+        notationSection.appendChild(card);
       });
-      table.appendChild(tbody);
-      notationSection.appendChild(table);
       preview.appendChild(notationSection);
     }
 
@@ -596,16 +576,16 @@ const Export = (() => {
       html += `</table>`;
     }
 
-    // Notation type table
+    // Notation type cards (modal-like)
     if (chords.length > 0) {
       html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
-      html += `<table bgcolor="#dddddd" cellspacing="1" cellpadding="0" style="width:100%">`;
-      html += `<tr><td align="center" bgcolor="#f5f5f5"><b>표기 유형</b></td><td align="center" bgcolor="#f5f5f5"><b>보기</b></td></tr>`;
       const notationLabels = ['오선표기', '기타 타브', '우쿨렐레 타브', '기타 다이어그램', '우쿨렐레 다이어그램', '피아노'];
       notationLabels.forEach(label => {
-        html += `<tr><td align="center" bgcolor="#ffffff">${esc(label)}</td><td align="center" bgcolor="#ffffff"><font color="#2563eb">보기 →</font></td></tr>`;
+        html += `<table bgcolor="#dddddd" cellspacing="1" cellpadding="0" style="width:100%">`;
+        html += `<tr><td bgcolor="#f5f5f5" style="padding:10px 16px"><b>${esc(label)}</b></td></tr>`;
+        html += `<tr><td bgcolor="#ffffff" align="center" style="padding:24px 16px"><font color="#aaaaaa">이미지 첨부</font></td></tr>`;
+        html += `</table><br>`;
       });
-      html += `</table>`;
     }
 
 
