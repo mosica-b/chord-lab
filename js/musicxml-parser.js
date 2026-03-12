@@ -119,12 +119,56 @@ const MusicXMLParser = (() => {
   }
 
   function parseTimeSignature(doc) {
-    const timeEl = doc.querySelector('time');
-    if (!timeEl) return '';
-    const beats = timeEl.querySelector('beats');
-    const beatType = timeEl.querySelector('beat-type');
-    if (!beats || !beatType) return '';
-    return `${beats.textContent.trim()}/${beatType.textContent.trim()}`;
+    const measures = doc.querySelectorAll('part:first-of-type measure');
+    const totalMeasures = measures.length;
+    if (totalMeasures === 0) {
+      // Fallback: first <time> anywhere
+      const timeEl = doc.querySelector('time');
+      if (!timeEl) return '';
+      const beats = timeEl.querySelector('beats');
+      const beatType = timeEl.querySelector('beat-type');
+      if (!beats || !beatType) return '';
+      return `${beats.textContent.trim()}/${beatType.textContent.trim()}`;
+    }
+
+    // Collect time signature changes with measure index
+    const changes = []; // { sig, measureIdx }
+    let lastSig = '';
+
+    for (let i = 0; i < totalMeasures; i++) {
+      const timeEls = measures[i].querySelectorAll('attributes time');
+      for (const timeEl of timeEls) {
+        const beats = timeEl.querySelector('beats');
+        const beatType = timeEl.querySelector('beat-type');
+        if (!beats || !beatType) continue;
+        const sig = `${beats.textContent.trim()}/${beatType.textContent.trim()}`;
+        if (sig && sig !== lastSig) {
+          changes.push({ sig, measureIdx: i });
+          lastSig = sig;
+        }
+      }
+    }
+
+    if (changes.length === 0) return '';
+    if (changes.length === 1) return changes[0].sig;
+
+    // Filter out brief appearances (< 10% of total measures, max 4 measures)
+    const threshold = Math.max(4, Math.floor(totalMeasures * 0.1));
+    const significant = [];
+    for (let i = 0; i < changes.length; i++) {
+      const start = changes[i].measureIdx;
+      const end = i + 1 < changes.length ? changes[i + 1].measureIdx : totalMeasures;
+      const duration = end - start;
+      if (duration >= threshold) {
+        if (significant.length === 0 || significant[significant.length - 1].sig !== changes[i].sig) {
+          significant.push(changes[i]);
+        }
+      }
+    }
+
+    if (significant.length === 0) return changes[0].sig;
+    if (significant.length === 1) return significant[0].sig;
+    return significant.map(c => c.sig).join(' → ');
   }
 
   function parseTempo(doc) {
