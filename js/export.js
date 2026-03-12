@@ -23,11 +23,12 @@ const Export = (() => {
     infoSection.style.marginBottom = '20px';
 
     const title = document.createElement('h3');
-    title.textContent = metadata.songName || '곡명 없음';
+    title.textContent = '곡정보';
     infoSection.appendChild(title);
     infoSection.appendChild(document.createElement('hr'));
 
     const infoRows = [
+      { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
@@ -380,14 +381,13 @@ const Export = (() => {
 
     // Title in blockquote
     html += `<blockquote>`;
-    if (metadata.songName) {
-      html += `<font size="5"><b>${esc(metadata.songName)}</b></font>`;
-    }
+    html += `<font size="5"><b>곡정보</b></font>`;
     html += `</blockquote>`;
     html += `<hr>`;
 
     // Song info table (outside blockquote)
     const infoRows = [
+      { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
