@@ -35,36 +35,40 @@ const Export = (() => {
       { label: '박자', value: metadata.timeSignature },
       { label: '키', value: metadata.key },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
-      { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
 
-    infoRows.forEach(({ label, value, isChords }) => {
+    infoRows.forEach(({ label, value }) => {
       const row = document.createElement('p');
       row.style.margin = '4px 0';
       row.style.fontSize = '14px';
-
-      if (isChords && chords.length > 0) {
-        const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
-        const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
-        const basicLinks = basic.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
-          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:500;" target="_blank">${esc(c)}</a>`;
-        }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-        let chordsHtml = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${basicLinks}`;
-        if (advanced.length > 0) {
-          chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[심화 코드 보기]</a>`;
-        }
-        row.innerHTML = chordsHtml;
-      } else {
-        row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
-      }
+      row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
       infoSection.appendChild(row);
     });
 
     preview.appendChild(infoSection);
+
+    // 사용 코드 (separate, centered)
+    if (chords.length > 0) {
+      const chordRow = document.createElement('p');
+      chordRow.style.margin = '12px 0';
+      chordRow.style.fontSize = '14px';
+      chordRow.style.textAlign = 'center';
+      const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
+      const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
+      const basicLinks = basic.map(c => {
+        const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+        return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
+      }).join(', ');
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      let chordsHtml = `<b>사용 코드</b>&nbsp;&nbsp;&nbsp;${basicLinks}`;
+      if (advanced.length > 0) {
+        chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;" target="_blank">[심화 코드 보기]</a>`;
+      }
+      chordRow.innerHTML = chordsHtml;
+      preview.appendChild(chordRow);
+    }
 
     // 2. Chord Notes Table - split into triads and advanced
     if (chords.length > 0) {
@@ -404,20 +408,20 @@ const Export = (() => {
 
     html += `</blockquote>`;
 
-    // 사용 코드 (outside blockquote so links work)
+    // 사용 코드 (outside blockquote, centered)
     if (chords.length > 0) {
       const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
       const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
       const basicLinks = nBasic.map(c => {
         const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
-        return `<a href="${url}">${esc(c)}</a>`;
+        return `<a href="${url}"><b>${esc(c)}</b></a>`;
       }).join(', ');
       const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
       let chordLine = `<b>사용 코드</b>&nbsp;&nbsp;&nbsp;${basicLinks}`;
       if (nAdvanced.length > 0) {
         chordLine += `&nbsp;&nbsp;...&nbsp;&nbsp;<a href="${allUrl}">[심화 코드 보기]</a>`;
       }
-      html += chordLine + `<br>`;
+      html += `<p align="center">${chordLine}</p>`;
     }
 
     // Chord notes table - split into primary and advanced, sorted by degree
