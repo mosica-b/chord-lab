@@ -79,7 +79,7 @@ const Export = (() => {
         if (metadata.lyricsIntro) {
           lyricsHtml += `${esc(metadata.lyricsIntro).replace(/\n/g, '<br>')}<br>`;
         }
-        lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">가사전문보기</a>`;
+        lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">가사 전체 보기</a>`;
         lyricsHtml += `<br><span style="color:#999;font-size:11px;">출처: <a href="https://genius.com" target="_blank" style="color:#999;text-decoration:none;">genius.com</a></span>`;
         allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
 
@@ -480,7 +480,7 @@ const Export = (() => {
         if (metadata.lyricsIntro) {
           lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
         }
-        lyricsValue += `<a href="${geniusLink}">가사전문보기</a>`;
+        lyricsValue += `<a href="${geniusLink}">가사 전체 보기</a>`;
         lyricsValue += `<br><font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`;
         extraRows.push({ label: '가사', value: lyricsValue });
 
