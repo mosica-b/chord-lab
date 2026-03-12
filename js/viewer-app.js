@@ -149,7 +149,6 @@ const ViewerApp = (() => {
   function render(skipURLUpdate) {
     renderBadges();
     renderCards();
-    renderCustomAddBtns();
     renderCustomCombo();
     updateResetBtn();
     if (!skipURLUpdate) updateURL();
@@ -158,20 +157,20 @@ const ViewerApp = (() => {
     const cardsContainer = document.getElementById('chordCards');
     const fabContainer = document.getElementById('fabContainer');
     const topAccordion = document.getElementById('topAccordion');
-    const customSection = document.getElementById('customComboSection');
+    const customRow = document.getElementById('customComboRow');
 
     if (chords.length === 0) {
       emptyState.classList.remove('hidden');
       cardsContainer.classList.add('hidden');
       if (fabContainer) fabContainer.style.display = 'none';
       if (topAccordion) topAccordion.classList.add('hidden');
-      if (customSection) customSection.style.display = 'none';
+      if (customRow) customRow.style.display = 'none';
     } else {
       emptyState.classList.add('hidden');
       cardsContainer.classList.remove('hidden');
       if (fabContainer) fabContainer.style.display = '';
       if (topAccordion) topAccordion.classList.remove('hidden');
-      if (customSection) customSection.style.display = '';
+      if (customRow) customRow.style.display = '';
     }
   }
 
@@ -224,6 +223,13 @@ const ViewerApp = (() => {
       } else {
         badge.textContent = name;
       }
+
+      // Click to add to custom combo
+      badge.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-chord')) return;
+        customChords.push(name);
+        renderCustomCombo();
+      });
 
       // --- Desktop drag & drop ---
       badge.addEventListener('dragstart', (e) => {
@@ -518,22 +524,6 @@ const ViewerApp = (() => {
     });
   }
 
-  function renderCustomAddBtns() {
-    const container = document.getElementById('customAddBtns');
-    if (!container) return;
-    container.innerHTML = '';
-    chords.forEach(name => {
-      const btn = document.createElement('button');
-      btn.className = 'custom-add-btn';
-      btn.textContent = `+ ${name}`;
-      btn.addEventListener('click', () => {
-        customChords.push(name);
-        renderCustomCombo();
-      });
-      container.appendChild(btn);
-    });
-  }
-
   function renderCustomCombo() {
     const zone = document.getElementById('customComboZone');
     const playBtn = document.getElementById('customPlayBtn');
@@ -545,7 +535,7 @@ const ViewerApp = (() => {
     if (customChords.length === 0) {
       const hint = document.createElement('span');
       hint.className = 'drop-hint';
-      hint.textContent = '코드를 끌어다 놓거나 위 버튼을 눌러 추가하세요';
+      hint.textContent = '코드를 클릭하거나 끌어다 놓아 추가하세요';
       zone.appendChild(hint);
       if (playBtn) playBtn.style.display = 'none';
       if (clearBtn) clearBtn.style.display = 'none';
