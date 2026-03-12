@@ -17,11 +17,11 @@ const Renderers = (() => {
 
     const width = Math.max(chords.length * 120 + 80, 400);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
-    renderer.resize(width, 180);
+    renderer.resize(width, 220);
     const context = renderer.getContext();
     context.setFont('Arial', 10);
 
-    const stave = new VF.Stave(10, 30, width - 20);
+    const stave = new VF.Stave(10, 60, width - 20);
     stave.addClef('treble');
     stave.setContext(context).draw();
 
@@ -303,11 +303,17 @@ const Renderers = (() => {
     const stringSpacing = 14;
     const fretSpacing = 22;
     const marginLeft = 25;
-    const marginTop = 15;
+    const labelHeight = 20;
+    const marginTop = 15 + labelHeight;
     const width = marginLeft + (numStrings - 1) * stringSpacing + 20;
     const height = marginTop + numFrets * fretSpacing + 25;
 
     const svg = createSVG(width, height);
+
+    // Draw chord name at top of SVG
+    const nameText = createSVGText(width / 2, 14, chordName, '13px', 'middle');
+    nameText.setAttribute('font-weight', 'bold');
+    svg.appendChild(nameText);
     const frets = position.frets;
     const baseFret = position.baseFret || 1;
     const barres = position.barres || [];
@@ -441,11 +447,17 @@ const Renderers = (() => {
     const stringSpacing = 16;
     const fretSpacing = 22;
     const marginLeft = 25;
-    const marginTop = 15;
+    const labelHeight = 20;
+    const marginTop = 15 + labelHeight;
     const width = marginLeft + (numStrings - 1) * stringSpacing + 20;
     const height = marginTop + numFrets * fretSpacing + 25;
 
     const svg = createSVG(width, height);
+
+    // Draw chord name at top of SVG
+    const nameText = createSVGText(width / 2, 14, chordName, '13px', 'middle');
+    nameText.setAttribute('font-weight', 'bold');
+    svg.appendChild(nameText);
     const frets = position.frets;
     const baseFret = position.baseFret || 1;
     const barres = position.barres || [];
@@ -542,7 +554,7 @@ const Renderers = (() => {
       item.appendChild(svgContainer);
 
       const chordNotes = MusicTheory.getChordNotes(name);
-      drawPianoKeyboard(svgContainer, chordNotes);
+      drawPianoKeyboard(svgContainer, chordNotes, name);
 
       grid.appendChild(item);
     });
@@ -550,10 +562,10 @@ const Renderers = (() => {
     container.appendChild(grid);
   }
 
-  function drawPianoKeyboard(container, highlightNotes) {
-    // Draw 1 octave (C to B) with highlighted notes
-    const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    const blackKeys = [
+  function drawPianoKeyboard(container, highlightNotes, chordName) {
+    // Draw 2 octaves (C to B x2) to avoid inversion issues
+    const whiteKeysOneOctave = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const blackKeysOneOctave = [
       { note: 'C#', pos: 0 },
       { note: 'D#', pos: 1 },
       { note: 'F#', pos: 3 },
@@ -561,26 +573,62 @@ const Renderers = (() => {
       { note: 'A#', pos: 5 },
     ];
 
-    const keyWidth = 22;
-    const keyHeight = 80;
-    const blackKeyWidth = 14;
-    const blackKeyHeight = 50;
+    // Build 2-octave key layout
+    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave];
+    const blackKeys = [
+      ...blackKeysOneOctave,
+      ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 7 })),
+    ];
+
+    const keyWidth = 18;
+    const keyHeight = 70;
+    const blackKeyWidth = 12;
+    const blackKeyHeight = 44;
+    const labelHeight = 18;
     const width = whiteKeys.length * keyWidth + 2;
-    const height = keyHeight + 20;
+    const height = keyHeight + labelHeight + 10;
 
     const svg = createSVG(width, height);
 
-    // Normalize highlight notes to compare
+    // Draw chord name at top
+    if (chordName) {
+      const nameText = createSVGText(width / 2, 14, chordName, '12px', 'middle');
+      nameText.setAttribute('font-weight', 'bold');
+      svg.appendChild(nameText);
+    }
+
+    const keyboardY = labelHeight;
+
+    // Normalize highlight notes and find the best octave range
     const normalizedHighlight = highlightNotes.map(n => MusicTheory.normalizeNote(n));
 
-    // Draw white keys
+    // Determine which octave to highlight: pick the range starting from root note
+    // Highlight notes in ascending order starting from root
+    const noteOrder = MusicTheory.NOTE_NAMES;
+    const rootIdx = normalizedHighlight.length > 0 ? noteOrder.indexOf(normalizedHighlight[0]) : 0;
+
+    // Build highlight set with octave position (0=first octave, 1=second)
+    const highlightPositions = new Set();
+    if (normalizedHighlight.length > 0) {
+      let prevIdx = -1;
+      let octave = 0;
+      normalizedHighlight.forEach((note, i) => {
+        const idx = noteOrder.indexOf(note);
+        if (i > 0 && idx <= prevIdx) octave = 1;
+        highlightPositions.add(`${note}-${octave}`);
+        prevIdx = idx;
+      });
+    }
+
+    // Draw white keys (2 octaves)
     whiteKeys.forEach((note, i) => {
       const x = i * keyWidth + 1;
-      const isHighlighted = normalizedHighlight.includes(note);
+      const octave = i < 7 ? 0 : 1;
+      const isHighlighted = highlightPositions.has(`${note}-${octave}`);
 
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('x', x);
-      rect.setAttribute('y', 1);
+      rect.setAttribute('y', keyboardY);
       rect.setAttribute('width', keyWidth - 1);
       rect.setAttribute('height', keyHeight);
       rect.setAttribute('fill', isHighlighted ? '#3b82f6' : 'white');
@@ -591,21 +639,23 @@ const Renderers = (() => {
       svg.appendChild(rect);
 
       if (isHighlighted) {
-        const text = createSVGText(x + keyWidth / 2, keyHeight - 5, note, '9px', 'middle');
+        const text = createSVGText(x + keyWidth / 2, keyboardY + keyHeight - 5, note, '8px', 'middle');
         text.setAttribute('fill', 'white');
         text.setAttribute('font-weight', 'bold');
         svg.appendChild(text);
       }
     });
 
-    // Draw black keys
+    // Draw black keys (2 octaves)
     blackKeys.forEach(({ note, pos }) => {
       const x = (pos + 1) * keyWidth - blackKeyWidth / 2 + 1;
-      const isHighlighted = normalizedHighlight.includes(MusicTheory.normalizeNote(note));
+      const octave = pos < 7 ? 0 : 1;
+      const normalizedNote = MusicTheory.normalizeNote(note);
+      const isHighlighted = highlightPositions.has(`${normalizedNote}-${octave}`);
 
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('x', x);
-      rect.setAttribute('y', 1);
+      rect.setAttribute('y', keyboardY);
       rect.setAttribute('width', blackKeyWidth);
       rect.setAttribute('height', blackKeyHeight);
       rect.setAttribute('fill', isHighlighted ? '#2563eb' : '#333');
@@ -616,7 +666,7 @@ const Renderers = (() => {
       svg.appendChild(rect);
 
       if (isHighlighted) {
-        const text = createSVGText(x + blackKeyWidth / 2, blackKeyHeight - 5, note.replace('#', '#'), '7px', 'middle');
+        const text = createSVGText(x + blackKeyWidth / 2, keyboardY + blackKeyHeight - 5, note.replace('#', '#'), '6px', 'middle');
         text.setAttribute('fill', 'white');
         text.setAttribute('font-weight', 'bold');
         svg.appendChild(text);

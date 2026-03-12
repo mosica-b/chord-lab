@@ -113,17 +113,26 @@ const MusicTheory = (() => {
    */
   function parseChordName(name) {
     if (!name) return null;
-    let root, suffix;
 
-    if (name.length >= 2 && (name[1] === '#' || name[1] === 'b')) {
-      root = name.substring(0, 2);
-      suffix = name.substring(2);
-    } else {
-      root = name[0];
-      suffix = name.substring(1);
+    // Handle slash chords: G/B → base chord G with bass note B
+    let bassNote = null;
+    let chordPart = name;
+    const slashIdx = name.indexOf('/');
+    if (slashIdx > 0) {
+      chordPart = name.substring(0, slashIdx);
+      bassNote = name.substring(slashIdx + 1);
     }
 
-    return { root, suffix: suffix || 'major' };
+    let root, suffix;
+    if (chordPart.length >= 2 && (chordPart[1] === '#' || chordPart[1] === 'b')) {
+      root = chordPart.substring(0, 2);
+      suffix = chordPart.substring(2);
+    } else {
+      root = chordPart[0];
+      suffix = chordPart.substring(1);
+    }
+
+    return { root, suffix: suffix || 'major', bassNote: bassNote || null };
   }
 
   /**
@@ -141,7 +150,22 @@ const MusicTheory = (() => {
     const intervals = CHORD_INTERVALS[intervalKey];
     if (!intervals) return [];
 
-    return intervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
+    let notes = intervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
+
+    // Handle slash chord: put bass note first (inversion)
+    if (parsed.bassNote) {
+      const bass = normalizeNote(parsed.bassNote);
+      const bassIdx = notes.indexOf(bass);
+      if (bassIdx > 0) {
+        // Rotate so bass note comes first
+        notes = [...notes.slice(bassIdx), ...notes.slice(0, bassIdx)];
+      } else if (bassIdx < 0) {
+        // Bass note not in chord, prepend it
+        notes = [bass, ...notes];
+      }
+    }
+
+    return notes;
   }
 
   // Semitone → degree label mapping

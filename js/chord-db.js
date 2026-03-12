@@ -47,8 +47,10 @@ const ChordDB = (() => {
       '': 'major',
       'M': 'major',
       'maj': 'major',
+      'major': 'major',
       'm': 'minor',
       'min': 'minor',
+      'minor': 'minor',
       '-': 'minor',
       'dim': 'dim',
       'o': 'dim',
@@ -60,6 +62,7 @@ const ChordDB = (() => {
       'min7': 'm7',
       'maj7': 'maj7',
       'M7': 'maj7',
+      'mMaj7': 'mmaj7',
       'dim7': 'dim7',
       'o7': 'dim7',
       'sus2': 'sus2',
@@ -73,10 +76,15 @@ const ChordDB = (() => {
       'maj9': 'maj9',
       'm7b5': 'm7b5',
       '7sus4': '7sus4',
+      '7sus2': '7sus2',
       '5': '5',
       'aug7': 'aug7',
       '11': '11',
       '13': '13',
+      'maj11': 'maj11',
+      'maj13': 'maj13',
+      'm11': 'm11',
+      'm13': 'm13',
     };
     return map[suffix] || suffix;
   }
@@ -114,6 +122,7 @@ const ChordDB = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
+    // For slash chords, look up the base chord (e.g., G/B → G)
     const dbKey = normalizeKey(parsed.root);
     const dbSuffix = normalizeSuffix(parsed.suffix);
 
