@@ -77,6 +77,74 @@ const Auth = (() => {
         firebase.auth().signOut();
       });
     }
+
+    // Change password modal
+    const changePwBtn = document.getElementById('changePwBtn');
+    const changePwModal = document.getElementById('changePwModal');
+    const changePwForm = document.getElementById('changePwForm');
+    const changePwError = document.getElementById('changePwError');
+    const changePwSuccess = document.getElementById('changePwSuccess');
+    const changePwClose = document.getElementById('changePwClose');
+
+    if (changePwBtn && changePwModal) {
+      changePwBtn.addEventListener('click', () => {
+        changePwModal.classList.remove('hidden');
+        changePwError.textContent = '';
+        changePwSuccess.textContent = '';
+        changePwForm.reset();
+      });
+
+      changePwClose.addEventListener('click', () => {
+        changePwModal.classList.add('hidden');
+      });
+
+      changePwModal.addEventListener('click', (e) => {
+        if (e.target === changePwModal) changePwModal.classList.add('hidden');
+      });
+
+      changePwForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPw = document.getElementById('currentPassword').value;
+        const newPw = document.getElementById('newPassword').value;
+        const confirmPw = document.getElementById('confirmPassword').value;
+        const submitBtn = changePwForm.querySelector('button[type="submit"]');
+
+        changePwError.textContent = '';
+        changePwSuccess.textContent = '';
+
+        if (newPw.length < 8) {
+          changePwError.textContent = '새 비밀번호는 8자 이상이어야 합니다.';
+          return;
+        }
+        if (newPw !== confirmPw) {
+          changePwError.textContent = '새 비밀번호가 일치하지 않습니다.';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '변경 중...';
+
+        try {
+          const user = firebase.auth().currentUser;
+          const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPw);
+          await user.reauthenticateWithCredential(credential);
+          await user.updatePassword(newPw);
+          changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
+          changePwForm.reset();
+        } catch (err) {
+          const messages = {
+            'auth/wrong-password': '현재 비밀번호가 올바르지 않습니다.',
+            'auth/invalid-credential': '현재 비밀번호가 올바르지 않습니다.',
+            'auth/weak-password': '비밀번호가 너무 약합니다. 더 강한 비밀번호를 사용해주세요.',
+            'auth/too-many-requests': '너무 많은 시도입니다. 잠시 후 다시 시도해주세요.',
+          };
+          changePwError.textContent = messages[err.code] || '비밀번호 변경에 실패했습니다.';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '비밀번호 변경';
+        }
+      });
+    }
   }
 
   // Initialize when DOM is ready
