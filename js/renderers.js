@@ -5,6 +5,22 @@
 const Renderers = (() => {
   const VF = Vex.Flow;
 
+  /**
+   * Get available width for rendering, using container or parent card width.
+   * Falls back to Math.max(minWidth, 400) if no measurable width.
+   */
+  function getAvailableWidth(container, minWidth) {
+    let w = container.clientWidth;
+    if (w <= 0) {
+      const card = container.closest('.chord-card');
+      if (card) {
+        const cs = getComputedStyle(card);
+        w = card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      }
+    }
+    return w > 0 ? Math.max(minWidth, w) : Math.max(minWidth, 400);
+  }
+
   // =========================================
   // Staff Notation (오선표기)
   // =========================================
@@ -18,7 +34,8 @@ const Renderers = (() => {
     const labelHeight = 14; // Space reserved for chord names above stave
     const staveY = 36 + labelHeight;
     const totalHeight = staveY + 120;
-    const width = Math.max(chords.length * 120 + 80, 400);
+    const minContentWidth = chords.length * 120 + 80;
+    const width = getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, totalHeight);
     const context = renderer.getContext();
@@ -131,7 +148,8 @@ const Renderers = (() => {
       return { name, positions: positions ? positions[0] : null };
     });
 
-    const width = Math.max(chordsWithPositions.length * 120 + 80, 400);
+    const minContentWidth = chordsWithPositions.length * 120 + 80;
+    const width = getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, 180);
     const context = renderer.getContext();
@@ -208,7 +226,8 @@ const Renderers = (() => {
       return { name, positions: positions ? positions[0] : null };
     });
 
-    const width = Math.max(chordsWithPositions.length * 120 + 80, 400);
+    const minContentWidth = chordsWithPositions.length * 120 + 80;
+    const width = getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, 160);
     const context = renderer.getContext();

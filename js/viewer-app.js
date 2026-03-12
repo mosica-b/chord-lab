@@ -171,9 +171,31 @@ const ViewerApp = (() => {
     const container = document.getElementById('chordCards');
     container.innerHTML = '';
 
+    // Phase 1: Insert all cards into DOM (stabilises scrollbar & layout)
+    const cardPairs = [];
     chords.forEach(name => {
       const card = createChordCard(name);
       container.appendChild(card);
+      cardPairs.push({ card, name });
+    });
+
+    // Phase 2: Render notations after all cards are in DOM so width is accurate
+    cardPairs.forEach(({ card, name }) => {
+      renderCardNotations(card, name);
+    });
+  }
+
+  function renderCardNotations(card, chordName) {
+    const singleChord = [chordName];
+    card.querySelectorAll('.notation-panel').forEach(panel => {
+      switch (panel.dataset.type) {
+        case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
+        case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
+        case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
+        case 'ukulele-tab': Renderers.renderUkuleleTab(panel, singleChord); break;
+        case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, singleChord); break;
+        case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
+      }
     });
   }
 
@@ -246,23 +268,12 @@ const ViewerApp = (() => {
     header.appendChild(playBtn);
     card.appendChild(header);
 
-    // Create notation panels (no per-card tabs)
-    const singleChord = [chordName];
+    // Create empty notation panels (rendering happens after DOM insertion)
     TABS.forEach(({ id }) => {
       const panel = document.createElement('div');
       panel.className = `notation-panel${id === currentType ? ' active' : ''}`;
       panel.dataset.type = id;
       card.appendChild(panel);
-
-      // Render into panel
-      switch (id) {
-        case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
-        case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
-        case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
-        case 'ukulele-tab': Renderers.renderUkuleleTab(panel, singleChord); break;
-        case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, singleChord); break;
-        case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
-      }
     });
 
     return card;
