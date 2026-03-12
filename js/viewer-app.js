@@ -41,39 +41,74 @@ const ViewerApp = (() => {
     render();
   }
 
+  // Sync all selectors (top accordion + fab accordion) to match currentType
+  function syncAllSelectors() {
+    const tabObj = TABS.find(t => t.id === currentType) || TABS[0];
+    // Top accordion
+    const topLabel = document.getElementById('topAccordionLabel');
+    if (topLabel) topLabel.textContent = tabObj.label;
+    document.querySelectorAll('#topAccordionBody .instrument-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.type === currentType);
+    });
+    // FAB accordion
+    document.querySelectorAll('#fabAccordion .fab-accordion-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.type === currentType);
+    });
+  }
+
   function setupGlobalTabs() {
-    const accordion = document.getElementById('fabAccordion');
+    // --- FAB accordion (bottom) ---
+    const fabAccordion = document.getElementById('fabAccordion');
     const fabBtn = document.getElementById('fabNotation');
     const fabTop = document.getElementById('fabTop');
-    const items = accordion.querySelectorAll('.fab-accordion-item');
+    const fabItems = fabAccordion.querySelectorAll('.fab-accordion-item');
 
-    // Set initial active from defaultType
-    items.forEach(item => {
+    fabItems.forEach(item => {
       item.classList.toggle('active', item.dataset.type === currentType);
       item.addEventListener('click', () => {
-        items.forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
         currentType = item.dataset.type;
         switchAllPanels(currentType);
-        accordion.classList.add('hidden');
+        syncAllSelectors();
+        fabAccordion.classList.add('hidden');
       });
     });
 
-    // Toggle accordion on fab click
     fabBtn.addEventListener('click', () => {
-      accordion.classList.toggle('hidden');
+      fabAccordion.classList.toggle('hidden');
     });
 
-    // Scroll to top
     fabTop.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // Close accordion on outside click
     document.addEventListener('click', (e) => {
-      if (!accordion.contains(e.target) && e.target !== fabBtn && !fabBtn.contains(e.target)) {
-        accordion.classList.add('hidden');
+      if (!fabAccordion.contains(e.target) && e.target !== fabBtn && !fabBtn.contains(e.target)) {
+        fabAccordion.classList.add('hidden');
       }
+    });
+
+    // --- Top accordion ---
+    const topToggle = document.getElementById('topAccordionToggle');
+    const topBody = document.getElementById('topAccordionBody');
+    const topBtns = topBody.querySelectorAll('.instrument-tab');
+
+    // Set initial label
+    syncAllSelectors();
+
+    topToggle.addEventListener('click', () => {
+      const isOpen = topBody.classList.toggle('open');
+      topToggle.classList.toggle('open', isOpen);
+    });
+
+    topBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentType = btn.dataset.type;
+        switchAllPanels(currentType);
+        syncAllSelectors();
+        // Close accordion after selection
+        topBody.classList.remove('open');
+        topToggle.classList.remove('open');
+      });
     });
   }
 
@@ -101,15 +136,18 @@ const ViewerApp = (() => {
     const emptyState = document.getElementById('emptyState');
     const cardsContainer = document.getElementById('chordCards');
     const fabContainer = document.getElementById('fabContainer');
+    const topAccordion = document.getElementById('topAccordion');
 
     if (chords.length === 0) {
       emptyState.classList.remove('hidden');
       cardsContainer.classList.add('hidden');
       if (fabContainer) fabContainer.style.display = 'none';
+      if (topAccordion) topAccordion.classList.add('hidden');
     } else {
       emptyState.classList.add('hidden');
       cardsContainer.classList.remove('hidden');
       if (fabContainer) fabContainer.style.display = '';
+      if (topAccordion) topAccordion.classList.remove('hidden');
     }
   }
 
