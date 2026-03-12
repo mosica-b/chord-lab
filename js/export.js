@@ -39,13 +39,51 @@ const Export = (() => {
 
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
 
-    infoRows.forEach(({ label, value }) => {
-      const row = document.createElement('p');
-      row.style.margin = '4px 0';
-      row.style.fontSize = '14px';
-      row.innerHTML = `<b>${label}</b>&nbsp;&nbsp;&nbsp;${esc(value)}`;
-      infoSection.appendChild(row);
-    });
+    // Build info table (matching Naver HTML format)
+    if (infoRows.length > 0) {
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginBottom = '12px';
+
+      // Info rows
+      const allTableRows = [...infoRows];
+
+      // Link rows
+      if (metadata.songName || metadata.artist) {
+        const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
+        const query = encodeURIComponent(q);
+        const lyricsQuery = encodeURIComponent(`${q} 가사`);
+        const geniusLink = metadata.geniusUrl || `https://genius.com/search?q=${query}`;
+        const appleMusicLink = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
+        allTableRows.push({ label: '가사', valueHtml: `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>` });
+        allTableRows.push({ label: '음원', valueHtml: `<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
+      }
+
+      allTableRows.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        if (i % 2 === 1) tr.style.background = '#f8f9fa';
+
+        const tdLabel = document.createElement('td');
+        tdLabel.style.padding = '6px 10px';
+        tdLabel.style.width = '80px';
+        tdLabel.style.textAlign = 'center';
+        tdLabel.style.background = '#eef2f7';
+        tdLabel.style.border = '1px solid #ddd';
+        tdLabel.innerHTML = `<b>${esc(row.label)}</b>`;
+        tr.appendChild(tdLabel);
+
+        const tdValue = document.createElement('td');
+        tdValue.style.padding = '6px 10px';
+        tdValue.style.border = '1px solid #ddd';
+        tdValue.innerHTML = row.valueHtml || esc(row.value);
+        tr.appendChild(tdValue);
+
+        table.appendChild(tr);
+      });
+
+      infoSection.appendChild(table);
+    }
 
     preview.appendChild(infoSection);
 
@@ -265,8 +303,8 @@ const Export = (() => {
       preview.appendChild(placeholderSection);
     }
 
-    // 5. Links (viewer + streaming)
-    if (chords.length > 0 || metadata.songName || metadata.artist) {
+    // 5. Links (viewer only - streaming links are in info table)
+    if (chords.length > 0) {
       const linksSection = document.createElement('div');
       linksSection.style.marginTop = '20px';
 
@@ -276,44 +314,12 @@ const Export = (() => {
       linksTitle.textContent = '관련 링크';
       linksSection.appendChild(linksTitle);
 
-      // Viewer link
-      if (chords.length > 0) {
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-        const p = document.createElement('p');
-        p.style.margin = '4px 0';
-        p.style.fontSize = '14px';
-        p.innerHTML = `▶ <a href="${allUrl}" target="_blank" style="color:#2563eb;text-decoration:none;">코드 재생/표기 보기</a>`;
-        linksSection.appendChild(p);
-      }
-
-      // Streaming links
-      if (metadata.songName || metadata.artist) {
-        const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
-        const query = encodeURIComponent(q);
-        const lyricsQuery = encodeURIComponent(`${q} 가사`);
-        const appleMusicUrl = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
-        const links = [
-          { emoji: '🎵', text: 'Genius 가사', url: metadata.geniusUrl || `https://genius.com/search?q=${query}` },
-          { emoji: '▶️', text: 'YouTube 가사', url: `https://www.youtube.com/results?search_query=${lyricsQuery}` },
-          { emoji: '🎧', text: 'Spotify', url: `https://open.spotify.com/search/${query}` },
-          { emoji: '🍎', text: 'Apple Music', url: appleMusicUrl },
-        ];
-
-        links.forEach(({ emoji, text, url }) => {
-          const p = document.createElement('p');
-          p.style.margin = '4px 0';
-          p.style.fontSize = '14px';
-          const a = document.createElement('a');
-          a.href = url;
-          a.textContent = `${emoji} ${text}`;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          a.style.color = '#2563eb';
-          a.style.textDecoration = 'none';
-          p.appendChild(a);
-          linksSection.appendChild(p);
-        });
-      }
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      const p = document.createElement('p');
+      p.style.margin = '4px 0';
+      p.style.fontSize = '14px';
+      p.innerHTML = `▶ <a href="${allUrl}" target="_blank" style="color:#2563eb;text-decoration:none;">코드 재생/표기 보기</a>`;
+      linksSection.appendChild(p);
 
       preview.appendChild(linksSection);
     }
@@ -392,7 +398,7 @@ const Export = (() => {
     }
     html += `</blockquote>`;
 
-    // Song info (outside blockquote)
+    // Song info table (outside blockquote)
     const infoRows = [
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
@@ -404,9 +410,27 @@ const Export = (() => {
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
     ].filter(r => r.value);
 
-    infoRows.forEach(({ label, value }) => {
-      html += `<b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}<br>`;
-    });
+    if (infoRows.length > 0) {
+      // Build link rows for the info table
+      const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
+      const query = encodeURIComponent(q);
+      const lyricsQuery = encodeURIComponent(`${q} 가사`);
+      const linkRows = [];
+      if (metadata.songName || metadata.artist) {
+        const geniusLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : `https://genius.com/search?q=${query}`;
+        const appleMusicLink = metadata.appleMusicUrl ? esc(metadata.appleMusicUrl) : `https://music.apple.com/search?term=${query}`;
+        linkRows.push({ label: '가사', value: `<a href="${geniusLink}">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube</a>` });
+        linkRows.push({ label: '음원', value: `<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
+      }
+
+      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="8" cellspacing="1">`;
+      const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...linkRows];
+      allRows.forEach(({ label, value }, i) => {
+        const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
+        html += `<tr><td width="80" align="center" bgcolor="#eef2f7"><b>${esc(label)}</b></td><td bgcolor="${rowBg}">${value}</td></tr>`;
+      });
+      html += `</table>`;
+    }
 
     // 사용 코드 (outside blockquote, centered)
     if (chords.length > 0) {
@@ -436,11 +460,11 @@ const Export = (() => {
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
-        t += `<table width="100%" border="1" cellpadding="${pad}" cellspacing="0">`;
+        t += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="${pad}" cellspacing="1">`;
         const headerCells = ['코드', '타입', '구성음'];
-        t += `<tr bgcolor="#f0f0f0">`;
+        t += `<tr>`;
         headerCells.forEach(h => {
-          t += sz ? `<td align="center"><font size="${sz}"><b>${h}</b></font></td>` : `<td align="center"><b>${h}</b></td>`;
+          t += sz ? `<td align="center" bgcolor="#f0f0f0"><font size="${sz}"><b>${h}</b></font></td>` : `<td align="center" bgcolor="#f0f0f0"><b>${h}</b></td>`;
         });
         t += `</tr>`;
         let rowIdx = 0;
@@ -455,8 +479,8 @@ const Export = (() => {
               typeName = typeNames[intervalKey] || parsed.suffix || '메이저';
             }
             const notes = MusicTheory.getChordNotesDisplay(name);
-            const rowBg = rowIdx % 2 === 1 ? ' bgcolor="#f8f9fa"' : '';
-            t += `<tr${rowBg}>`;
+            const rowBg = rowIdx % 2 === 1 ? '#f8f9fa' : '#ffffff';
+            t += `<tr>`;
             // 코드 column: 도수 작게 + 코드명
             let chordCell = '';
             if (hasKey) {
@@ -465,17 +489,17 @@ const Export = (() => {
             }
             chordCell += `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
             t += isCompact
-              ? `<td align="center"><font size="2">${chordCell}</font></td>`
-              : `<td align="center">${chordCell}</td>`;
+              ? `<td align="center" bgcolor="${rowBg}"><font size="2">${chordCell}</font></td>`
+              : `<td align="center" bgcolor="${rowBg}">${chordCell}</td>`;
             // 타입 column
             t += isCompact
-              ? `<td align="center"><font color="#888888" size="2">${esc(typeName)}</font></td>`
-              : `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
+              ? `<td align="center" bgcolor="${rowBg}"><font color="#888888" size="2">${esc(typeName)}</font></td>`
+              : `<td align="center" bgcolor="${rowBg}"><font color="#888888">${esc(typeName)}</font></td>`;
             // 구성음 column (note names only)
             const fmtNotes = notes.map(n => `<b>${esc(n)}</b>`).join(', ');
             t += isCompact
-              ? `<td align="center"><font size="2">${fmtNotes}</font></td>`
-              : `<td align="center">${fmtNotes}</td>`;
+              ? `<td align="center" bgcolor="${rowBg}"><font size="2">${fmtNotes}</font></td>`
+              : `<td align="center" bgcolor="${rowBg}">${fmtNotes}</td>`;
             t += `</tr>`;
             rowIdx++;
           });
@@ -503,10 +527,10 @@ const Export = (() => {
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
       html += `<blockquote><font size="4"><b>카포 변환표</b></font></blockquote>`;
-      html += `<table width="100%" border="1" cellpadding="10" cellspacing="0">`;
-      html += `<tr bgcolor="#f0f0f0"><td align="center"><b>카포</b></td>`;
+      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
-        html += `<td align="center"><b>${esc(name)}</b></td>`;
+        html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
       });
       html += `</tr>`;
 
@@ -514,10 +538,11 @@ const Export = (() => {
       [0, capoPosition].forEach(pos => {
         const entry = capoTable[pos];
         const isCurrent = pos === capoPosition;
-        html += `<tr${isCurrent ? ' bgcolor="#eef4ff"' : ''}>`;
-        html += `<td align="center"><b>${pos === 0 ? '원래 코드' : `카포 ${pos}프렛`}</b></td>`;
+        const cellBg = isCurrent ? '#eef4ff' : '#ffffff';
+        html += `<tr>`;
+        html += `<td align="center" bgcolor="${cellBg}"><b>${pos === 0 ? '원래 코드' : `카포 ${pos}프렛`}</b></td>`;
         entry.chords.forEach(chord => {
-          html += `<td align="center">${isCurrent ? `<b><font color="#2563eb">${esc(chord)}</font></b>` : esc(chord)}</td>`;
+          html += `<td align="center" bgcolor="${cellBg}">${isCurrent ? `<b><font color="#2563eb">${esc(chord)}</font></b>` : esc(chord)}</td>`;
         });
         html += `</tr>`;
       });
@@ -529,29 +554,11 @@ const Export = (() => {
       html += `<br><font color="#999999">※ 코드 표기 이미지는 아래에 첨부</font><br>`;
     }
 
-    // Links
-    if (chords.length > 0 || metadata.songName || metadata.artist) {
+    // Chord viewer link
+    if (chords.length > 0) {
       html += `<blockquote><font size="4"><b>관련 링크</b></font></blockquote>`;
-
-      if (chords.length > 0) {
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-        html += `▶ <a href="${allUrl}">코드 재생/표기 보기</a><br>`;
-      }
-
-      if (metadata.songName || metadata.artist) {
-        const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
-        const query = encodeURIComponent(q);
-        const lyricsQuery = encodeURIComponent(`${q} 가사`);
-        const geniusLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : `https://genius.com/search?q=${query}`;
-        html += `<a href="${geniusLink}">Genius 가사</a><br>`;
-        html += `<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube 가사</a><br>`;
-        html += `<a href="https://open.spotify.com/search/${query}">Spotify</a><br>`;
-        if (metadata.appleMusicUrl) {
-          html += `<a href="${esc(metadata.appleMusicUrl)}">Apple Music</a><br>`;
-        } else {
-          html += `<a href="https://music.apple.com/search?term=${query}">Apple Music</a><br>`;
-        }
-      }
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      html += `▶ <a href="${allUrl}">코드 재생/표기 보기</a><br>`;
     }
 
     return html;
