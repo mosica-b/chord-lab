@@ -1,95 +1,245 @@
 /**
  * Authentication Module
- * Simple SHA-256 password gate for admin panel.
- * No external service required.
+ * AES-256-GCM encrypted app loader with rate limiting.
+ *
+ * Two-layer encryption:
+ *   1. Master key encrypts all app JS (AES-GCM)
+ *   2. Password encrypts the master key (PBKDF2 + AES-GCM)
+ * Password changes only re-encrypt the master key (stored in localStorage).
  */
 const Auth = (() => {
-  // Default password hash (SHA-256 of initial password)
-  const DEFAULT_HASH = '51f83d4b7f969a7883ea333eca0ecb42e9dc5e8437e50630feccee8bdb07d172';
-  const STORAGE_KEY = 'chord_lab_pw_hash';
   const SESSION_KEY = 'chord_lab_auth';
+  const MK_OVERRIDE_KEY = 'chord_lab_mk';
+  const PBKDF2_ITERATIONS = 100000;
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_SECONDS = 30;
 
-  let appInitialized = false;
+  let encryptedBundle = null; // cached fetch result
+  let decryptedMasterKey = null; // cached for password change
 
-  /** Compute SHA-256 hex digest of a string */
-  async function sha256(text) {
-    const data = new TextEncoder().encode(text);
-    const buf = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  /* ── Base64 helpers ── */
+  function b64ToU8(b64) {
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  function u8ToB64(u8) {
+    let bin = '';
+    const chunk = 8192;
+    for (let i = 0; i < u8.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, u8.slice(i, i + chunk));
+    }
+    return btoa(bin);
   }
 
-  /** Get the stored password hash (or default) */
-  function getHash() {
-    return localStorage.getItem(STORAGE_KEY) || DEFAULT_HASH;
+  /* ── Crypto helpers ── */
+  async function deriveKey(password, salt, usages) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      usages
+    );
   }
 
-  /** Show the app, hide login */
+  async function aesDecrypt(key, iv, data) {
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+  }
+
+  async function aesEncrypt(key, iv, data) {
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  }
+
+  /* ── Rate limiting ── */
+  function getRateLimit() {
+    try {
+      return JSON.parse(sessionStorage.getItem('chord_lab_rl') || '{}');
+    } catch { return {}; }
+  }
+  function setRateLimit(obj) {
+    sessionStorage.setItem('chord_lab_rl', JSON.stringify(obj));
+  }
+  function checkRateLimit() {
+    const rl = getRateLimit();
+    if (!rl.lockedUntil) return { locked: false, remaining: MAX_ATTEMPTS - (rl.attempts || 0) };
+    const remaining = Math.ceil((rl.lockedUntil - Date.now()) / 1000);
+    if (remaining <= 0) {
+      setRateLimit({});
+      return { locked: false, remaining: MAX_ATTEMPTS };
+    }
+    return { locked: true, seconds: remaining };
+  }
+  function recordFailedAttempt() {
+    const rl = getRateLimit();
+    const attempts = (rl.attempts || 0) + 1;
+    if (attempts >= MAX_ATTEMPTS) {
+      setRateLimit({ attempts: 0, lockedUntil: Date.now() + LOCKOUT_SECONDS * 1000 });
+    } else {
+      setRateLimit({ attempts });
+    }
+  }
+
+  /* ── Fetch encrypted bundle ── */
+  async function fetchBundle() {
+    if (encryptedBundle) return encryptedBundle;
+    const res = await fetch('js/app.encrypted?v=1');
+    if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
+    encryptedBundle = await res.json();
+    return encryptedBundle;
+  }
+
+  /* ── Core: decrypt and load app ── */
+  async function decryptAndLoad(password) {
+    const bundle = await fetchBundle();
+
+    // Use localStorage override if password was changed, else use file's mk
+    const localMk = localStorage.getItem(MK_OVERRIDE_KEY);
+    const mkData = localMk ? JSON.parse(localMk) : bundle.mk;
+
+    // Derive key from password
+    const pwKey = await deriveKey(password, b64ToU8(mkData.salt), ['decrypt']);
+
+    // Decrypt master key
+    let masterKeyRaw;
+    try {
+      masterKeyRaw = await aesDecrypt(pwKey, b64ToU8(mkData.iv), b64ToU8(mkData.data));
+    } catch {
+      throw new Error('비밀번호가 올바르지 않습니다.');
+    }
+
+    // Cache for password change
+    decryptedMasterKey = new Uint8Array(masterKeyRaw);
+
+    // Import master key
+    const masterKey = await crypto.subtle.importKey(
+      'raw', masterKeyRaw, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+
+    // Decrypt app code
+    const appPlain = await aesDecrypt(masterKey, b64ToU8(bundle.app.iv), b64ToU8(bundle.app.data));
+    const appCode = new TextDecoder().decode(appPlain);
+
+    // Execute decrypted JS
+    const script = document.createElement('script');
+    script.textContent = appCode;
+    document.body.appendChild(script);
+  }
+
+  /* ── UI helpers ── */
   function showApp() {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appContent').classList.remove('hidden');
     document.getElementById('appHeader').classList.remove('hidden');
     const modal = document.getElementById('notationModal');
     if (modal) modal.classList.remove('hidden');
-
-    if (!appInitialized) {
-      appInitialized = true;
-      App.init();
-    }
+    App.init();
   }
 
-  /** Show login, hide app */
   function showLogin() {
     document.getElementById('loginSection').classList.remove('hidden');
     document.getElementById('appContent').classList.add('hidden');
     document.getElementById('appHeader').classList.add('hidden');
     const modal = document.getElementById('notationModal');
     if (modal) modal.classList.add('hidden');
-    appInitialized = false;
   }
 
+  /* ── Lockout countdown ── */
+  function startCountdown(errorEl, submitBtn) {
+    const tick = () => {
+      const rl = checkRateLimit();
+      if (rl.locked) {
+        errorEl.textContent = `너무 많은 시도입니다. ${rl.seconds}초 후 다시 시도해주세요.`;
+        submitBtn.disabled = true;
+        requestAnimationFrame(() => setTimeout(tick, 1000));
+      } else {
+        errorEl.textContent = '';
+        submitBtn.disabled = false;
+      }
+    };
+    tick();
+  }
+
+  /* ── Init ── */
   function init() {
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
     const logoutBtn = document.getElementById('logoutBtn');
+    const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-    // Check session (persists until tab/browser closed)
-    if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-      showApp();
-    }
+    // Check if already locked out
+    const rl = checkRateLimit();
+    if (rl.locked) startCountdown(loginError, submitBtn);
 
     // Login form submit
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = document.getElementById('loginPassword').value;
-      const submitBtn = loginForm.querySelector('button[type="submit"]');
-
       if (!password) return;
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = '확인 중...';
-      loginError.textContent = '';
-
-      const hash = await sha256(password);
-      if (hash === getHash()) {
-        sessionStorage.setItem(SESSION_KEY, 'true');
-        showApp();
-      } else {
-        loginError.textContent = '비밀번호가 올바르지 않습니다.';
+      // Rate limit check
+      const rlCheck = checkRateLimit();
+      if (rlCheck.locked) {
+        startCountdown(loginError, submitBtn);
+        return;
       }
 
-      submitBtn.disabled = false;
-      submitBtn.textContent = '로그인';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '복호화 중...';
+      loginError.textContent = '';
+
+      try {
+        await decryptAndLoad(password);
+        sessionStorage.setItem(SESSION_KEY, password); // for session restore
+        setRateLimit({}); // reset on success
+        showApp();
+      } catch (err) {
+        recordFailedAttempt();
+        const rlAfter = checkRateLimit();
+        if (rlAfter.locked) {
+          startCountdown(loginError, submitBtn);
+        } else {
+          loginError.textContent = `${err.message} (${rlAfter.remaining}회 남음)`;
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '로그인';
+      }
     });
+
+    // Session restore (already logged in this tab)
+    const savedPw = sessionStorage.getItem(SESSION_KEY);
+    if (savedPw) {
+      // Auto-login silently
+      const overlay = document.createElement('div');
+      overlay.className = 'fixed inset-0 bg-white flex items-center justify-center z-50';
+      overlay.innerHTML = '<p class="text-gray-400 text-sm">로딩 중...</p>';
+      document.body.appendChild(overlay);
+
+      decryptAndLoad(savedPw)
+        .then(() => { overlay.remove(); showApp(); })
+        .catch(() => {
+          overlay.remove();
+          sessionStorage.removeItem(SESSION_KEY);
+          // password changed elsewhere, show login
+        });
+    }
 
     // Logout
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem(SESSION_KEY);
-        showLogin();
+        decryptedMasterKey = null;
+        location.reload();
       });
     }
 
-    // Change password modal
+    // ── Change Password ──
     const changePwBtn = document.getElementById('changePwBtn');
     const changePwModal = document.getElementById('changePwModal');
     const changePwForm = document.getElementById('changePwForm');
@@ -118,17 +268,10 @@ const Auth = (() => {
         const currentPw = document.getElementById('currentPassword').value;
         const newPw = document.getElementById('newPassword').value;
         const confirmPw = document.getElementById('confirmPassword').value;
-        const submitBtn = changePwForm.querySelector('button[type="submit"]');
+        const pwSubmitBtn = changePwForm.querySelector('button[type="submit"]');
 
         changePwError.textContent = '';
         changePwSuccess.textContent = '';
-
-        // Verify current password
-        const currentHash = await sha256(currentPw);
-        if (currentHash !== getHash()) {
-          changePwError.textContent = '현재 비밀번호가 올바르지 않습니다.';
-          return;
-        }
 
         if (newPw.length < 8) {
           changePwError.textContent = '새 비밀번호는 8자 이상이어야 합니다.';
@@ -139,16 +282,49 @@ const Auth = (() => {
           return;
         }
 
-        submitBtn.disabled = true;
-        submitBtn.textContent = '변경 중...';
+        pwSubmitBtn.disabled = true;
+        pwSubmitBtn.textContent = '변경 중...';
 
-        const newHash = await sha256(newPw);
-        localStorage.setItem(STORAGE_KEY, newHash);
-        changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
-        changePwForm.reset();
+        try {
+          // Verify current password by attempting to decrypt master key
+          const bundle = await fetchBundle();
+          const localMk = localStorage.getItem(MK_OVERRIDE_KEY);
+          const mkData = localMk ? JSON.parse(localMk) : bundle.mk;
 
-        submitBtn.disabled = false;
-        submitBtn.textContent = '비밀번호 변경';
+          const oldKey = await deriveKey(currentPw, b64ToU8(mkData.salt), ['decrypt']);
+          let mkRaw;
+          try {
+            mkRaw = await aesDecrypt(oldKey, b64ToU8(mkData.iv), b64ToU8(mkData.data));
+          } catch {
+            changePwError.textContent = '현재 비밀번호가 올바르지 않습니다.';
+            return;
+          }
+
+          // Re-encrypt master key with new password
+          const newSalt = crypto.getRandomValues(new Uint8Array(16));
+          const newKey = await deriveKey(newPw, newSalt, ['encrypt']);
+          const newIv = crypto.getRandomValues(new Uint8Array(12));
+          const newMkEncrypted = await aesEncrypt(newKey, newIv, mkRaw);
+
+          // Save to localStorage
+          const newMkData = {
+            salt: u8ToB64(newSalt),
+            iv: u8ToB64(newIv),
+            data: u8ToB64(new Uint8Array(newMkEncrypted)),
+          };
+          localStorage.setItem(MK_OVERRIDE_KEY, JSON.stringify(newMkData));
+
+          // Update session password
+          sessionStorage.setItem(SESSION_KEY, newPw);
+
+          changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
+          changePwForm.reset();
+        } catch (err) {
+          changePwError.textContent = '비밀번호 변경에 실패했습니다.';
+        } finally {
+          pwSubmitBtn.disabled = false;
+          pwSubmitBtn.textContent = '비밀번호 변경';
+        }
       });
     }
   }
