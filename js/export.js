@@ -291,24 +291,70 @@ const Export = (() => {
       preview.appendChild(capoSection);
     }
 
-    // 4. Notation Image Placeholders
+    // 4. Notation Table (replaces image placeholder)
     if (chords.length > 0) {
-      const placeholderSection = document.createElement('div');
-      placeholderSection.style.margin = '20px 0';
-      placeholderSection.style.padding = '16px';
-      placeholderSection.style.background = '#f8f9fa';
-      placeholderSection.style.borderRadius = '8px';
-      placeholderSection.style.border = '2px dashed #ccc';
-      placeholderSection.style.textAlign = 'center';
-      placeholderSection.style.color = '#888';
-      placeholderSection.style.fontSize = '14px';
-      placeholderSection.style.lineHeight = '2';
-      placeholderSection.innerHTML = `
-        <p style="font-weight:600;color:#555;margin-bottom:4px;">📎 코드 표기 이미지 삽입 위치</p>
-        <p>다운로드한 이미지를 여기에 첨부해주세요</p>
-        <p style="font-size:12px;color:#aaa;">(오선보 · 기타 타브 · 기타 다이어그램 · 우쿨렐레 타브 · 우쿨렐레 다이어그램 · 피아노)</p>
-      `;
-      preview.appendChild(placeholderSection);
+      const notationSection = document.createElement('div');
+      notationSection.style.marginBottom = '20px';
+
+      const notationTitle = document.createElement('h3');
+      notationTitle.textContent = '코드 표기';
+      notationSection.appendChild(notationTitle);
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const thType = document.createElement('th');
+      thType.textContent = '표기 유형';
+      headerRow.appendChild(thType);
+      const thView = document.createElement('th');
+      thView.textContent = '보기';
+      headerRow.appendChild(thView);
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      const notationTypes = [
+        { key: 'staff', label: '오선표기' },
+        { key: 'guitar-tab', label: '기타 타브' },
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
+        { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
+        { key: 'piano', label: '피아노' }
+      ];
+      notationTypes.forEach(({ key, label }) => {
+        const row = document.createElement('tr');
+        const tdLabel = document.createElement('td');
+        tdLabel.textContent = label;
+        row.appendChild(tdLabel);
+        const tdLink = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = '보기 →';
+        link.style.color = '#2563eb';
+        link.style.textDecoration = 'none';
+        link.style.cursor = 'pointer';
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const modal = document.getElementById('notationModal');
+          const modalTitle = document.getElementById('notationModalTitle');
+          const modalBody = document.getElementById('notationModalBody');
+          const source = document.getElementById(`tab-${key}`);
+          if (!source || !modal) return;
+          modalTitle.textContent = label;
+          modalBody.innerHTML = '';
+          modalBody.appendChild(source.cloneNode(true));
+          const cloned = modalBody.querySelector('.notation-content');
+          if (cloned) cloned.classList.remove('hidden');
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        });
+        tdLink.appendChild(link);
+        row.appendChild(tdLink);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      notationSection.appendChild(table);
+      preview.appendChild(notationSection);
     }
 
   }
