@@ -42,18 +42,38 @@ const ViewerApp = (() => {
   }
 
   function setupGlobalTabs() {
-    const bar = document.getElementById('globalTabBar');
-    const btns = bar.querySelectorAll('.instrument-tab');
+    const accordion = document.getElementById('fabAccordion');
+    const fabBtn = document.getElementById('fabNotation');
+    const fabTop = document.getElementById('fabTop');
+    const items = accordion.querySelectorAll('.fab-accordion-item');
 
     // Set initial active from defaultType
-    btns.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.type === currentType);
-      btn.addEventListener('click', () => {
-        btns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentType = btn.dataset.type;
+    items.forEach(item => {
+      item.classList.toggle('active', item.dataset.type === currentType);
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentType = item.dataset.type;
         switchAllPanels(currentType);
+        accordion.classList.add('hidden');
       });
+    });
+
+    // Toggle accordion on fab click
+    fabBtn.addEventListener('click', () => {
+      accordion.classList.toggle('hidden');
+    });
+
+    // Scroll to top
+    fabTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Close accordion on outside click
+    document.addEventListener('click', (e) => {
+      if (!accordion.contains(e.target) && e.target !== fabBtn && !fabBtn.contains(e.target)) {
+        accordion.classList.add('hidden');
+      }
     });
   }
 
@@ -80,16 +100,16 @@ const ViewerApp = (() => {
 
     const emptyState = document.getElementById('emptyState');
     const cardsContainer = document.getElementById('chordCards');
-    const globalTabBar = document.getElementById('globalTabBar');
+    const fabContainer = document.getElementById('fabContainer');
 
     if (chords.length === 0) {
       emptyState.classList.remove('hidden');
       cardsContainer.classList.add('hidden');
-      globalTabBar.classList.add('hidden');
+      if (fabContainer) fabContainer.style.display = 'none';
     } else {
       emptyState.classList.add('hidden');
       cardsContainer.classList.remove('hidden');
-      globalTabBar.classList.remove('hidden');
+      if (fabContainer) fabContainer.style.display = '';
     }
   }
 

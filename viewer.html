@@ -73,6 +73,96 @@
       gap: 8px;
       align-items: center;
     }
+
+    /* Floating buttons */
+    .fab-container {
+      position: fixed;
+      bottom: 24px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 24px;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .fab {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      pointer-events: auto;
+    }
+    .fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+    .fab:active { transform: scale(0.95); }
+    .fab-notation {
+      background: #3b82f6;
+      color: white;
+    }
+    .fab-top {
+      background: #374151;
+      color: white;
+    }
+
+    /* Accordion menu */
+    .fab-accordion {
+      position: fixed;
+      bottom: 88px;
+      left: 24px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      overflow: hidden;
+      transform-origin: bottom left;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      z-index: 101;
+      pointer-events: auto;
+      min-width: 180px;
+    }
+    .fab-accordion.hidden {
+      transform: scale(0.9);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .fab-accordion-item {
+      display: block;
+      width: 100%;
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      text-align: left;
+      font-size: 14px;
+      color: #374151;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .fab-accordion-item:hover { background: #f3f4f6; }
+    .fab-accordion-item.active {
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 600;
+    }
+    .fab-accordion-item + .fab-accordion-item {
+      border-top: 1px solid #f0f0f0;
+    }
+    .fab-accordion-header {
+      padding: 10px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #f0f0f0;
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -104,19 +194,6 @@
       </div>
     </section>
 
-    <!-- Global notation tab bar -->
-    <section id="globalTabBar" class="bg-white rounded-lg shadow p-3 mb-6 hidden">
-      <div class="flex flex-wrap gap-2 items-center">
-        <span class="text-sm font-medium text-gray-600 mr-1">표기:</span>
-        <button class="instrument-tab active" data-type="staff">오선보</button>
-        <button class="instrument-tab" data-type="guitar-tab">기타 타브</button>
-        <button class="instrument-tab" data-type="guitar-diagram">기타 다이어그램</button>
-        <button class="instrument-tab" data-type="ukulele-tab">우쿨렐레 타브</button>
-        <button class="instrument-tab" data-type="ukulele-diagram">우쿨렐레 다이어그램</button>
-        <button class="instrument-tab" data-type="piano">피아노</button>
-      </div>
-    </section>
-
     <!-- Chord cards -->
     <div id="chordCards" class="space-y-6"></div>
 
@@ -127,6 +204,32 @@
     </div>
   </main>
 
+  <!-- Floating buttons -->
+  <div class="fab-container" id="fabContainer">
+    <button class="fab fab-notation" id="fabNotation" title="표기 방법">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+    </button>
+    <button class="fab fab-top" id="fabTop" title="위로 올라가기">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Notation accordion menu -->
+  <div class="fab-accordion hidden" id="fabAccordion">
+    <div class="fab-accordion-header">표기 방법</div>
+    <button class="fab-accordion-item active" data-type="staff">🎼 오선보</button>
+    <button class="fab-accordion-item" data-type="guitar-tab">🎸 기타 타브</button>
+    <button class="fab-accordion-item" data-type="guitar-diagram">🎸 기타 다이어그램</button>
+    <button class="fab-accordion-item" data-type="ukulele-tab">🪕 우쿨렐레 타브</button>
+    <button class="fab-accordion-item" data-type="ukulele-diagram">🪕 우쿨렐레 다이어그램</button>
+    <button class="fab-accordion-item" data-type="piano">🎹 피아노</button>
+  </div>
+
   <!-- VexFlow 3 -->
   <script src="https://cdn.jsdelivr.net/npm/vexflow@3.0.9/releases/vexflow-min.js"></script>
   <!-- Shared modules -->
@@ -135,6 +238,6 @@
   <script src="js/renderers.js"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=2"></script>
-  <script src="js/viewer-app.js?v=3"></script>
+  <script src="js/viewer-app.js?v=4"></script>
 </body>
 </html>
