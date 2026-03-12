@@ -46,7 +46,8 @@ const Renderers = (() => {
     stave.setContext(context).draw();
 
     const notes = chords.map(chordName => {
-      const chordNotes = MusicTheory.getChordNotes(chordName);
+      // Use theory-correct enharmonic spelling (Bb not A#, Eb not D#, etc.)
+      const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
       if (!chordNotes.length) {
         return new VF.StaveNote({
           clef: 'treble',
@@ -64,13 +65,12 @@ const Renderers = (() => {
         duration: 'w',
       });
 
-      // Add sharp/flat accidentals (VexFlow 3 API: addAccidental(index, accidental))
+      // Add accidentals: parse letter + accidental from VexFlow key (e.g., "bb/4" → letter "b", accidental "b")
       keys.forEach((key, i) => {
-        const noteName = key.split('/')[0];
-        if (noteName.includes('#')) {
-          staveNote.addAccidental(i, new VF.Accidental('#'));
-        } else if (noteName.includes('b')) {
-          staveNote.addAccidental(i, new VF.Accidental('b'));
+        const notePart = key.split('/')[0];
+        const accidental = notePart.substring(1); // everything after first letter char
+        if (accidental) {
+          staveNote.addAccidental(i, new VF.Accidental(accidental));
         }
       });
 
@@ -107,20 +107,22 @@ const Renderers = (() => {
   /**
    * Assign octaves to chord notes for good staff notation display
    * Keeps notes in a reasonable range around C4-B5
+   * Handles both sharp and flat note names (e.g., Bb, Eb, C#, F#)
    */
   function assignOctavesForStaff(noteNames) {
-    const noteOrder = MusicTheory.NOTE_NAMES;
     const keys = [];
     let currentOctave = 4;
 
     for (let i = 0; i < noteNames.length; i++) {
       const noteName = noteNames[i];
-      const vfNote = noteName.replace('#', '#');
+      // Convert to VexFlow lowercase format (Bb → bb, C# → c#, F → f)
+      const vfNote = noteName.toLowerCase();
 
       if (i > 0) {
-        const prevIdx = noteOrder.indexOf(noteNames[i - 1].replace('#', '').replace('b', ''));
-        const currIdx = noteOrder.indexOf(noteName.replace('#', '').replace('b', ''));
-        if (currIdx <= prevIdx) {
+        // Use semitone index for accurate comparison (works with both sharps and flats)
+        const prevSemitone = MusicTheory.noteIndex(noteNames[i - 1]);
+        const currSemitone = MusicTheory.noteIndex(noteName);
+        if (currSemitone <= prevSemitone) {
           currentOctave++;
         }
       }
