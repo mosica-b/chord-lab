@@ -291,7 +291,7 @@ const Export = (() => {
       preview.appendChild(capoSection);
     }
 
-    // 4. Notation Cards (modal-like)
+    // 4. Notation table
     if (chords.length > 0) {
       const notationSection = document.createElement('div');
       notationSection.style.marginBottom = '20px';
@@ -309,38 +309,56 @@ const Export = (() => {
         { key: 'piano', label: '피아노' }
       ];
       const chordsParam = encodeURIComponent(chords.join(','));
+
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '14px';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['표기 유형', '보기'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.style.padding = '10px 16px';
+        th.style.background = '#f5f5f5';
+        th.style.border = '1px solid #ddd';
+        th.style.fontWeight = '600';
+        th.style.textAlign = 'center';
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
       notationTypes.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
-        const card = document.createElement('div');
-        card.style.border = '1px solid #e0e0e0';
-        card.style.borderRadius = '8px';
-        card.style.marginBottom = '12px';
-        card.style.overflow = 'hidden';
+        const row = document.createElement('tr');
 
-        const header = document.createElement('a');
-        header.href = viewerUrl;
-        header.target = '_blank';
-        header.style.display = 'block';
-        header.style.background = '#3b3b3b';
-        header.style.padding = '10px 16px';
-        header.style.fontWeight = '600';
-        header.style.fontSize = '14px';
-        header.style.color = '#ffffff';
-        header.style.textDecoration = 'none';
-        header.textContent = label;
-        card.appendChild(header);
+        const tdLabel = document.createElement('td');
+        tdLabel.textContent = label;
+        tdLabel.style.padding = '10px 16px';
+        tdLabel.style.border = '1px solid #ddd';
+        tdLabel.style.textAlign = 'center';
+        row.appendChild(tdLabel);
 
-        const body = document.createElement('div');
-        body.style.padding = '24px 16px';
-        body.style.textAlign = 'center';
-        body.style.color = '#ccc';
-        body.style.fontSize = '13px';
-        body.style.background = '#ffffff';
-        body.textContent = '이미지 첨부';
-        card.appendChild(body);
+        const tdLink = document.createElement('td');
+        tdLink.style.padding = '10px 16px';
+        tdLink.style.border = '1px solid #ddd';
+        tdLink.style.textAlign = 'center';
+        const a = document.createElement('a');
+        a.href = viewerUrl;
+        a.target = '_blank';
+        a.textContent = '보기 →';
+        a.style.color = '#2563eb';
+        a.style.textDecoration = 'none';
+        tdLink.appendChild(a);
+        row.appendChild(tdLink);
 
-        notationSection.appendChild(card);
+        tbody.appendChild(row);
       });
+      table.appendChild(tbody);
+      notationSection.appendChild(table);
       preview.appendChild(notationSection);
     }
 
@@ -583,7 +601,7 @@ const Export = (() => {
       html += `</table>`;
     }
 
-    // Notation type cards (modal-like) with viewer links
+    // Notation type table with viewer links
     if (chords.length > 0) {
       html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
       const chordsParam = encodeURIComponent(chords.join(','));
@@ -595,19 +613,16 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
+      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
-        html += `<table bgcolor="#e0e0e0" cellspacing="0" cellpadding="0" style="width:100%">`;
-        html += `<tr><td>`;
-        html += `<table bgcolor="#3b3b3b" cellspacing="0" cellpadding="8" style="width:100%">`;
-        html += `<tr><td><a href="${viewerUrl}" style="color:#ffffff;text-decoration:none"><font color="#ffffff" size="2"><b>${esc(label)}</b></font></a></td></tr>`;
-        html += `</table>`;
-        html += `<table bgcolor="#ffffff" cellspacing="0" cellpadding="0" style="width:100%">`;
-        html += `<tr><td align="center" height="80"><font color="#cccccc" size="2">이미지 첨부</font></td></tr>`;
-        html += `</table>`;
-        html += `</td></tr>`;
-        html += `</table><br>`;
+        html += `<tr>`;
+        html += `<td align="center" bgcolor="#ffffff">${esc(label)}</td>`;
+        html += `<td align="center" bgcolor="#ffffff"><a href="${viewerUrl}"><font color="#2563eb">보기 →</font></a></td>`;
+        html += `</tr>`;
       });
+      html += `</table>`;
     }
 
 
