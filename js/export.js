@@ -119,12 +119,17 @@ const Export = (() => {
 
           const tdNotes = document.createElement('td');
           const notes = MusicTheory.getChordNotesDisplay(name);
+          const degrees = MusicTheory.getChordDegreeLabels(name);
           const triad = notes.slice(0, 3);
+          const triadDeg = degrees.slice(0, 3);
           const extensions = notes.slice(3);
+          const extDeg = degrees.slice(3);
+          const fmtTriad = triad.map((n, i) => `${esc(n)}<span style="color:#999;font-size:11px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
           if (extensions.length > 0) {
-            tdNotes.innerHTML = `<b>${triad.map(esc).join(', ')}</b> <span style="color:#888;font-size:12px;">(+${extensions.map(esc).join(', ')})</span>`;
+            const fmtExt = extensions.map((n, i) => `${esc(n)}(${esc(extDeg[i] || '')})`).join(', ');
+            tdNotes.innerHTML = `<b>${fmtTriad}</b> <span style="color:#888;font-size:12px;">+${fmtExt}</span>`;
           } else {
-            tdNotes.innerHTML = `<b>${triad.map(esc).join(', ')}</b>`;
+            tdNotes.innerHTML = `<b>${fmtTriad}</b>`;
           }
           row.appendChild(tdNotes);
 
@@ -383,12 +388,17 @@ const Export = (() => {
           html += `<tr>`;
           html += `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
           html += `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
+          const nDeg = MusicTheory.getChordDegreeLabels(name);
           const nTriad = notes.slice(0, 3);
+          const nTriadDeg = nDeg.slice(0, 3);
           const nExt = notes.slice(3);
+          const nExtDeg = nDeg.slice(3);
+          const nFmtTriad = nTriad.map((n, i) => `${esc(n)}<font color="#999999" size="1">(${esc(nTriadDeg[i] || '')})</font>`).join(', ');
           if (nExt.length > 0) {
-            html += `<td align="center"><b>${esc(nTriad.join(', '))}</b> <font color="#888888" size="2">(+${esc(nExt.join(', '))})</font></td>`;
+            const nFmtExt = nExt.map((n, i) => `${esc(n)}(${esc(nExtDeg[i] || '')})`).join(', ');
+            html += `<td align="center"><b>${nFmtTriad}</b> <font color="#888888" size="2">+${nFmtExt}</font></td>`;
           } else {
-            html += `<td align="center"><b>${esc(nTriad.join(', '))}</b></td>`;
+            html += `<td align="center"><b>${nFmtTriad}</b></td>`;
           }
           html += `</tr>`;
         });
@@ -485,10 +495,11 @@ const Export = (() => {
       textGroups.forEach((group, gi) => {
         group.chords.forEach(name => {
           const notes = MusicTheory.getChordNotesDisplay(name);
-          const pTriad = notes.slice(0, 3);
-          const pExt = notes.slice(3);
+          const pDeg = MusicTheory.getChordDegreeLabels(name);
+          const pTriad = notes.slice(0, 3).map((n, i) => `${n}(${pDeg[i] || ''})`);
+          const pExt = notes.slice(3).map((n, i) => `${n}(${pDeg[i + 3] || ''})`);
           if (pExt.length > 0) {
-            text += `${name.padEnd(10)}${pTriad.join(', ')} (+${pExt.join(', ')})\n`;
+            text += `${name.padEnd(10)}${pTriad.join(', ')} +${pExt.join(', ')}\n`;
           } else {
             text += `${name.padEnd(10)}${pTriad.join(', ')}\n`;
           }

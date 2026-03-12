@@ -144,6 +144,26 @@ const MusicTheory = (() => {
     return intervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
   }
 
+  // Semitone → degree label mapping
+  const SEMITONE_TO_DEGREE = {
+    0: '1', 1: '♭2', 2: '2', 3: '♭3', 4: '3', 5: '4',
+    6: '♭5', 7: '5', 8: '♯5', 9: '6', 10: '♭7', 11: '7',
+    14: '9', 17: '11', 21: '13',
+  };
+
+  /**
+   * Get degree labels for a chord's intervals
+   * e.g., "Am7" → ["1", "♭3", "5", "♭7"]
+   */
+  function getChordDegreeLabels(chordName) {
+    const parsed = parseChordName(chordName);
+    if (!parsed) return [];
+    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
+    const intervals = CHORD_INTERVALS[intervalKey];
+    if (!intervals) return [];
+    return intervals.map(i => SEMITONE_TO_DEGREE[i] || String(i));
+  }
+
   /**
    * Get display-friendly chord notes
    * Uses flats for flat keys
@@ -280,6 +300,7 @@ const MusicTheory = (() => {
     parseChordName,
     getChordNotes,
     getChordNotesDisplay,
+    getChordDegreeLabels,
     fretToNote,
     fretsToVexFlowKeys,
     transposeChord,
