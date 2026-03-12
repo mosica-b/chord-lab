@@ -518,21 +518,22 @@ const Export = (() => {
           });
         });
         t += `</table>`;
-        if (hasKey) {
-          t += `<font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font><br>`;
-        }
         return t;
       }
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<blockquote><font size="4"><b>주요 화음</b></font></blockquote>`;
+        html += `<blockquote><font size="4"><b>주요 화음</b></font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<blockquote><font size="3"><b>심화 코드</b></font></blockquote>`;
+        html += `<blockquote><font size="3"><b>심화 코드</b></font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
       }
     }
