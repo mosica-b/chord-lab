@@ -119,7 +119,13 @@ const Export = (() => {
 
           const tdNotes = document.createElement('td');
           const notes = MusicTheory.getChordNotesDisplay(name);
-          tdNotes.textContent = notes.join(', ');
+          const triad = notes.slice(0, 3);
+          const extensions = notes.slice(3);
+          if (extensions.length > 0) {
+            tdNotes.innerHTML = `<b>${triad.map(esc).join(', ')}</b> <span style="color:#888;font-size:12px;">(+${extensions.map(esc).join(', ')})</span>`;
+          } else {
+            tdNotes.innerHTML = `<b>${triad.map(esc).join(', ')}</b>`;
+          }
           row.appendChild(tdNotes);
 
           tbody.appendChild(row);
@@ -377,7 +383,13 @@ const Export = (() => {
           html += `<tr>`;
           html += `<td align="center"><b><a href="${chordUrl}">${esc(name)} ▶</a></b></td>`;
           html += `<td align="center"><font color="#888888">${esc(typeName)}</font></td>`;
-          html += `<td align="center">${esc(notes.join(', '))}</td>`;
+          const nTriad = notes.slice(0, 3);
+          const nExt = notes.slice(3);
+          if (nExt.length > 0) {
+            html += `<td align="center"><b>${esc(nTriad.join(', '))}</b> <font color="#888888" size="2">(+${esc(nExt.join(', '))})</font></td>`;
+          } else {
+            html += `<td align="center"><b>${esc(nTriad.join(', '))}</b></td>`;
+          }
           html += `</tr>`;
         });
         if (gi < naverGroups.length - 1) {
@@ -473,7 +485,13 @@ const Export = (() => {
       textGroups.forEach((group, gi) => {
         group.chords.forEach(name => {
           const notes = MusicTheory.getChordNotesDisplay(name);
-          text += `${name.padEnd(10)}${notes.join(', ')}\n`;
+          const pTriad = notes.slice(0, 3);
+          const pExt = notes.slice(3);
+          if (pExt.length > 0) {
+            text += `${name.padEnd(10)}${pTriad.join(', ')} (+${pExt.join(', ')})\n`;
+          } else {
+            text += `${name.padEnd(10)}${pTriad.join(', ')}\n`;
+          }
         });
         if (gi < textGroups.length - 1) text += '\n';
       });
