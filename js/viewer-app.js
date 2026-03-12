@@ -138,13 +138,7 @@ const ViewerApp = (() => {
         currentType = btn.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        // Non-capo types (staff, piano) → close accordion immediately
-        if (!CAPO_TYPES.has(currentType)) {
-          topBody.classList.remove('open');
-          topToggle.classList.remove('open');
-          if (topHint) topHint.textContent = '열기';
-        }
-        // Capo types → keep open so user can select capo, then close
+        // Top accordion never auto-closes on type selection
       });
     });
 
