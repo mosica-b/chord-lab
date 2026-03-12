@@ -65,15 +65,23 @@ const Export = (() => {
         allTableRows.push({ label: '사용 코드', valueHtml: chordsHtml });
       }
 
-      // Link rows
+      // 가사 row (lyrics intro + full lyrics link)
       if (metadata.songName || metadata.artist) {
         const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
         const query = encodeURIComponent(q);
         const lyricsQuery = encodeURIComponent(`${q} 가사`);
         const geniusLink = metadata.geniusUrl || `https://genius.com/search?q=${query}`;
         const appleMusicLink = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
-        allTableRows.push({ label: '가사', valueHtml: `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>` });
-        allTableRows.push({ label: '음원', valueHtml: `<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
+
+        let lyricsHtml = '';
+        if (metadata.lyricsIntro) {
+          lyricsHtml += `${esc(metadata.lyricsIntro).replace(/\n/g, '<br>')}<br>`;
+        }
+        lyricsHtml += `<a href="${geniusLink}" target="_blank" style="color:#2563eb;text-decoration:none;">가사전문보기</a>`;
+        lyricsHtml += `<br><span style="color:#999;font-size:11px;">출처: <a href="https://genius.com" target="_blank" style="color:#999;text-decoration:none;">genius.com</a></span>`;
+        allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
+
+        allTableRows.push({ label: '음원', valueHtml: `<a href="https://www.youtube.com/results?search_query=${lyricsQuery}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
       }
 
       allTableRows.forEach((row, i) => {
@@ -425,15 +433,23 @@ const Export = (() => {
         extraRows.push({ label: '사용 코드', value: chordsValue });
       }
 
-      // Link rows
+      // 가사 row (lyrics intro + full lyrics link)
       const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
       const query = encodeURIComponent(q);
       const lyricsQuery = encodeURIComponent(`${q} 가사`);
       if (metadata.songName || metadata.artist) {
         const geniusLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : `https://genius.com/search?q=${query}`;
         const appleMusicLink = metadata.appleMusicUrl ? esc(metadata.appleMusicUrl) : `https://music.apple.com/search?term=${query}`;
-        extraRows.push({ label: '가사', value: `<a href="${geniusLink}">Genius</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube</a>` });
-        extraRows.push({ label: '음원', value: `<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
+
+        let lyricsValue = '';
+        if (metadata.lyricsIntro) {
+          lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
+        }
+        lyricsValue += `<a href="${geniusLink}">가사전문보기</a>`;
+        lyricsValue += `<br><font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`;
+        extraRows.push({ label: '가사', value: lyricsValue });
+
+        extraRows.push({ label: '음원', value: `<a href="https://www.youtube.com/results?search_query=${lyricsQuery}">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
       html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="8" cellspacing="1">`;

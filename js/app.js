@@ -53,7 +53,7 @@ const App = (() => {
   let autoSearchTimer = null;
 
   function setupMetadataListeners() {
-    const fields = ['songName', 'artist', 'albumName', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey'];
+    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey'];
 
     fields.forEach(id => {
       const el = document.getElementById(id);
@@ -654,6 +654,7 @@ const App = (() => {
       document.getElementById('songName').value = state.metadata.songName || '';
       document.getElementById('artist').value = state.metadata.artist || '';
       document.getElementById('albumName').value = state.metadata.albumName || '';
+      document.getElementById('lyricsIntro').value = state.metadata.lyricsIntro || '';
       document.getElementById('composer').value = state.metadata.composer || '';
       document.getElementById('lyricist').value = state.metadata.lyricist || '';
       document.getElementById('tempo').value = state.metadata.tempo || '';
