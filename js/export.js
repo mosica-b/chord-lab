@@ -815,8 +815,8 @@ const Export = (() => {
    * Layout: vertical stack with section titles
    */
   async function downloadAllAsOneImage(chords, songName) {
-    const scale = 2;
-    const maxWidth = 800;
+    const scale = 3;
+    const maxWidth = 1200;
     const padding = 30;
     const sectionGap = 25;
     const titleHeight = 35;
@@ -996,7 +996,7 @@ const Export = (() => {
     const img = await svgToImage(svg);
     if (!img) return;
 
-    const scale = 2;
+    const scale = 3;
     const canvas = document.createElement('canvas');
     canvas.width = (img.width || 400) * scale;
     canvas.height = (img.height || 200) * scale;
@@ -1045,7 +1045,7 @@ const Export = (() => {
         const img = await svgToImage(svg);
         if (!img) continue;
 
-        const scale = 2;
+        const scale = 3;
         const canvas = document.createElement('canvas');
         canvas.width = img.width * scale;
         canvas.height = img.height * scale;
