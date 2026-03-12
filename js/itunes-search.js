@@ -40,6 +40,8 @@ const ITunesSearch = (() => {
         releaseDate: best.releaseDate ? best.releaseDate.substring(0, 10) : '',
         trackViewUrl: best.trackViewUrl || '',
         artistViewUrl: best.artistViewUrl || '',
+        trackName: best.trackName || '',
+        artistName: best.artistName || '',
       };
     } catch (e) {
       console.warn('iTunes search failed:', e);
@@ -52,37 +54,74 @@ const ITunesSearch = (() => {
    */
   const GENIUS_TOKEN = 'YffNzB3NiIWH2-V1b1DQssDvOgeBGyBSRKN7u3eWY0Xm7xLoi0-iqxgFpSN9I_26';
 
-  async function searchGeniusLyrics(songName, artist) {
+  /**
+   * Check if a Genius hit is a translation/romanization page (not original lyrics)
+   */
+  function isTranslationPage(hit) {
+    const artist = (hit.result.primary_artist?.name || '').toLowerCase();
+    const title = (hit.result.title || '').toLowerCase();
+    return artist.includes('genius') || artist.includes('translation') ||
+      artist.includes('romanization') || title.includes('translation') ||
+      title.includes('romanized') || title.includes('번역');
+  }
+
+  /**
+   * Pick the best Genius URL from search hits, filtering out translations.
+   */
+  function pickBestHit(hits, songName) {
+    const songLower = (songName || '').toLowerCase();
+    // Pass 1: title matches song name & not a translation
+    for (const hit of hits) {
+      if (isTranslationPage(hit)) continue;
+      if (hit.result.title && hit.result.title.toLowerCase().includes(songLower)) {
+        return hit.result.url;
+      }
+    }
+    // Pass 2: first non-translation result
+    for (const hit of hits) {
+      if (!isTranslationPage(hit)) return hit.result.url;
+    }
+    // Pass 3: title matches (even translation, as last resort)
+    for (const hit of hits) {
+      if (hit.result.title && hit.result.title.toLowerCase().includes(songLower)) {
+        return hit.result.url;
+      }
+    }
+    // No match found — return null so next query is tried
+    return null;
+  }
+
+  async function searchGeniusLyrics(songName, artist, altSongName) {
     if (!songName) return null;
-    const query = `${artist || ''} ${songName}`.trim();
-    // Use access_token as query param (works with CORS proxies that don't forward headers)
-    const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}&access_token=${GENIUS_TOKEN}`;
 
-    // Try direct fetch first, then allorigins CORS proxy fallback
-    const attempts = [
-      () => fetch(geniusApiUrl),
-      () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(geniusApiUrl)}`),
-    ];
+    // Build query list: original, then alternate (e.g. English trackName from iTunes)
+    const queries = [`${artist || ''} ${songName}`.trim()];
+    if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
+      queries.push(`${artist || ''} ${altSongName}`.trim());
+    }
 
-    for (const attempt of attempts) {
-      try {
-        const res = await attempt();
-        if (!res.ok) continue;
-        const data = await res.json();
-        const hits = data.response && data.response.hits;
-        if (!hits || hits.length === 0) return null;
+    for (const query of queries) {
+      const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}&access_token=${GENIUS_TOKEN}`;
 
-        // Find best match
-        const songLower = songName.toLowerCase();
-        for (const hit of hits) {
-          const s = hit.result;
-          if (s.title && s.title.toLowerCase().includes(songLower)) {
-            return s.url;
-          }
+      const attempts = [
+        () => fetch(geniusApiUrl),
+        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(geniusApiUrl)}`),
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const res = await attempt();
+          if (!res.ok) continue;
+          const data = await res.json();
+          const hits = data.response && data.response.hits;
+          if (!hits || hits.length === 0) break; // try next query
+
+          const url = pickBestHit(hits, altSongName || songName);
+          if (url) return url;
+          break;
+        } catch (e) {
+          // Try next attempt
         }
-        return hits[0].result.url;
-      } catch (e) {
-        // Try next attempt
       }
     }
     console.warn('Genius search failed: all attempts exhausted');
@@ -125,7 +164,7 @@ const ITunesSearch = (() => {
         });
 
         // Clean up: trim, remove empty lines, skip metadata & [Section] headers
-        const metaPattern = /Contributors|Translations|Romanization|Lyrics\s*$/i;
+        const metaPattern = /\bContributor|Translation|Romanization|\bLyrics\b|Embed\b/i;
         const lines = fullText
           .split('\n')
           .map(l => l.trim())
