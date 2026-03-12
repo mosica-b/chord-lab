@@ -238,21 +238,28 @@ const Export = (() => {
 
   /**
    * Copy formatted text to clipboard for Naver blog
-   * Selects the blog preview DOM and copies via execCommand
+   * Renders clean HTML into a temp DOM element and copies via execCommand
    * This preserves <a> links when pasting into Naver Smart Editor
    */
-  async function copyTextToClipboard() {
-    const preview = document.getElementById('blogPreview');
-    if (!preview) return false;
-
+  async function copyTextToClipboard(metadata, chords, capoPosition) {
     try {
+      const html = generateNaverHTML(metadata, chords, capoPosition);
+
+      // Create temp off-screen element, render HTML, select & copy
+      const tmp = document.createElement('div');
+      tmp.style.position = 'fixed';
+      tmp.style.left = '-9999px';
+      tmp.innerHTML = html;
+      document.body.appendChild(tmp);
+
       const selection = window.getSelection();
       const range = document.createRange();
-      range.selectNodeContents(preview);
+      range.selectNodeContents(tmp);
       selection.removeAllRanges();
       selection.addRange(range);
       document.execCommand('copy');
       selection.removeAllRanges();
+      document.body.removeChild(tmp);
       return true;
     } catch (e) {
       console.error('Copy failed:', e);
@@ -261,9 +268,10 @@ const Export = (() => {
   }
 
   /**
-   * Generate Naver-compatible HTML (inline styles, no images, simple tags)
+   * Generate Naver-compatible HTML (inline styles, with <a> links)
    */
   function generateNaverHTML(metadata, chords, capoPosition) {
+    const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
     let html = '<div style="font-family:\'Noto Sans KR\',\'Malgun Gothic\',sans-serif;line-height:1.8;">';
 
     // Title
@@ -282,8 +290,17 @@ const Export = (() => {
       { label: '사용 코드', value: chords.join(', '), isChords: true },
     ].filter(r => r.value);
 
-    infoRows.forEach(({ label, value }) => {
-      html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}</p>`;
+    infoRows.forEach(({ label, value, isChords }) => {
+      if (isChords && chords.length > 0) {
+        const chordLinks = chords.map(c => {
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:500;">${esc(c)}</a>`;
+        }).join(', ');
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${chordLinks}&nbsp;&nbsp;<a href="${allUrl}" style="color:#3b82f6;font-size:12px;text-decoration:none;">[전체 보기]</a></p>`;
+      } else {
+        html += `<p style="margin:4px 0;font-size:14px;"><b>${esc(label)}</b>&nbsp;&nbsp;&nbsp;${esc(value)}</p>`;
+      }
     });
 
     // Chord notes table
@@ -298,8 +315,9 @@ const Export = (() => {
       html += `</tr></thead><tbody>`;
       chords.forEach(name => {
         const notes = MusicTheory.getChordNotesDisplay(name);
+        const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
         html += `<tr>`;
-        html += `<td style="border:1px solid #ddd;padding:8px;font-weight:bold;">${esc(name)}</td>`;
+        html += `<td style="border:1px solid #ddd;padding:8px;font-weight:bold;"><a href="${chordUrl}" style="color:#2563eb;text-decoration:none;">${esc(name)} ▶</a></td>`;
         html += `<td style="border:1px solid #ddd;padding:8px;">${esc(notes.join(', '))}</td>`;
         html += `</tr>`;
       });
@@ -334,37 +352,36 @@ const Export = (() => {
       html += `</tbody></table>`;
     }
 
-    // Image placeholder note
+    // Image placeholder
     if (chords.length > 0) {
       html += `<br>`;
-      html += `<p style="color:#999;font-size:13px;margin:15px 0;font-style:italic;">※ 코드 표기 이미지(오선보, 타브, 다이어그램, 피아노)는 아래에 첨부합니다.</p>`;
+      html += `<p style="color:#999;font-size:13px;margin:15px 0;font-style:italic;">※ 코드 표기 이미지는 아래에 첨부</p>`;
     }
 
     // Links
-    if (metadata.songName || metadata.artist) {
-      const query = encodeURIComponent(`${metadata.artist || ''} ${metadata.songName || ''}`);
+    if (chords.length > 0 || metadata.songName || metadata.artist) {
       html += `<br>`;
       html += `<p style="font-size:18px;font-weight:bold;margin:15px 0 5px 0;">관련 링크</p>`;
       html += `<hr style="border:none;border-top:2px solid #4a90d9;margin:5px 0 10px 0;">`;
 
-      const links = [
-        { text: 'Genius 가사', url: `https://genius.com/search?q=${query}` },
-        { text: 'YouTube', url: `https://www.youtube.com/results?search_query=${query}` },
-        { text: 'Spotify', url: `https://open.spotify.com/search/${query}` },
-        { text: 'Apple Music', url: `https://music.apple.com/search?term=${query}` },
-      ];
+      if (chords.length > 0) {
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        html += `<p style="margin:4px 0;font-size:14px;">▶ <a href="${allUrl}" style="color:#2563eb;text-decoration:none;">코드 재생/표기 보기</a></p>`;
+      }
 
-      links.forEach(({ text, url }) => {
-        html += `<p style="margin:4px 0;font-size:14px;">${text}: <a href="${url}" style="color:#2563eb;text-decoration:none;">${url}</a></p>`;
-      });
-    }
+      if (metadata.songName || metadata.artist) {
+        const query = encodeURIComponent(`${metadata.artist || ''} ${metadata.songName || ''}`);
+        const links = [
+          { text: 'Genius 가사', url: `https://genius.com/search?q=${query}` },
+          { text: 'YouTube', url: `https://www.youtube.com/results?search_query=${query}` },
+          { text: 'Spotify', url: `https://open.spotify.com/search/${query}` },
+          { text: 'Apple Music', url: `https://music.apple.com/search?term=${query}` },
+        ];
 
-    // Viewer link (single clean URL at the bottom)
-    if (chords.length > 0) {
-      const viewerBase = 'https://eunsongseo.github.io/song-chord-lab/viewer.html';
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
-      html += `<br>`;
-      html += `<p style="font-size:14px;margin:10px 0;">▶ 코드 재생/표기 보기: <a href="${allUrl}" style="color:#2563eb;text-decoration:none;">${allUrl}</a></p>`;
+        links.forEach(({ text, url }) => {
+          html += `<p style="margin:4px 0;font-size:14px;"><a href="${url}" style="color:#2563eb;text-decoration:none;">${text}</a></p>`;
+        });
+      }
     }
 
     html += '</div>';
