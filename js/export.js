@@ -237,7 +237,7 @@ const Export = (() => {
 
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable('주요 화음', basicChords, false));
+        preview.appendChild(buildChordTable('주요 코드', basicChords, false));
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
@@ -558,8 +558,7 @@ const Export = (() => {
 
       // Primary chords
       if (basicChords.length > 0) {
-        html += `<hr>`;
-        html += `<blockquote><font size="4"><b>주요 화음</b></font>`;
+        html += `<hr><blockquote><font size="3"><b>주요 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
@@ -567,8 +566,7 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<hr>`;
-        html += `<blockquote><font size="3"><b>심화 코드</b></font>`;
+        html += `<hr><blockquote><font size="3"><b>심화 코드</b></font>`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
@@ -578,8 +576,7 @@ const Export = (() => {
 
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
-      html += `<blockquote><font size="4"><b>카포 변환표</b></font></blockquote>`;
-      html += `<table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
+      html += `<hr><blockquote><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" bgcolor="#dddddd" border="0" cellpadding="10" cellspacing="1">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
@@ -603,7 +600,7 @@ const Export = (() => {
 
     // Notation type table with viewer links
     if (chords.length > 0) {
-      html += `<br><font size="4"><b>코드 표기</b></font><br><br>`;
+      html += `<hr><blockquote><font size="3"><b>코드 표기</b></font></blockquote>`;
       const chordsParam = encodeURIComponent(chords.join(','));
       const notationItems = [
         { key: 'staff', label: '오선표기' },
@@ -696,7 +693,7 @@ const Export = (() => {
       }
 
       if (basicChords.length > 0) {
-        text += `\n주요 화음\n`;
+        text += `\n주요 코드\n`;
         text += `${'─'.repeat(30)}\n`;
         text += buildPlainTable(basicChords);
       }
