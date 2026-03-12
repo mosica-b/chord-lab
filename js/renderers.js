@@ -15,13 +15,16 @@ const Renderers = (() => {
       return;
     }
 
+    const labelHeight = 30; // Space reserved for chord names above stave
+    const staveY = 50 + labelHeight;
+    const totalHeight = staveY + 120;
     const width = Math.max(chords.length * 120 + 80, 400);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
-    renderer.resize(width, 360);
+    renderer.resize(width, totalHeight);
     const context = renderer.getContext();
     context.setFont('Arial', 10);
 
-    const stave = new VF.Stave(10, 160, width - 20);
+    const stave = new VF.Stave(10, staveY, width - 20);
     stave.addClef('treble');
     stave.setContext(context).draw();
 
@@ -54,13 +57,6 @@ const Renderers = (() => {
         }
       });
 
-      // Add chord name annotation (VexFlow 3: addModifier(index, modifier))
-      staveNote.addModifier(0,
-        new VF.Annotation(chordName)
-          .setVerticalJustification(VF.Annotation.VerticalJustify.TOP)
-          .setFont('Arial', 12, 'bold')
-      );
-
       return staveNote;
     });
 
@@ -70,6 +66,25 @@ const Renderers = (() => {
 
     new VF.Formatter().joinVoices([voice]).format([voice], width - 80);
     voice.draw(context, stave);
+
+    // Draw chord names as fixed SVG text above the stave (not as VexFlow annotations)
+    const svgEl = container.querySelector('svg');
+    if (svgEl) {
+      notes.forEach((note, i) => {
+        const bbox = note.getBoundingBox();
+        const centerX = bbox.getX() + bbox.getW() / 2;
+        const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textEl.setAttribute('x', centerX);
+        textEl.setAttribute('y', staveY - 10);
+        textEl.setAttribute('text-anchor', 'middle');
+        textEl.setAttribute('font-family', 'Arial');
+        textEl.setAttribute('font-size', '13');
+        textEl.setAttribute('font-weight', 'bold');
+        textEl.setAttribute('fill', '#000');
+        textEl.textContent = chords[i];
+        svgEl.appendChild(textEl);
+      });
+    }
   }
 
   /**
