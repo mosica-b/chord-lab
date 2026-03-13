@@ -41,8 +41,8 @@ const App = (() => {
     setupQuickChords();
     setupMusicXMLUpload();
 
-    // Load saved state from localStorage
-    loadState();
+    // Clear previous session data so form starts fresh
+    localStorage.removeItem('songChordLab');
 
     // Initialize DB UI (save/load buttons)
     if (typeof SongDB !== 'undefined') SongDB.initUI();
