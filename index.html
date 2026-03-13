@@ -47,7 +47,14 @@
 
   <main id="appContent" class="max-w-6xl mx-auto px-4 py-6 space-y-6 hidden">
     <!-- 1. Song Metadata -->
-    <section class="bg-white rounded-lg shadow p-6">
+    <section id="songMetaSection" class="bg-white rounded-lg shadow p-6 relative">
+      <div id="mxmlDropOverlay" class="hidden absolute inset-0 z-10 rounded-lg bg-blue-500/10 border-2 border-dashed border-blue-400 flex items-center justify-center pointer-events-none">
+        <div class="bg-white/90 rounded-xl px-6 py-4 shadow text-center">
+          <svg class="mx-auto mb-2 w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          <p class="text-sm font-semibold text-blue-600">MusicXML 파일을 여기에 놓으세요</p>
+          <p class="text-xs text-gray-400 mt-1">.xml, .musicxml, .mxl</p>
+        </div>
+      </div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-700">곡 정보</h2>
         <div>

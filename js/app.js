@@ -159,6 +159,85 @@ const App = (() => {
   // =========================================
   // MusicXML Upload
   // =========================================
+  async function processMusicXMLFile(file) {
+    const btn = document.getElementById('uploadMxmlBtn');
+    try {
+      if (btn) { btn.textContent = '불러오는 중...'; btn.disabled = true; }
+
+      const text = await file.text();
+      const result = MusicXMLParser.parse(text);
+
+      // Fill metadata
+      if (result.songName) { state.metadata.songName = result.songName; document.getElementById('songName').value = result.songName; }
+      if (result.artist) { state.metadata.artist = result.artist; document.getElementById('artist').value = result.artist; }
+      if (result.composer) { state.metadata.composer = result.composer; document.getElementById('composer').value = result.composer; }
+      if (result.lyricist) { state.metadata.lyricist = result.lyricist; document.getElementById('lyricist').value = result.lyricist; }
+      if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
+      if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
+      if (result.key) {
+        state.metadata.key = result.key;
+        const keySelect = document.getElementById('songKey');
+        if (!keySelect.querySelector(`option[value="${result.key}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = result.key;
+          opt.textContent = result.key;
+          keySelect.appendChild(opt);
+        }
+        keySelect.value = result.key;
+      }
+
+      // Add chords
+      if (result.chords.length > 0) {
+        state.selectedChords = [];
+        result.chords.forEach(name => {
+          if (!state.selectedChords.includes(name)) {
+            state.selectedChords.push(name);
+          }
+        });
+        renderSelectedChords();
+      }
+
+      saveState();
+      updateAll();
+
+      // Search album via iTunes + Genius lyrics
+      if (result.songName || result.artist) {
+        const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
+        if (album) {
+          if (album.albumName && !state.metadata.albumName) {
+            state.metadata.albumName = album.albumName;
+            document.getElementById('albumName').value = album.albumName;
+          }
+          if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
+        }
+        const altName = album?.trackName || null;
+        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
+        if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
+        saveState();
+        updatePreview();
+
+        // Auto-fetch lyrics intro via LRCLIB
+        if (!state.metadata.lyricsIntro || _autoLyrics) {
+          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName).then(intro => {
+            if (intro) {
+              state.metadata.lyricsIntro = intro;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = intro;
+              saveState();
+              updatePreview();
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('MusicXML parse failed:', err);
+      alert('MusicXML 파일을 읽지 못했습니다.');
+    } finally {
+      if (btn) { btn.textContent = 'MusicXML 불러오기'; btn.disabled = false; }
+    }
+  }
+
   function setupMusicXMLUpload() {
     const btn = document.getElementById('uploadMxmlBtn');
     const input = document.getElementById('mxmlFileInput');
@@ -168,86 +247,51 @@ const App = (() => {
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      await processMusicXMLFile(file);
+      input.value = '';
+    });
 
-      try {
-        btn.textContent = '불러오는 중...';
-        btn.disabled = true;
+    // Drag & Drop
+    const dropZone = document.getElementById('songMetaSection');
+    const overlay = document.getElementById('mxmlDropOverlay');
+    if (!dropZone || !overlay) return;
 
-        const text = await file.text();
-        const result = MusicXMLParser.parse(text);
+    let dragCounter = 0;
 
-        // Fill metadata
-        if (result.songName) { state.metadata.songName = result.songName; document.getElementById('songName').value = result.songName; }
-        if (result.artist) { state.metadata.artist = result.artist; document.getElementById('artist').value = result.artist; }
-        if (result.composer) { state.metadata.composer = result.composer; document.getElementById('composer').value = result.composer; }
-        if (result.lyricist) { state.metadata.lyricist = result.lyricist; document.getElementById('lyricist').value = result.lyricist; }
-        if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
-        if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
-        if (result.key) {
-          state.metadata.key = result.key;
-          const keySelect = document.getElementById('songKey');
-          // Add option dynamically if not present (e.g., modulation "F → Gb")
-          if (!keySelect.querySelector(`option[value="${result.key}"]`)) {
-            const opt = document.createElement('option');
-            opt.value = result.key;
-            opt.textContent = result.key;
-            keySelect.appendChild(opt);
-          }
-          keySelect.value = result.key;
-        }
+    dropZone.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      overlay.classList.remove('hidden');
+    });
 
-        // Add chords
-        if (result.chords.length > 0) {
-          state.selectedChords = [];
-          result.chords.forEach(name => {
-            if (!state.selectedChords.includes(name)) {
-              state.selectedChords.push(name);
-            }
-          });
-          renderSelectedChords();
-        }
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
 
-        saveState();
-        updateAll();
-
-        // Search album via iTunes + Genius lyrics
-        if (result.songName || result.artist) {
-          const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
-          if (album) {
-            if (album.albumName && !state.metadata.albumName) {
-              state.metadata.albumName = album.albumName;
-              document.getElementById('albumName').value = album.albumName;
-            }
-            if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
-          }
-          const altName = album?.trackName || null;
-          const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
-          if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
-          saveState();
-          updatePreview();
-
-          // Auto-fetch lyrics intro via LRCLIB
-          if (!state.metadata.lyricsIntro || _autoLyrics) {
-            ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName).then(intro => {
-              if (intro) {
-                state.metadata.lyricsIntro = intro;
-                _autoLyrics = true;
-                const el = document.getElementById('lyricsIntro');
-                if (el) el.value = intro;
-                saveState();
-                updatePreview();
-              }
-            }).catch(() => {});
-          }
-        }
-      } catch (err) {
-        console.error('MusicXML parse failed:', err);
-        alert('MusicXML 파일을 읽지 못했습니다.');
-      } finally {
-        btn.textContent = 'MusicXML 불러오기';
-        btn.disabled = false;
-        input.value = '';
+    dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        overlay.classList.add('hidden');
       }
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      overlay.classList.add('hidden');
+
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      const ext = file.name.toLowerCase();
+      if (!ext.endsWith('.xml') && !ext.endsWith('.musicxml') && !ext.endsWith('.mxl')) {
+        alert('MusicXML 파일(.xml, .musicxml, .mxl)만 지원합니다.');
+        return;
+      }
+
+      await processMusicXMLFile(file);
     });
 
     // Album search button
