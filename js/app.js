@@ -294,6 +294,30 @@ const App = (() => {
       await processMusicXMLFile(file);
     });
 
+    // Reset song button
+    const resetBtn = document.getElementById('resetSongBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        // Clear metadata
+        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', geniusUrl: '', appleMusicUrl: '' };
+        _autoLyrics = false;
+
+        // Clear form fields
+        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'capoPosition'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = id === 'capoPosition' ? '0' : '';
+        });
+
+        // Clear chords
+        state.selectedChords = [];
+        state.capoPosition = 0;
+        renderSelectedChords();
+
+        saveState();
+        updateAll();
+      });
+    }
+
     // Album search button
     const searchBtn = document.getElementById('searchAlbumBtn');
     if (searchBtn) {
