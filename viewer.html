@@ -567,12 +567,14 @@
       position: absolute; top: 4px; right: 6px;
       font-size: 10px; color: #9ca3af; font-weight: 500;
     }
-    /* Tab mode grid: wider items for tab staves */
-    .voicing-modal-grid-tab {
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    /* Tab mode grid: responsive columns */
+    .voicing-modal-grid.voicing-modal-grid-tab {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
     }
     .voicing-modal-item-tab {
-      padding: 8px;
+      padding: 4px 2px 4px 2px;
+      overflow: hidden;
     }
     .voicing-modal-item-tab svg {
       max-width: 100%;
@@ -580,7 +582,12 @@
     }
     @media (max-width: 480px) {
       .voicing-modal-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
-      .voicing-modal-grid-tab { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 600px) {
+      .voicing-modal-grid.voicing-modal-grid-tab { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 900px) {
+      .voicing-modal-grid.voicing-modal-grid-tab { grid-template-columns: repeat(4, 1fr); }
     }
   </style>
 </head>
