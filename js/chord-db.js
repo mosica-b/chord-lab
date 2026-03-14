@@ -195,7 +195,8 @@ const ChordDB = (() => {
       return { frets: [...absFrets], baseFret: 1 };
     }
     const minFret = Math.min(...fretted);
-    const newBaseFret = minFret <= 4 ? 1 : minFret;
+    const maxFret = Math.max(...fretted);
+    const newBaseFret = maxFret <= 4 ? 1 : minFret;
     const relFrets = absFrets.map(f => {
       if (f <= 0) return f;
       return f - (newBaseFret - 1);
