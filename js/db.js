@@ -9,6 +9,42 @@ const SongDB = (() => {
   let currentPage = 1;
   let currentQuery = '';
   let debounceTimer = null;
+  const TRASH_KEY = 'songChordLab_trash';
+
+  /* ── Trash (localStorage) ── */
+
+  function getTrash() {
+    try {
+      return JSON.parse(localStorage.getItem(TRASH_KEY) || '[]');
+    } catch { return []; }
+  }
+
+  function saveTrash(items) {
+    localStorage.setItem(TRASH_KEY, JSON.stringify(items));
+    updateTrashCount();
+  }
+
+  function addToTrash(songRaw) {
+    const trash = getTrash();
+    trash.unshift({
+      ...songRaw,
+      _deletedAt: new Date().toISOString(),
+    });
+    saveTrash(trash);
+  }
+
+  function removeFromTrash(index) {
+    const trash = getTrash();
+    trash.splice(index, 1);
+    saveTrash(trash);
+  }
+
+  function updateTrashCount() {
+    const badge = document.getElementById('dbTrashCount');
+    if (!badge) return;
+    const count = getTrash().length;
+    badge.textContent = count > 0 ? `(${count})` : '';
+  }
 
   /* ── API helpers ── */
 
@@ -177,16 +213,21 @@ const SongDB = (() => {
       });
     });
 
-    // Delete buttons
+    // Delete buttons — move to trash first, then delete from DB
     container.querySelectorAll('.db-delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (!confirm('이 곡을 삭제할까요?')) return;
+        const id = btn.dataset.id;
         try {
-          await deleteSong(btn.dataset.id);
+          btn.textContent = '...';
+          // Save song data to trash before deleting
+          const songRaw = await apiRequest(`${API_BASE}?action=get&id=${id}`);
+          addToTrash(songRaw);
+          await deleteSong(id);
           loadResults();
         } catch (err) {
           alert('삭제 실패: ' + err.message);
+          btn.textContent = '삭제';
         }
       });
     });
@@ -229,6 +270,110 @@ const SongDB = (() => {
     return div.innerHTML;
   }
 
+  /* ── Trash UI ── */
+
+  function renderTrash() {
+    const container = document.getElementById('dbTrashResults');
+    const actions = document.getElementById('dbTrashActions');
+    const trash = getTrash();
+
+    if (trash.length === 0) {
+      container.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">휴지통이 비어있습니다.</p>';
+      actions.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = trash.map((s, i) => {
+      const deletedDate = (s._deletedAt || '').substring(0, 10);
+      return `
+        <div class="db-result-item">
+          <div style="flex:1;min-width:0;">
+            <div class="db-result-title" style="opacity:0.6;">${escapeHtml(s.song_name || '')}</div>
+            <div class="db-result-meta">${escapeHtml(s.artist || '아티스트 없음')}${s.album_name ? ' · ' + escapeHtml(s.album_name) : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span class="text-xs text-gray-400" style="white-space:nowrap;">${deletedDate}</span>
+            <button class="db-action-btn db-restore-btn" data-idx="${i}" title="복원" style="background:#10b981;color:white;">복원</button>
+            <button class="db-action-btn db-perma-delete-btn" data-idx="${i}" title="영구 삭제" style="background:#ef4444;color:white;">영구삭제</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Restore buttons
+    container.querySelectorAll('.db-restore-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.idx);
+        const item = trash[idx];
+        try {
+          btn.textContent = '...';
+          // Re-save to DB
+          await apiRequest(`${API_BASE}?action=save`, {
+            method: 'POST',
+            body: JSON.stringify({
+              song_name: item.song_name,
+              artist: item.artist,
+              album_name: item.album_name || '',
+              composer: item.composer || '',
+              lyricist: item.lyricist || '',
+              tempo: item.tempo || '',
+              time_signature: item.time_signature || '',
+              key_signature: item.key_signature || '',
+              lyrics_intro: item.lyrics_intro || '',
+              genius_url: item.genius_url || '',
+              apple_music_url: item.apple_music_url || '',
+              selected_chords: item.selected_chords || [],
+              capo_position: item.capo_position || 0,
+            }),
+          });
+          removeFromTrash(idx);
+          renderTrash();
+        } catch (err) {
+          alert('복원 실패: ' + err.message);
+          btn.textContent = '복원';
+        }
+      });
+    });
+
+    // Permanent delete buttons
+    container.querySelectorAll('.db-perma-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        removeFromTrash(idx);
+        renderTrash();
+      });
+    });
+
+    // Empty all
+    actions.innerHTML = `<button id="dbEmptyTrash" class="text-xs px-4 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 font-medium">휴지통 비우기</button>`;
+    document.getElementById('dbEmptyTrash').addEventListener('click', () => {
+      if (!confirm('휴지통을 비울까요? 영구적으로 삭제됩니다.')) return;
+      saveTrash([]);
+      renderTrash();
+    });
+  }
+
+  function switchTab(tab) {
+    const songsTab = document.getElementById('dbSongsTab');
+    const trashTab = document.getElementById('dbTrashTab');
+    const tabSongs = document.getElementById('dbTabSongs');
+    const tabTrash = document.getElementById('dbTabTrash');
+
+    if (tab === 'trash') {
+      songsTab.style.display = 'none';
+      trashTab.style.display = '';
+      trashTab.classList.remove('hidden');
+      tabSongs.className = 'text-sm font-medium px-3 py-1 rounded-lg text-gray-400 hover:text-gray-600';
+      tabTrash.className = 'text-sm font-semibold px-3 py-1 rounded-lg bg-red-100 text-red-700';
+      renderTrash();
+    } else {
+      songsTab.style.display = '';
+      trashTab.style.display = 'none';
+      tabSongs.className = 'text-sm font-semibold px-3 py-1 rounded-lg bg-blue-100 text-blue-700';
+      tabTrash.className = 'text-sm font-medium px-3 py-1 rounded-lg text-gray-400 hover:text-gray-600';
+      loadResults();
+    }
+  }
+
   /**
    * Initialize UI event handlers (called from App.init)
    */
@@ -268,14 +413,15 @@ const SongDB = (() => {
       }
     });
 
-    // Load button — open modal
+    // Load button — open modal (always start on songs tab)
     loadBtn.addEventListener('click', () => {
       modal.classList.remove('hidden');
       searchInput.value = '';
       currentQuery = '';
       currentPage = 1;
-      loadResults();
+      switchTab('songs');
       searchInput.focus();
+      updateTrashCount();
     });
 
     // Close modal
@@ -293,6 +439,15 @@ const SongDB = (() => {
         loadResults();
       }, 300);
     });
+
+    // Tab switching
+    const tabSongs = document.getElementById('dbTabSongs');
+    const tabTrash = document.getElementById('dbTabTrash');
+    if (tabSongs) tabSongs.addEventListener('click', () => switchTab('songs'));
+    if (tabTrash) tabTrash.addEventListener('click', () => switchTab('trash'));
+
+    // Init trash count badge
+    updateTrashCount();
   }
 
   return { saveSong, searchSongs, recentSongs, loadSong, deleteSong, initUI };
