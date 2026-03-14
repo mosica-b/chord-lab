@@ -211,15 +211,26 @@ const Export = (() => {
       const hasKey = !!metadata.key;
       // Helper: build a chord table section (3-column: 코드, 타입, 구성음)
       // Roman numeral shown as small text above chord name
-      function buildChordTable(title, chordList, isCompact, bqKey) {
+      function buildChordTable(songLabel, labelText, chordList, isCompact, bqKey) {
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
         const bq = document.createElement('blockquote');
         bq.style.margin = '0 0 2px 0';
-        let titleHtml = esc(title);
-        if (hasKey) titleHtml += `<br><span style="color:#999;font-size:11px;">* ${esc(metadata.key)} Key 기준</span>`;
+        // songLabel (artist+song) is NOT editable, labelText ("주요 코드"/"심화 코드") IS editable
+        let titleHtml = esc(songLabel) + ' ';
+        const editableLabel = document.createElement('span');
+        editableLabel.textContent = labelText;
+        if (bqKey) makeEditable(editableLabel, bqKey);
         bq.innerHTML = titleHtml;
-        if (bqKey) makeEditable(bq, bqKey);
+        bq.appendChild(editableLabel);
+        if (hasKey) {
+          const br = document.createElement('br');
+          bq.appendChild(br);
+          const keySpan = document.createElement('span');
+          keySpan.style.cssText = 'color:#999;font-size:11px;';
+          keySpan.textContent = `* ${metadata.key} Key 기준`;
+          bq.appendChild(keySpan);
+        }
         section.appendChild(bq);
 
         const table = document.createElement('table');
@@ -313,11 +324,11 @@ const Export = (() => {
       const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' ');
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false));
+        preview.appendChild(buildChordTable(songLabel, '주요 코드', basicChords, false, 'primary-chords'));
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true));
+        preview.appendChild(buildChordTable(songLabel, '심화 코드', advancedChords, true, 'advanced-chords'));
         preview.appendChild(document.createElement('hr'));
       }
     }
@@ -671,18 +682,20 @@ const Export = (() => {
         return t;
       }
 
-      // Primary chords (not editable — always generated from metadata)
+      // Primary chords (label part editable via override)
       const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' ');
       if (basicChords.length > 0) {
-        html += `<blockquote style="margin:0;">${naverSongLabel} 주요 코드`;
+        const primaryLabel = overrides['primary-chords'] || '주요 코드';
+        html += `<blockquote style="margin:0;">${naverSongLabel} ${primaryLabel}`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
 
-      // Advanced chords (not editable — always generated from metadata)
+      // Advanced chords (label part editable via override)
       if (advancedChords.length > 0) {
-        html += `<blockquote style="margin:0;">${naverSongLabel} 심화 코드`;
+        const advancedLabel = overrides['advanced-chords'] || '심화 코드';
+        html += `<blockquote style="margin:0;">${naverSongLabel} ${advancedLabel}`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
