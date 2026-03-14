@@ -1,17 +1,18 @@
 /**
  * Chord Database Module
- * Loads guitar chord voicings from static jguitar data + CDN fallback
- * Loads ukulele chord voicings from CDN
+ * Loads guitar/ukulele chord voicings from static jguitar data + CDN fallback
  */
 const ChordDB = (() => {
-  let guitarData = null;    // CDN fallback DB
-  let ukuleleData = null;   // CDN ukulele DB
-  let jguitarData = null;   // Static jguitar voicings (guitar only)
+  let guitarData = null;          // CDN fallback DB (guitar)
+  let ukuleleData = null;         // CDN fallback DB (ukulele)
+  let jguitarData = null;         // Static jguitar voicings (guitar)
+  let jguitarUkuleleData = null;  // Static jguitar voicings (ukulele)
   let loaded = false;
 
   const GUITAR_CDN = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/guitar.json';
   const UKULELE_CDN = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/ukulele.json';
   const JGUITAR_JSON = 'data/jguitar-chords.min.json';
+  const JGUITAR_UKULELE_JSON = 'data/jguitar-ukulele-chords.min.json';
 
   /**
    * Load chord databases
@@ -19,10 +20,11 @@ const ChordDB = (() => {
   async function load() {
     if (loaded) return;
     try {
-      const [guitarRes, ukuleleRes, jguitarRes] = await Promise.all([
+      const [guitarRes, ukuleleRes, jguitarRes, jguitarUkeRes] = await Promise.all([
         fetch(GUITAR_CDN),
         fetch(UKULELE_CDN),
         fetch(JGUITAR_JSON).catch(() => null),
+        fetch(JGUITAR_UKULELE_JSON).catch(() => null),
       ]);
 
       if (guitarRes.ok) {
@@ -34,12 +36,16 @@ const ChordDB = (() => {
       if (jguitarRes && jguitarRes.ok) {
         jguitarData = await jguitarRes.json();
       }
+      if (jguitarUkeRes && jguitarUkeRes.ok) {
+        jguitarUkuleleData = await jguitarUkeRes.json();
+      }
 
       loaded = true;
       console.log('Chord DB loaded:', {
         guitar: guitarData ? Object.keys(guitarData.chords).length + ' keys' : 'failed',
         ukulele: ukuleleData ? Object.keys(ukuleleData.chords).length + ' keys' : 'failed',
         jguitar: jguitarData ? Object.keys(jguitarData).length + ' chords' : 'failed',
+        jguitarUke: jguitarUkuleleData ? Object.keys(jguitarUkuleleData).length + ' chords' : 'failed',
       });
     } catch (err) {
       console.error('Failed to load chord DB:', err);
@@ -231,6 +237,36 @@ const ChordDB = (() => {
     return jguitarData[key] || null;
   }
 
+  /**
+   * Look up jguitar ukulele data for a chord name (including slash chords).
+   */
+  function lookupJGuitarUkulele(chordName) {
+    if (!jguitarUkuleleData) return null;
+
+    if (jguitarUkuleleData[chordName]) {
+      return jguitarUkuleleData[chordName];
+    }
+
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed) return null;
+
+    const normalName = buildJGuitarKey(parsed.root, parsed.suffix, parsed.bassNote);
+    if (jguitarUkuleleData[normalName]) {
+      return jguitarUkuleleData[normalName];
+    }
+
+    return null;
+  }
+
+  /**
+   * Look up jguitar ukulele data for base chord only (no slash).
+   */
+  function lookupJGuitarUkuleleBase(root, suffix) {
+    if (!jguitarUkuleleData) return null;
+    const key = buildJGuitarKey(root, suffix, null);
+    return jguitarUkuleleData[key] || null;
+  }
+
   // =========================================
   // Slash chord voicing helpers
   // =========================================
@@ -409,13 +445,32 @@ const ChordDB = (() => {
   }
 
   /**
-   * Get ukulele chord voicings
+   * Get ukulele chord voicings.
+   * Priority:
+   *   1. jguitar ukulele direct lookup (including slash chords)
+   *   2. jguitar ukulele base chord + slash algorithm
+   *   3. CDN DB fallback
    */
   function getUkuleleChord(chordName) {
-    if (!ukuleleData) return null;
-
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
+
+    // 1. Try jguitar ukulele direct lookup (full chord name including slash)
+    const jgDirect = lookupJGuitarUkulele(chordName);
+    if (jgDirect && jgDirect.length > 0) {
+      return [...jgDirect];
+    }
+
+    // 2. For slash chords: try base chord from jguitar ukulele + algorithmic slash
+    if (parsed.bassNote) {
+      const jgBase = lookupJGuitarUkuleleBase(parsed.root, parsed.suffix);
+      if (jgBase && jgBase.length > 0) {
+        return applySlashBass([...jgBase], parsed.bassNote, MusicTheory.UKULELE_TUNING);
+      }
+    }
+
+    // 3. Fall back to CDN DB
+    if (!ukuleleData) return null;
 
     let positions = lookupPositions(ukuleleData, parsed.root, parsed.suffix, 'ukulele');
     if (!positions) return null;
