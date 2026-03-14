@@ -323,7 +323,7 @@ const ChordDB = (() => {
    */
   async function fetchJGuitar(chordName) {
     const url = `https://jguitar.com/chordsearch?chordsearch=${encodeURIComponent(chordName)}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
 
     try {
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
@@ -332,8 +332,8 @@ const ChordDB = (() => {
       const html = await res.text();
 
       // Extract fret positions from image URLs
-      // Pattern: /images/chordshape/...-FRETS.png
-      const imgRegex = /\/images\/chordshape\/[^"]*?-([0-9x,%]+)\.png/gi;
+      // Pattern: /images/chordshape/Name-FRETS.png (frets are URL-encoded: %2C = comma)
+      const imgRegex = /images\/chordshape\/[^"]*?-([\dx%A-Fa-f,]+)\.png/gi;
       const positions = [];
       const seen = new Set();
       let match;
