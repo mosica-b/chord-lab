@@ -186,7 +186,20 @@ const ChordDB = (() => {
   }
 
   /**
-   * Look up jguitar static data for a chord name.
+   * Build jguitar lookup key from parsed chord parts.
+   */
+  function buildJGuitarKey(root, suffix, bassNote) {
+    const normalRoot = normalizeJGuitarKey(root);
+    const normalSuffix = normalizeJGuitarSuffix(suffix);
+    let key = normalRoot + normalSuffix;
+    if (bassNote) {
+      key += '/' + normalizeJGuitarKey(bassNote);
+    }
+    return key;
+  }
+
+  /**
+   * Look up jguitar static data for a chord name (including slash chords).
    */
   function lookupJGuitar(chordName) {
     if (!jguitarData) return null;
@@ -200,15 +213,22 @@ const ChordDB = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
-    const normalRoot = normalizeJGuitarKey(parsed.root);
-    const normalSuffix = normalizeJGuitarSuffix(parsed.suffix);
-    const normalName = normalRoot + normalSuffix;
+    const normalName = buildJGuitarKey(parsed.root, parsed.suffix, parsed.bassNote);
 
     if (jguitarData[normalName]) {
       return jguitarData[normalName];
     }
 
     return null;
+  }
+
+  /**
+   * Look up jguitar static data for base chord only (no slash).
+   */
+  function lookupJGuitarBase(root, suffix) {
+    if (!jguitarData) return null;
+    const key = buildJGuitarKey(root, suffix, null);
+    return jguitarData[key] || null;
   }
 
   // =========================================
@@ -352,27 +372,30 @@ const ChordDB = (() => {
 
   /**
    * Get guitar chord voicings.
-   * Priority: jguitar static data → CDN DB fallback
-   * Slash chords: jguitar base chord + slash algorithm
+   * Priority:
+   *   1. jguitar direct lookup (including slash chords)
+   *   2. jguitar base chord + slash algorithm
+   *   3. CDN DB fallback
    */
   function getGuitarChord(chordName) {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
-    // 1. Try jguitar static data (best quality voicings)
-    // For slash chords, look up the base chord from jguitar
-    const baseChordName = parsed.root + parsed.suffix;
-    const jgPositions = lookupJGuitar(baseChordName);
-
-    if (jgPositions && jgPositions.length > 0) {
-      let positions = [...jgPositions];
-      if (parsed.bassNote) {
-        positions = applySlashBass(positions, parsed.bassNote, MusicTheory.GUITAR_TUNING);
-      }
-      return positions;
+    // 1. Try jguitar direct lookup (full chord name including slash)
+    const jgDirect = lookupJGuitar(chordName);
+    if (jgDirect && jgDirect.length > 0) {
+      return [...jgDirect];
     }
 
-    // 2. Fall back to CDN DB
+    // 2. For slash chords: try base chord from jguitar + algorithmic slash
+    if (parsed.bassNote) {
+      const jgBase = lookupJGuitarBase(parsed.root, parsed.suffix);
+      if (jgBase && jgBase.length > 0) {
+        return applySlashBass([...jgBase], parsed.bassNote, MusicTheory.GUITAR_TUNING);
+      }
+    }
+
+    // 3. Fall back to CDN DB
     if (!guitarData) return null;
 
     let positions = lookupPositions(guitarData, parsed.root, parsed.suffix);
