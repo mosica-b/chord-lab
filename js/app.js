@@ -666,7 +666,7 @@ const App = (() => {
       const row = document.createElement('tr');
       row.innerHTML = `
         <td class="border px-3 py-2 font-semibold">${name}</td>
-        <td class="border px-3 py-2">${notes.join(', ')}</td>
+        <td class="border px-3 py-2">${notes.map(n => MusicTheory.formatNoteDisplay(n)).join(', ')}</td>
         <td class="border px-3 py-2 text-gray-600">${typeName}</td>
       `;
       tbody.appendChild(row);
