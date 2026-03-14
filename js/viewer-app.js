@@ -498,6 +498,7 @@ const ViewerApp = (() => {
         case 'guitar-tab': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
           Renderers.renderGuitarTab(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName);
           break;
         }
         case 'guitar-diagram': {
@@ -509,6 +510,7 @@ const ViewerApp = (() => {
         case 'ukulele-tab': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
           Renderers.renderUkuleleTab(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName);
           break;
         }
         case 'ukulele-diagram': {
