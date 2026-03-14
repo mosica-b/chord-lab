@@ -64,11 +64,6 @@ const ViewerApp = (() => {
     setupHorizontalToggle();
     render();
 
-    // Prefetch jguitar.com voicings for all chords (non-blocking)
-    if (chords.length > 0) {
-      ChordDB.prefetchJGuitar(chords, () => renderCards());
-    }
-
     // Open accordion by default on initial load
     const topBody = document.getElementById('topAccordionBody');
     const topToggle = document.getElementById('topAccordionToggle');
