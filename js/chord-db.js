@@ -1,25 +1,28 @@
 /**
  * Chord Database Module
- * Loads guitar and ukulele chord voicing data from CDN
- * Fetches additional voicings from jguitar.com for better accuracy
+ * Loads guitar chord voicings from static jguitar data + CDN fallback
+ * Loads ukulele chord voicings from CDN
  */
 const ChordDB = (() => {
-  let guitarData = null;
-  let ukuleleData = null;
+  let guitarData = null;    // CDN fallback DB
+  let ukuleleData = null;   // CDN ukulele DB
+  let jguitarData = null;   // Static jguitar voicings (guitar only)
   let loaded = false;
 
   const GUITAR_CDN = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/guitar.json';
   const UKULELE_CDN = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/ukulele.json';
+  const JGUITAR_JSON = 'data/jguitar-chords.min.json';
 
   /**
-   * Load chord databases from CDN
+   * Load chord databases
    */
   async function load() {
     if (loaded) return;
     try {
-      const [guitarRes, ukuleleRes] = await Promise.all([
+      const [guitarRes, ukuleleRes, jguitarRes] = await Promise.all([
         fetch(GUITAR_CDN),
         fetch(UKULELE_CDN),
+        fetch(JGUITAR_JSON).catch(() => null),
       ]);
 
       if (guitarRes.ok) {
@@ -28,11 +31,15 @@ const ChordDB = (() => {
       if (ukuleleRes.ok) {
         ukuleleData = await ukuleleRes.json();
       }
+      if (jguitarRes && jguitarRes.ok) {
+        jguitarData = await jguitarRes.json();
+      }
 
       loaded = true;
       console.log('Chord DB loaded:', {
         guitar: guitarData ? Object.keys(guitarData.chords).length + ' keys' : 'failed',
         ukulele: ukuleleData ? Object.keys(ukuleleData.chords).length + ' keys' : 'failed',
+        jguitar: jguitarData ? Object.keys(jguitarData).length + ' chords' : 'failed',
       });
     } catch (err) {
       console.error('Failed to load chord DB:', err);
@@ -40,8 +47,7 @@ const ChordDB = (() => {
   }
 
   /**
-   * Normalize suffix for DB lookup
-   * The DB uses specific suffix names that may differ from common notation
+   * Normalize suffix for CDN DB lookup
    */
   function normalizeSuffix(suffix) {
     const map = {
@@ -91,8 +97,7 @@ const ChordDB = (() => {
   }
 
   /**
-   * Normalize root key for DB lookup
-   * The DB uses sharps, not flats
+   * Normalize root key for CDN DB lookup
    */
   function normalizeKey(key, instrument) {
     if (instrument === 'ukulele') {
@@ -127,6 +132,83 @@ const ChordDB = (() => {
       'B': 'B',
     };
     return keyMap[key] || key;
+  }
+
+  // =========================================
+  // jguitar static data lookup
+  // =========================================
+
+  /**
+   * Normalize chord name for jguitar lookup.
+   * jguitar data uses: C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B as roots
+   */
+  function normalizeJGuitarKey(root) {
+    const map = {
+      'C': 'C',
+      'C#': 'C#', 'Db': 'C#',
+      'D': 'D',
+      'D#': 'Eb', 'Eb': 'Eb',
+      'E': 'E',
+      'F': 'F',
+      'F#': 'F#', 'Gb': 'F#',
+      'G': 'G',
+      'G#': 'Ab', 'Ab': 'Ab',
+      'A': 'A',
+      'A#': 'Bb', 'Bb': 'Bb',
+      'B': 'B',
+    };
+    return map[root] || root;
+  }
+
+  /**
+   * Normalize suffix for jguitar lookup.
+   * Maps common aliases to jguitar data keys.
+   */
+  function normalizeJGuitarSuffix(suffix) {
+    const map = {
+      '': '',
+      'M': '',
+      'maj': '',
+      'major': '',
+      'min': 'm',
+      'minor': 'm',
+      '-': 'm',
+      'o': 'dim',
+      '+': 'aug',
+      'dom7': '7',
+      'min7': 'm7',
+      'M7': 'maj7',
+      'mMaj7': 'mmaj7',
+      'o7': 'dim7',
+      'sus': 'sus4',
+    };
+    return map[suffix] !== undefined ? map[suffix] : suffix;
+  }
+
+  /**
+   * Look up jguitar static data for a chord name.
+   */
+  function lookupJGuitar(chordName) {
+    if (!jguitarData) return null;
+
+    // Direct lookup first
+    if (jguitarData[chordName]) {
+      return jguitarData[chordName];
+    }
+
+    // Parse and normalize
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed) return null;
+
+    const normalRoot = normalizeJGuitarKey(parsed.root);
+    const normalSuffix = normalizeJGuitarSuffix(parsed.suffix);
+    const normalName = normalRoot + normalSuffix;
+
+    if (jguitarData[normalName]) {
+      return jguitarData[normalName];
+    }
+
+    return null;
   }
 
   // =========================================
@@ -246,168 +328,6 @@ const ChordDB = (() => {
   }
 
   // =========================================
-  // JGuitar.com integration
-  // =========================================
-
-  const JGUITAR_CACHE_KEY = 'songChordLab_jguitar';
-  const jguitarMemCache = new Map(); // In-memory cache for current session
-  const jguitarPending = new Map(); // Track in-flight requests
-
-  /**
-   * Load jguitar cache from localStorage into memory
-   */
-  function loadJGuitarCache() {
-    try {
-      const stored = localStorage.getItem(JGUITAR_CACHE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        for (const [key, val] of Object.entries(data)) {
-          jguitarMemCache.set(key, val);
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }
-
-  /**
-   * Save jguitar memory cache to localStorage
-   */
-  function saveJGuitarCache() {
-    try {
-      const obj = {};
-      jguitarMemCache.forEach((val, key) => { obj[key] = val; });
-      localStorage.setItem(JGUITAR_CACHE_KEY, JSON.stringify(obj));
-    } catch (e) { /* ignore */ }
-  }
-
-  /**
-   * Parse fret string from jguitar image URL.
-   * e.g. "3,3,0,2,3,2" → [3,3,0,2,3,2]
-   * "x" → -1
-   */
-  function parseJGuitarFrets(fretStr) {
-    return fretStr.split(',').map(f => {
-      const s = f.trim();
-      if (s === 'x' || s === 'X') return -1;
-      const n = parseInt(s, 10);
-      return isNaN(n) ? -1 : n;
-    });
-  }
-
-  /**
-   * Convert absolute fret array to our position format.
-   * Detects barres automatically.
-   */
-  function absFretsToPosition(absFrets) {
-    const rel = toRelativeFrets(absFrets);
-
-    // Detect barres: if multiple strings share the same relative fret > 0
-    const barres = [];
-    const fretCounts = {};
-    rel.frets.forEach(f => {
-      if (f > 0) fretCounts[f] = (fretCounts[f] || 0) + 1;
-    });
-    for (const [fret, count] of Object.entries(fretCounts)) {
-      if (count >= 2) barres.push(parseInt(fret, 10));
-    }
-
-    return {
-      frets: rel.frets,
-      baseFret: rel.baseFret,
-      barres,
-      fingers: [],
-    };
-  }
-
-  /**
-   * Fetch chord voicings from jguitar.com via CORS proxy.
-   * Returns array of positions or null.
-   */
-  async function fetchJGuitar(chordName) {
-    const url = `https://jguitar.com/chordsearch?chordsearch=${encodeURIComponent(chordName)}`;
-    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-
-    try {
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return null;
-
-      const html = await res.text();
-
-      // Extract fret positions from image URLs
-      // Pattern: /images/chordshape/Name-FRETS.png (frets are URL-encoded: %2C = comma)
-      const imgRegex = /images\/chordshape\/[^"]*?-([\dx%A-Fa-f,]+)\.png/gi;
-      const positions = [];
-      const seen = new Set();
-      let match;
-
-      while ((match = imgRegex.exec(html)) !== null) {
-        // Decode URL encoding: %2C → comma
-        const fretStr = decodeURIComponent(match[1]);
-        if (seen.has(fretStr)) continue;
-        seen.add(fretStr);
-
-        const absFrets = parseJGuitarFrets(fretStr);
-        // Validate: must have 6 values for guitar
-        if (absFrets.length !== 6) continue;
-        // Must have at least 3 sounding strings
-        if (absFrets.filter(f => f >= 0).length < 3) continue;
-
-        positions.push(absFretsToPosition(absFrets));
-      }
-
-      return positions.length > 0 ? positions : null;
-    } catch (e) {
-      console.warn('JGuitar fetch failed:', chordName, e.message);
-      return null;
-    }
-  }
-
-  /**
-   * Get jguitar positions from cache (sync).
-   * Returns positions array or undefined if not cached.
-   */
-  function getJGuitarCached(chordName) {
-    return jguitarMemCache.get(chordName);
-  }
-
-  /**
-   * Prefetch chord voicings from jguitar.com for a list of chord names.
-   * Fetches only chords not already in cache. Non-blocking.
-   * Calls onUpdate() after each successful fetch so UI can re-render.
-   */
-  async function prefetchJGuitar(chordNames, onUpdate) {
-    loadJGuitarCache();
-
-    const toFetch = chordNames.filter(name => {
-      if (jguitarMemCache.has(name)) return false;
-      if (jguitarPending.has(name)) return false;
-      return true;
-    });
-
-    if (toFetch.length === 0) return;
-
-    // Fetch in parallel (max 3 concurrent)
-    const batchSize = 3;
-    for (let i = 0; i < toFetch.length; i += batchSize) {
-      const batch = toFetch.slice(i, i + batchSize);
-      const promises = batch.map(async name => {
-        jguitarPending.set(name, true);
-        try {
-          const positions = await fetchJGuitar(name);
-          // Cache result (even null to avoid re-fetching)
-          jguitarMemCache.set(name, positions || null);
-          saveJGuitarCache();
-          if (positions && onUpdate) onUpdate();
-        } catch (e) {
-          jguitarMemCache.set(name, null);
-        } finally {
-          jguitarPending.delete(name);
-        }
-      });
-      await Promise.all(promises);
-    }
-  }
-
-  // =========================================
   // Lookup functions
   // =========================================
 
@@ -432,20 +352,28 @@ const ChordDB = (() => {
 
   /**
    * Get guitar chord voicings.
-   * Priority: jguitar.com cache → CDN DB + slash algorithm
+   * Priority: jguitar static data → CDN DB fallback
+   * Slash chords: jguitar base chord + slash algorithm
    */
   function getGuitarChord(chordName) {
-    // 1. Check jguitar cache first (best quality voicings)
-    const jgPositions = getJGuitarCached(chordName);
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed) return null;
+
+    // 1. Try jguitar static data (best quality voicings)
+    // For slash chords, look up the base chord from jguitar
+    const baseChordName = parsed.root + parsed.suffix;
+    const jgPositions = lookupJGuitar(baseChordName);
+
     if (jgPositions && jgPositions.length > 0) {
-      return jgPositions;
+      let positions = [...jgPositions];
+      if (parsed.bassNote) {
+        positions = applySlashBass(positions, parsed.bassNote, MusicTheory.GUITAR_TUNING);
+      }
+      return positions;
     }
 
     // 2. Fall back to CDN DB
     if (!guitarData) return null;
-
-    const parsed = MusicTheory.parseChordName(chordName);
-    if (!parsed) return null;
 
     let positions = lookupPositions(guitarData, parsed.root, parsed.suffix);
     if (!positions) return null;
@@ -490,9 +418,6 @@ const ChordDB = (() => {
     return guitarData.suffixes || [];
   }
 
-  // Init: load localStorage cache on module load
-  loadJGuitarCache();
-
   return {
     load,
     getGuitarChord,
@@ -500,6 +425,5 @@ const ChordDB = (() => {
     isLoaded,
     getAvailableKeys,
     getAvailableSuffixes,
-    prefetchJGuitar,
   };
 })();
