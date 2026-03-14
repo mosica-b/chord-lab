@@ -754,6 +754,10 @@ const App = (() => {
 
     if (hasChords) {
       Renderers.renderAll(state.selectedChords);
+      // Prefetch jguitar.com voicings in background, re-render on arrival
+      ChordDB.prefetchJGuitar(state.selectedChords, () => {
+        Renderers.renderAll(state.selectedChords);
+      });
     }
 
     renderChordNotesTable();
