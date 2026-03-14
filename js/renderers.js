@@ -640,10 +640,22 @@ const Renderers = (() => {
     const rootIdx = normalizedHighlight.length > 0 ? noteOrder.indexOf(normalizedHighlight[0]) : 0;
 
     // Build highlight set with octave position (0=first, 1=second, 2=third)
+    // First pass: calculate how many octaves the chord spans
     const highlightPositions = new Set();
     if (normalizedHighlight.length > 0) {
+      let span = 0;
+      let prevScanIdx = -1;
+      normalizedHighlight.forEach((note, i) => {
+        const idx = noteOrder.indexOf(note);
+        if (i > 0 && idx <= prevScanIdx) span++;
+        prevScanIdx = idx;
+      });
+      // Center the chord: with 3 octaves (0,1,2), pick best start octave
+      // span=0 (1 oct) → start 1 (center), span=1 (2 oct) → start 1, span=2 (3 oct) → start 0
+      const startOctave = Math.max(0, Math.min(1, 2 - span));
+
       let prevIdx = -1;
-      let octave = 0;
+      let octave = startOctave;
       normalizedHighlight.forEach((note, i) => {
         const idx = noteOrder.indexOf(note);
         if (i > 0 && idx <= prevIdx) octave++;
