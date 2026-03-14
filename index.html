@@ -260,15 +260,26 @@
   <div id="dbLoadModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4" style="max-height: 80vh; display: flex; flex-direction: column;">
       <div class="flex items-center justify-between p-4 border-b flex-shrink-0">
-        <h3 class="text-lg font-semibold text-gray-700">곡 불러오기</h3>
+        <div class="flex items-center gap-2">
+          <button id="dbTabSongs" class="text-sm font-semibold px-3 py-1 rounded-lg bg-blue-100 text-blue-700">곡 목록</button>
+          <button id="dbTabTrash" class="text-sm font-medium px-3 py-1 rounded-lg text-gray-400 hover:text-gray-600">🗑️ 휴지통<span id="dbTrashCount" class="ml-1 text-xs"></span></button>
+        </div>
         <button id="dbLoadClose" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
       </div>
-      <div class="p-4 border-b flex-shrink-0">
-        <input type="text" id="dbSearchInput" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="곡명 또는 아티스트 검색...">
+      <div id="dbSongsTab">
+        <div class="p-4 border-b flex-shrink-0">
+          <input type="text" id="dbSearchInput" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="곡명 또는 아티스트 검색...">
+        </div>
+        <div id="dbSearchResults" class="overflow-y-auto flex-1 p-2" style="min-height: 200px;">
+        </div>
+        <div id="dbPagination" class="flex items-center justify-center gap-2 p-3 border-t flex-shrink-0">
+        </div>
       </div>
-      <div id="dbSearchResults" class="overflow-y-auto flex-1 p-2" style="min-height: 200px;">
-      </div>
-      <div id="dbPagination" class="flex items-center justify-center gap-2 p-3 border-t flex-shrink-0">
+      <div id="dbTrashTab" class="hidden" style="display:none;">
+        <div id="dbTrashResults" class="overflow-y-auto flex-1 p-2" style="min-height: 200px;">
+        </div>
+        <div id="dbTrashActions" class="flex items-center justify-center gap-2 p-3 border-t flex-shrink-0">
+        </div>
       </div>
     </div>
   </div>
