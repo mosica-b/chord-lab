@@ -501,7 +501,7 @@ const ViewerApp = (() => {
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
-      badge.textContent = note;
+      badge.textContent = MusicTheory.formatNoteDisplay(note);
       notesDiv.appendChild(badge);
     });
 

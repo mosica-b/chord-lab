@@ -387,6 +387,13 @@ const MusicTheory = (() => {
     return chords;
   }
 
+  /**
+   * Format a note name for display (## → 𝄪, bb → 𝄫)
+   */
+  function formatNoteDisplay(note) {
+    return note.replace('##', '𝄪').replace('bb', '𝄫');
+  }
+
   return {
     NOTE_NAMES,
     ENHARMONIC,
@@ -400,6 +407,7 @@ const MusicTheory = (() => {
     getChordNotes,
     getChordNotesDisplay,
     getChordDegreeLabels,
+    formatNoteDisplay,
     fretToNote,
     fretsToVexFlowKeys,
     transposeChord,

@@ -202,8 +202,9 @@ const Export = (() => {
             const triadDeg = degrees.slice(0, 3);
             const ext = notes.slice(3);
             const extDeg = degrees.slice(3);
-            const fmtTriad = triad.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
-            const fmtExt = ext.map((n, i) => `<b>${esc(n)}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(extDeg[i] || '')})</span>`).join(', ');
+            const fmt = MusicTheory.formatNoteDisplay;
+            const fmtTriad = triad.map((n, i) => `<b>${esc(fmt(n))}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(triadDeg[i] || '')})</span>`).join(', ');
+            const fmtExt = ext.map((n, i) => `<b>${esc(fmt(n))}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(extDeg[i] || '')})</span>`).join(', ');
             tdNotes.innerHTML = ext.length > 0 ? `${fmtTriad}, ${fmtExt}` : fmtTriad;
             row.appendChild(tdNotes);
 
@@ -573,7 +574,7 @@ const Export = (() => {
             // 구성음 column (note + degree label)
             const fmtNotes = notes.map((n, ni) => {
               const deg = degrees[ni] ? `<font color="#999999" size="1">(${esc(degrees[ni])})</font>` : '';
-              return `<b>${esc(n)}</b>${deg}`;
+              return `<b>${esc(MusicTheory.formatNoteDisplay(n))}</b>${deg}`;
             }).join(', ');
             t += isCompact
               ? `<td align="center" bgcolor="${rowBg}"><font size="2">${fmtNotes}</font></td>`
@@ -705,7 +706,7 @@ const Export = (() => {
           group.chords.forEach(name => {
             const notes = MusicTheory.getChordNotesDisplay(name);
             const deg = MusicTheory.getChordDegreeLabels(name);
-            const notesStr = notes.map((n, i) => `${n}(${deg[i] || ''})`).join(', ');
+            const notesStr = notes.map((n, i) => `${MusicTheory.formatNoteDisplay(n)}(${deg[i] || ''})`).join(', ');
             if (hasKey) {
               const info = getScaleDegreeInfo(name, metadata.key);
               const roman = info ? `(${info.roman})` : '';
