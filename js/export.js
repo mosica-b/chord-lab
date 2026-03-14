@@ -11,13 +11,18 @@ const Export = (() => {
 
   // ── Blockquote Preset CRUD ──
 
-  /** Read current blockquote values from preview DOM */
+  /** Read current blockquote values from preview DOM (excluding non-editable key info spans) */
   function _readCurrentBqValues() {
     const preview = document.getElementById('blogPreview');
     if (!preview) return null;
     const values = {};
     preview.querySelectorAll('[data-bq]').forEach(el => {
-      values[el.getAttribute('data-bq')] = el.innerHTML;
+      // Clone and remove non-editable spans (key info) before saving
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll('[contenteditable="false"]').forEach(s => s.remove());
+      // Remove trailing <br> left behind after removing the span
+      let html = clone.innerHTML.replace(/<br>\s*$/, '');
+      values[el.getAttribute('data-bq')] = html;
     });
     return Object.keys(values).length ? values : null;
   }
@@ -212,7 +217,7 @@ const Export = (() => {
         const bq = document.createElement('blockquote');
         bq.style.margin = '0 0 2px 0';
         let titleHtml = esc(title);
-        if (hasKey) titleHtml += `<br><span style="color:#999;font-size:11px;">* ${esc(primaryKey(metadata.key))} Key 기준</span>`;
+        if (hasKey) titleHtml += `<br><span style="color:#999;font-size:11px;">* ${esc(metadata.key)} Key 기준</span>`;
         bq.innerHTML = titleHtml;
         if (bqKey) makeEditable(bq, bqKey);
         section.appendChild(bq);
@@ -308,11 +313,11 @@ const Export = (() => {
       const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' ');
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false, 'primary-chords'));
+        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false));
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true, 'advanced-chords'));
+        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true));
         preview.appendChild(document.createElement('hr'));
       }
     }
@@ -666,29 +671,19 @@ const Export = (() => {
         return t;
       }
 
-      // Primary chords (use override if user edited it)
+      // Primary chords (not editable — always generated from metadata)
       const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' ');
       if (basicChords.length > 0) {
-        html += `<blockquote style="margin:0;">`;
-        if (overrides['primary-chords']) {
-          html += overrides['primary-chords'];
-        } else {
-          html += `${naverSongLabel} 주요 코드`;
-          if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
-        }
+        html += `<blockquote style="margin:0;">${naverSongLabel} 주요 코드`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
 
-      // Advanced chords (use override if user edited it)
+      // Advanced chords (not editable — always generated from metadata)
       if (advancedChords.length > 0) {
-        html += `<blockquote style="margin:0;">`;
-        if (overrides['advanced-chords']) {
-          html += overrides['advanced-chords'];
-        } else {
-          html += `${naverSongLabel} 심화 코드`;
-          if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
-        }
+        html += `<blockquote style="margin:0;">${naverSongLabel} 심화 코드`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
       }
