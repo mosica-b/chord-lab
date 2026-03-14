@@ -18,6 +18,21 @@ const Export = (() => {
       return;
     }
 
+    // Helper: make a blockquote editable with visual indicators
+    function makeEditable(el, bqKey) {
+      el.contentEditable = 'true';
+      el.setAttribute('data-bq', bqKey);
+      el.style.cursor = 'text';
+      el.style.borderRadius = '4px';
+      el.style.padding = '8px 12px';
+      el.style.transition = 'border-color 0.2s, box-shadow 0.2s';
+      el.style.border = '1px dashed transparent';
+      el.addEventListener('mouseenter', () => { if (document.activeElement !== el) el.style.borderColor = '#ccc'; });
+      el.addEventListener('mouseleave', () => { if (document.activeElement !== el) el.style.borderColor = 'transparent'; });
+      el.addEventListener('focus', () => { el.style.borderColor = '#2563eb'; el.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.15)'; });
+      el.addEventListener('blur', () => { el.style.borderColor = 'transparent'; el.style.boxShadow = 'none'; });
+    }
+
     // 1. Song Info Header
     const infoSection = document.createElement('div');
     infoSection.style.marginBottom = '20px';
@@ -25,6 +40,7 @@ const Export = (() => {
     const title = document.createElement('blockquote');
     title.style.margin = '0 0 2px 0';
     title.innerHTML = '더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)';
+    makeEditable(title, 'info-title');
     infoSection.appendChild(title);
 
     const infoRows = [
@@ -134,7 +150,7 @@ const Export = (() => {
       const hasKey = !!metadata.key;
       // Helper: build a chord table section (3-column: 코드, 타입, 구성음)
       // Roman numeral shown as small text above chord name
-      function buildChordTable(title, chordList, isCompact) {
+      function buildChordTable(title, chordList, isCompact, bqKey) {
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
         const bq = document.createElement('blockquote');
@@ -142,6 +158,7 @@ const Export = (() => {
         let titleHtml = esc(title);
         if (hasKey) titleHtml += `<br><span style="color:#999;font-size:11px;">* ${esc(primaryKey(metadata.key))} Key 기준</span>`;
         bq.innerHTML = titleHtml;
+        if (bqKey) makeEditable(bq, bqKey);
         section.appendChild(bq);
 
         const table = document.createElement('table');
@@ -235,11 +252,11 @@ const Export = (() => {
       const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' ');
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false));
+        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false, 'primary-chords'));
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true));
+        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true, 'advanced-chords'));
         preview.appendChild(document.createElement('hr'));
       }
     }
@@ -298,6 +315,7 @@ const Export = (() => {
       const notationTitle = document.createElement('blockquote');
       notationTitle.style.margin = '0 0 2px 0';
       notationTitle.innerHTML = `다양한 악기로 연주할 수 있게 정리한,<br>${esc(songDash)} 코드 표기`;
+      makeEditable(notationTitle, 'notation');
       notationSection.appendChild(notationTitle);
 
       const notationTypes = [
@@ -388,7 +406,15 @@ const Export = (() => {
    */
   async function copyTextToClipboard(metadata, chords, capoPosition) {
     try {
-      const html = generateNaverHTML(metadata, chords, capoPosition);
+      // Read edited blockquote content from preview DOM
+      const overrides = {};
+      const preview = document.getElementById('blogPreview');
+      if (preview) {
+        preview.querySelectorAll('[data-bq]').forEach(el => {
+          overrides[el.getAttribute('data-bq')] = el.innerHTML;
+        });
+      }
+      const html = generateNaverHTML(metadata, chords, capoPosition, overrides);
 
       // Clipboard API: writes exact HTML without browser re-serialization
       if (navigator.clipboard && window.ClipboardItem) {
@@ -437,7 +463,8 @@ const Export = (() => {
    * Uses only basic HTML tags that Naver preserves: <b>, <font>, <a>, <table>, <br>
    * Avoids CSS style attributes which Naver strips
    */
-  function generateNaverHTML(metadata, chords, capoPosition) {
+  function generateNaverHTML(metadata, chords, capoPosition, overrides) {
+    overrides = overrides || {};
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
@@ -450,9 +477,9 @@ const Export = (() => {
 
     let html = '';
 
-    // Title in blockquote
+    // Title in blockquote (use override if user edited it)
     html += `<blockquote style="margin:0 0 2px 0;">`;
-    html += `더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)`;
+    html += overrides['info-title'] || `더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)`;
     html += `</blockquote>`;
 
     // Song info table (outside blockquote)
@@ -583,19 +610,29 @@ const Export = (() => {
         return t;
       }
 
-      // Primary chords
+      // Primary chords (use override if user edited it)
       const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' ');
       if (basicChords.length > 0) {
-        html += `<blockquote style="margin:0;">${naverSongLabel} 주요 코드`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        html += `<blockquote style="margin:0;">`;
+        if (overrides['primary-chords']) {
+          html += overrides['primary-chords'];
+        } else {
+          html += `${naverSongLabel} 주요 코드`;
+          if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        }
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
 
-      // Advanced chords
+      // Advanced chords (use override if user edited it)
       if (advancedChords.length > 0) {
-        html += `<blockquote style="margin:0;">${naverSongLabel} 심화 코드`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        html += `<blockquote style="margin:0;">`;
+        if (overrides['advanced-chords']) {
+          html += overrides['advanced-chords'];
+        } else {
+          html += `${naverSongLabel} 심화 코드`;
+          if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
+        }
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
       }
@@ -628,7 +665,13 @@ const Export = (() => {
     // Notation type table with viewer links
     if (chords.length > 0) {
       const naverSongDash = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' - ');
-      html += `<blockquote style="margin:0;">다양한 악기로 연주할 수 있게 정리한,<br>${naverSongDash} 코드 표기</blockquote>`;
+      html += `<blockquote style="margin:0;">`;
+      if (overrides['notation']) {
+        html += overrides['notation'];
+      } else {
+        html += `다양한 악기로 연주할 수 있게 정리한,<br>${naverSongDash} 코드 표기`;
+      }
+      html += `</blockquote>`;
       const chordsParam = encodeURIComponent(chords.join(','));
       const notationItems = [
         { key: 'staff', label: '오선표기' },
