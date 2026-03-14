@@ -188,7 +188,7 @@ try {
 /* ── Router ── */
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
-$limit = 20;
+$limit = 10;
 
 switch ($action) {
 
