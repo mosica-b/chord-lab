@@ -103,7 +103,17 @@ const MusicTheory = (() => {
     if (ENHARMONIC[note] && !NOTE_NAMES.includes(note)) {
       return ENHARMONIC[note];
     }
-    // Handle flats
+    // Handle double sharps: F## → G
+    if (note.length === 3 && note.endsWith('##')) {
+      const baseIdx = NOTE_NAMES.indexOf(note[0]);
+      if (baseIdx >= 0) return NOTE_NAMES[(baseIdx + 2) % 12];
+    }
+    // Handle double flats: Bbb → A
+    if (note.length === 3 && note.endsWith('bb')) {
+      const baseIdx = NOTE_NAMES.indexOf(note[0]);
+      if (baseIdx >= 0) return NOTE_NAMES[(baseIdx - 2 + 12) % 12];
+    }
+    // Handle single flats
     if (note.length === 2 && note[1] === 'b') {
       const idx = NOTE_NAMES.indexOf(note[0]);
       if (idx >= 0) {
