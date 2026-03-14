@@ -391,7 +391,7 @@ const MusicTheory = (() => {
    * Format a note name for display (## → 𝄪, bb → 𝄫)
    */
   function formatNoteDisplay(note) {
-    return note.replace('##', '𝄪').replace('bb', '𝄫');
+    return note.replace('##', '×').replace('bb', '𝄫');
   }
 
   return {
