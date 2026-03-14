@@ -22,9 +22,9 @@ const Export = (() => {
     const infoSection = document.createElement('div');
     infoSection.style.marginBottom = '20px';
 
-    const title = document.createElement('h3');
-    title.textContent = '곡정보';
-    title.style.marginBottom = '0';
+    const title = document.createElement('blockquote');
+    title.style.margin = '0 0 2px 0';
+    title.innerHTML = '더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)';
     infoSection.appendChild(title);
 
     const infoRows = [
