@@ -640,22 +640,44 @@ const Renderers = (() => {
     const rootIdx = normalizedHighlight.length > 0 ? noteOrder.indexOf(normalizedHighlight[0]) : 0;
 
     // Build highlight set with octave position (0=first, 1=second, 2=third)
-    // First pass: calculate how many octaves the chord spans
+    // Pick the starting octave that visually centers the chord on the keyboard
     const highlightPositions = new Set();
     if (normalizedHighlight.length > 0) {
-      let span = 0;
+      // Visual position of each note in white-key units (within one octave)
+      const noteVisPos = { C: 0, 'C#': 0.5, D: 1, 'D#': 1.5, E: 2, F: 3, 'F#': 3.5, G: 4, 'G#': 4.5, A: 5, 'A#': 5.5, B: 6 };
+      const totalKbWidth = 21; // 3 octaves + final C → white key indices 0..21
+
+      // First pass: calculate relative octave offsets (starting from 0)
+      const relOctaves = [];
+      let relOct = 0;
       let prevScanIdx = -1;
       normalizedHighlight.forEach((note, i) => {
         const idx = noteOrder.indexOf(note);
-        if (i > 0 && idx <= prevScanIdx) span++;
+        if (i > 0 && idx <= prevScanIdx) relOct++;
+        relOctaves.push(relOct);
         prevScanIdx = idx;
       });
-      // Center the chord: with 3 octaves (0,1,2), pick best start octave
-      // span=0 (1 oct) → start 1 (center), span=1 (2 oct) → start 1, span=2 (3 oct) → start 0
-      const startOctave = Math.max(0, Math.min(1, 2 - span));
+      const span = relOct;
 
+      // Try each possible starting octave, pick the one that balances
+      // left gap (first note ↔ keyboard start) and right gap (last note ↔ keyboard end)
+      const maxStart = Math.max(0, 2 - span);
+      let bestStart = 0;
+      let bestImbalance = Infinity;
+      for (let s = 0; s <= maxStart; s++) {
+        const firstPos = (noteVisPos[normalizedHighlight[0]] || 0) + s * 7;
+        const lastNote = normalizedHighlight[normalizedHighlight.length - 1];
+        const lastPos = (noteVisPos[lastNote] || 0) + (s + relOctaves[relOctaves.length - 1]) * 7;
+        const imbalance = Math.abs(firstPos - (totalKbWidth - lastPos));
+        if (imbalance <= bestImbalance) {
+          bestImbalance = imbalance;
+          bestStart = s;
+        }
+      }
+
+      // Second pass: assign octaves using the best starting position
       let prevIdx = -1;
-      let octave = startOctave;
+      let octave = bestStart;
       normalizedHighlight.forEach((note, i) => {
         const idx = noteOrder.indexOf(note);
         if (i > 0 && idx <= prevIdx) octave++;
