@@ -137,9 +137,12 @@ const Export = (() => {
       function buildChordTable(title, chordList, isCompact) {
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
-        const h = document.createElement('h3');
-        h.textContent = title;
-        section.appendChild(h);
+        const bq = document.createElement('blockquote');
+        bq.style.margin = '0 0 2px 0';
+        let titleHtml = esc(title);
+        if (hasKey) titleHtml += `<br><span style="color:#999;font-size:11px;">* ${esc(primaryKey(metadata.key))} Key 기준</span>`;
+        bq.innerHTML = titleHtml;
+        section.appendChild(bq);
 
         const table = document.createElement('table');
         const thead = document.createElement('thead');
@@ -226,26 +229,17 @@ const Export = (() => {
         table.appendChild(tbody);
         section.appendChild(table);
 
-        // Key label
-        if (hasKey) {
-          const keyLabel = document.createElement('p');
-          keyLabel.style.fontSize = '12px';
-          keyLabel.style.color = '#999';
-          keyLabel.style.margin = '6px 0 0 0';
-          keyLabel.textContent = `* ${primaryKey(metadata.key)} Key 기준`;
-          section.appendChild(keyLabel);
-        }
-
         return section;
       }
 
+      const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' ');
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable('주요 코드', basicChords, false));
+        preview.appendChild(buildChordTable(`${songLabel} 주요 코드`, basicChords, false));
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable('심화 코드', advancedChords, true));
+        preview.appendChild(buildChordTable(`${songLabel} 심화 코드`, advancedChords, true));
         preview.appendChild(document.createElement('hr'));
       }
     }
@@ -300,8 +294,10 @@ const Export = (() => {
       const notationSection = document.createElement('div');
       notationSection.style.marginBottom = '20px';
 
-      const notationTitle = document.createElement('h3');
-      notationTitle.textContent = '코드 표기';
+      const songDash = [metadata.artist, metadata.songName].filter(Boolean).join(' - ');
+      const notationTitle = document.createElement('blockquote');
+      notationTitle.style.margin = '0 0 2px 0';
+      notationTitle.innerHTML = `다양한 악기로 연주할 수 있게 정리한,<br>${esc(songDash)} 코드 표기`;
       notationSection.appendChild(notationTitle);
 
       const notationTypes = [
@@ -588,8 +584,9 @@ const Export = (() => {
       }
 
       // Primary chords
+      const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' ');
       if (basicChords.length > 0) {
-        html += `<blockquote style="margin:0;"><font size="3"><b>주요 코드</b></font>`;
+        html += `<blockquote style="margin:0;">${naverSongLabel} 주요 코드`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
@@ -597,7 +594,7 @@ const Export = (() => {
 
       // Advanced chords
       if (advancedChords.length > 0) {
-        html += `<blockquote style="margin:0;"><font size="3"><b>심화 코드</b></font>`;
+        html += `<blockquote style="margin:0;">${naverSongLabel} 심화 코드`;
         if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(primaryKey(metadata.key))} Key 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
@@ -630,7 +627,8 @@ const Export = (() => {
 
     // Notation type table with viewer links
     if (chords.length > 0) {
-      html += `<blockquote style="margin:0;"><font size="3"><b>코드 표기</b></font></blockquote>`;
+      const naverSongDash = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' - ');
+      html += `<blockquote style="margin:0;">다양한 악기로 연주할 수 있게 정리한,<br>${naverSongDash} 코드 표기</blockquote>`;
       const chordsParam = encodeURIComponent(chords.join(','));
       const notationItems = [
         { key: 'staff', label: '오선표기' },
