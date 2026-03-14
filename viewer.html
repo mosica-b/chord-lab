@@ -505,6 +505,58 @@
       font-weight: 500;
       margin-top: 2px;
     }
+
+    /* Voicing controls below diagram */
+    .voicing-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 4px;
+      padding: 2px 0;
+    }
+    .voicing-nav {
+      width: 26px; height: 26px;
+      border: 1px solid #d1d5db; border-radius: 6px;
+      background: white; font-size: 18px; line-height: 1;
+      color: #6b7280; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .voicing-nav:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    .voicing-indicator {
+      font-size: 11px; font-weight: 500; color: #6b7280;
+      min-width: 36px; text-align: center;
+    }
+    .voicing-all-btn {
+      width: 26px; height: 26px;
+      border: 1px solid #d1d5db; border-radius: 6px;
+      background: white; font-size: 14px; color: #6b7280;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      margin-left: 2px;
+    }
+    .voicing-all-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+
+    /* Voicing modal grid */
+    .voicing-modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 12px; padding: 4px;
+    }
+    .voicing-modal-item {
+      border: 2px solid #e5e7eb; border-radius: 10px;
+      padding: 8px 4px; cursor: pointer;
+      text-align: center; position: relative;
+      transition: all 0.15s;
+    }
+    .voicing-modal-item:hover { border-color: #93c5fd; background: #f0f7ff; }
+    .voicing-modal-item.selected { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 0 0 1px #3b82f6; }
+    .voicing-modal-item .voicing-number {
+      position: absolute; top: 4px; right: 6px;
+      font-size: 10px; color: #9ca3af; font-weight: 500;
+    }
+    @media (max-width: 480px) {
+      .voicing-modal-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -656,9 +708,22 @@
   <!-- Shared modules -->
   <script src="js/music-theory.js?v=3"></script>
   <script src="js/chord-db.js?v=8"></script>
-  <script src="js/renderers.js?v=2"></script>
+  <script src="js/renderers.js?v=3"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=2"></script>
-  <script src="js/viewer-app.js?v=14"></script>
+  <script src="js/viewer-app.js?v=15"></script>
+
+  <!-- Voicing selection modal -->
+  <div id="voicingModal" class="notation-modal-overlay hidden">
+    <div class="notation-modal" style="min-width:320px;max-width:700px;width:90vw;">
+      <div class="notation-modal-header">
+        <h3 id="voicingModalTitle" class="notation-modal-title">운지법</h3>
+        <button id="voicingModalClose" class="notation-modal-close">&times;</button>
+      </div>
+      <div class="notation-modal-body" style="max-height:70vh;overflow-y:auto;">
+        <div id="voicingModalGrid" class="voicing-modal-grid"></div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

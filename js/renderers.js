@@ -138,7 +138,7 @@ const Renderers = (() => {
   // =========================================
   // Guitar Tab (기타 타브)
   // =========================================
-  function renderGuitarTab(container, chords) {
+  function renderGuitarTab(container, chords, voicingIndexMap) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 기타 타브가 표시됩니다.</p>';
@@ -147,7 +147,9 @@ const Renderers = (() => {
 
     const chordsWithPositions = chords.map(name => {
       const positions = ChordDB.getGuitarChord(name);
-      return { name, positions: positions ? positions[0] : null };
+      const idx = voicingIndexMap ? (voicingIndexMap[name] || 0) : 0;
+      const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
+      return { name, positions: positions ? positions[clamped] : null };
     });
 
     const minContentWidth = chordsWithPositions.length * 120 + 80;
@@ -216,7 +218,7 @@ const Renderers = (() => {
   // =========================================
   // Ukulele Tab (우쿨렐레 타브)
   // =========================================
-  function renderUkuleleTab(container, chords) {
+  function renderUkuleleTab(container, chords, voicingIndexMap) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 우쿨렐레 타브가 표시됩니다.</p>';
@@ -225,7 +227,9 @@ const Renderers = (() => {
 
     const chordsWithPositions = chords.map(name => {
       const positions = ChordDB.getUkuleleChord(name);
-      return { name, positions: positions ? positions[0] : null };
+      const idx = voicingIndexMap ? (voicingIndexMap[name] || 0) : 0;
+      const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
+      return { name, positions: positions ? positions[clamped] : null };
     });
 
     const minContentWidth = chordsWithPositions.length * 120 + 80;
@@ -293,7 +297,7 @@ const Renderers = (() => {
   // =========================================
   // Guitar Chord Diagram (기타 코드 다이어그램)
   // =========================================
-  function renderGuitarDiagrams(container, chords) {
+  function renderGuitarDiagrams(container, chords, voicingIndexMap) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 기타 다이어그램이 표시됩니다.</p>';
@@ -305,6 +309,8 @@ const Renderers = (() => {
 
     chords.forEach(name => {
       const positions = ChordDB.getGuitarChord(name);
+      const idx = voicingIndexMap ? (voicingIndexMap[name] || 0) : 0;
+      const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
       const item = document.createElement('div');
       item.className = 'diagram-item';
 
@@ -313,8 +319,8 @@ const Renderers = (() => {
       svgContainer.style.height = '150px';
       item.appendChild(svgContainer);
 
-      if (positions && positions[0]) {
-        drawGuitarDiagram(svgContainer, positions[0], name);
+      if (positions && positions[clamped]) {
+        drawGuitarDiagram(svgContainer, positions[clamped], name);
       } else {
         svgContainer.innerHTML = `<p class="text-xs text-gray-400" style="text-align:center;font-weight:bold;">${name}<br>데이터 없음</p>`;
       }
@@ -435,7 +441,7 @@ const Renderers = (() => {
   // =========================================
   // Ukulele Chord Diagram (우쿨렐레 다이어그램)
   // =========================================
-  function renderUkuleleDiagrams(container, chords) {
+  function renderUkuleleDiagrams(container, chords, voicingIndexMap) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 우쿨렐레 다이어그램이 표시됩니다.</p>';
@@ -447,6 +453,8 @@ const Renderers = (() => {
 
     chords.forEach(name => {
       const positions = ChordDB.getUkuleleChord(name);
+      const idx = voicingIndexMap ? (voicingIndexMap[name] || 0) : 0;
+      const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
       const item = document.createElement('div');
       item.className = 'diagram-item';
 
@@ -455,8 +463,8 @@ const Renderers = (() => {
       svgContainer.style.height = '150px';
       item.appendChild(svgContainer);
 
-      if (positions && positions[0]) {
-        drawUkuleleDiagram(svgContainer, positions[0], name);
+      if (positions && positions[clamped]) {
+        drawUkuleleDiagram(svgContainer, positions[clamped], name);
       } else {
         svgContainer.innerHTML = `<p class="text-xs text-gray-400" style="text-align:center;font-weight:bold;">${name}<br>데이터 없음</p>`;
       }
@@ -754,5 +762,7 @@ const Renderers = (() => {
     renderUkuleleDiagrams,
     renderPianoKeyboards,
     renderAll,
+    drawGuitarDiagram,
+    drawUkuleleDiagram,
   };
 })();

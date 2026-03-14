@@ -14,6 +14,19 @@ const ViewerApp = (() => {
   let capoPosition = 0;
   let horizontalMode = false;
   const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
+
+  // Voicing index state: Map<chordName, { guitar: number, ukulele: number }>
+  const voicingIndices = new Map();
+  function getVoicingIndex(chordName, instrument) {
+    const entry = voicingIndices.get(chordName);
+    return entry ? (entry[instrument] || 0) : 0;
+  }
+  function setVoicingIndex(chordName, instrument, index) {
+    if (!voicingIndices.has(chordName)) {
+      voicingIndices.set(chordName, { guitar: 0, ukulele: 0 });
+    }
+    voicingIndices.get(chordName)[instrument] = index;
+  }
   const isAdmin = !!sessionStorage.getItem('chord_lab_auth');
 
   // Drag tracking (shared between main badges and custom combo)
@@ -62,6 +75,7 @@ const ViewerApp = (() => {
     setupResetOrder();
     setupCustomCombo();
     setupHorizontalToggle();
+    setupVoicingModal();
     render();
 
     // Open accordion by default on initial load
@@ -442,10 +456,30 @@ const ViewerApp = (() => {
 
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, displayChords); break;
-      case 'guitar-tab': Renderers.renderGuitarTab(panel, displayChords); break;
-      case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, displayChords); break;
-      case 'ukulele-tab': Renderers.renderUkuleleTab(panel, displayChords); break;
-      case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, displayChords); break;
+      case 'guitar-tab': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
+        Renderers.renderGuitarTab(panel, displayChords, idxMap);
+        break;
+      }
+      case 'guitar-diagram': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
+        Renderers.renderGuitarDiagrams(panel, displayChords, idxMap);
+        break;
+      }
+      case 'ukulele-tab': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
+        Renderers.renderUkuleleTab(panel, displayChords, idxMap);
+        break;
+      }
+      case 'ukulele-diagram': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
+        Renderers.renderUkuleleDiagrams(panel, displayChords, idxMap);
+        break;
+      }
       case 'piano': Renderers.renderPianoKeyboards(panel, displayChords); break;
     }
   }
@@ -461,10 +495,28 @@ const ViewerApp = (() => {
       const singleChord = [useChord];
       switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
-        case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
-        case 'guitar-diagram': Renderers.renderGuitarDiagrams(panel, singleChord); break;
-        case 'ukulele-tab': Renderers.renderUkuleleTab(panel, singleChord); break;
-        case 'ukulele-diagram': Renderers.renderUkuleleDiagrams(panel, singleChord); break;
+        case 'guitar-tab': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
+          Renderers.renderGuitarTab(panel, singleChord, idxMap);
+          break;
+        }
+        case 'guitar-diagram': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
+          Renderers.renderGuitarDiagrams(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName);
+          break;
+        }
+        case 'ukulele-tab': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
+          Renderers.renderUkuleleTab(panel, singleChord, idxMap);
+          break;
+        }
+        case 'ukulele-diagram': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
+          Renderers.renderUkuleleDiagrams(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName);
+          break;
+        }
         case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
       }
     });
@@ -479,6 +531,44 @@ const ViewerApp = (() => {
     } else {
       if (capoLabel) capoLabel.style.display = 'none';
     }
+  }
+
+  /**
+   * Add voicing navigation controls below a diagram panel
+   */
+  function addVoicingControls(panel, useChord, instrument, card, originalChordName) {
+    const positions = instrument === 'guitar'
+      ? ChordDB.getGuitarChord(useChord)
+      : ChordDB.getUkuleleChord(useChord);
+    if (!positions || positions.length <= 1) return;
+
+    const total = positions.length;
+    const currentIdx = getVoicingIndex(useChord, instrument);
+
+    const controls = document.createElement('div');
+    controls.className = 'voicing-controls';
+    controls.innerHTML =
+      `<button class="voicing-nav voicing-prev" title="이전 운지법">&#8249;</button>` +
+      `<span class="voicing-indicator">${currentIdx + 1} / ${total}</span>` +
+      `<button class="voicing-nav voicing-next" title="다음 운지법">&#8250;</button>` +
+      `<button class="voicing-all-btn" title="모든 운지법 보기">&#8943;</button>`;
+
+    controls.querySelector('.voicing-prev').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setVoicingIndex(useChord, instrument, (currentIdx - 1 + total) % total);
+      renderCardNotations(card, originalChordName);
+    });
+    controls.querySelector('.voicing-next').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setVoicingIndex(useChord, instrument, (currentIdx + 1) % total);
+      renderCardNotations(card, originalChordName);
+    });
+    controls.querySelector('.voicing-all-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openVoicingModal(useChord, instrument, card, originalChordName);
+    });
+
+    panel.appendChild(controls);
   }
 
   function createChordCard(chordName) {
@@ -986,6 +1076,83 @@ const ViewerApp = (() => {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+
+  // =========================================
+  // Voicing Modal
+  // =========================================
+  let activeVoicingModal = null;
+
+  function setupVoicingModal() {
+    const overlay = document.getElementById('voicingModal');
+    const closeBtn = document.getElementById('voicingModalClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeVoicingModal);
+    if (overlay) overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeVoicingModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay && !overlay.classList.contains('hidden')) {
+        closeVoicingModal();
+      }
+    });
+  }
+
+  function openVoicingModal(chordName, instrument, card, originalChordName) {
+    const overlay = document.getElementById('voicingModal');
+    const title = document.getElementById('voicingModalTitle');
+    const grid = document.getElementById('voicingModalGrid');
+    if (!overlay || !grid) return;
+
+    const positions = instrument === 'guitar'
+      ? ChordDB.getGuitarChord(chordName)
+      : ChordDB.getUkuleleChord(chordName);
+    if (!positions || positions.length === 0) return;
+
+    activeVoicingModal = { chordName, instrument, card, originalChordName };
+    const currentIdx = getVoicingIndex(chordName, instrument);
+
+    title.textContent = `${chordName} 운지법 (${positions.length}개)`;
+    grid.innerHTML = '';
+
+    const drawFn = instrument === 'guitar'
+      ? Renderers.drawGuitarDiagram
+      : Renderers.drawUkuleleDiagram;
+
+    positions.forEach((pos, i) => {
+      const item = document.createElement('div');
+      item.className = 'voicing-modal-item' + (i === currentIdx ? ' selected' : '');
+
+      const numberLabel = document.createElement('span');
+      numberLabel.className = 'voicing-number';
+      numberLabel.textContent = `#${i + 1}`;
+      item.appendChild(numberLabel);
+
+      const svgContainer = document.createElement('div');
+      svgContainer.style.width = instrument === 'guitar' ? '100px' : '80px';
+      svgContainer.style.height = '150px';
+      svgContainer.style.margin = '0 auto';
+      item.appendChild(svgContainer);
+
+      drawFn(svgContainer, pos, chordName);
+
+      item.addEventListener('click', () => {
+        setVoicingIndex(chordName, instrument, i);
+        renderCardNotations(activeVoicingModal.card, activeVoicingModal.originalChordName);
+        closeVoicingModal();
+      });
+
+      grid.appendChild(item);
+    });
+
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVoicingModal() {
+    const overlay = document.getElementById('voicingModal');
+    if (overlay) overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    activeVoicingModal = null;
   }
 
   return {};
