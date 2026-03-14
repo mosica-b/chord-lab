@@ -5,12 +5,21 @@
  */
 const Export = (() => {
 
+  // Persist user-edited blockquote content across preview re-renders
+  const _bqOverrides = {};
+
   /**
    * Generate blog preview HTML (visual preview on page)
    */
   function generateBlogPreview(metadata, chords, capoPosition) {
     const preview = document.getElementById('blogPreview');
     if (!preview) return;
+
+    // Save any user-edited blockquote content before clearing
+    preview.querySelectorAll('[data-bq]').forEach(el => {
+      _bqOverrides[el.getAttribute('data-bq')] = el.innerHTML;
+    });
+
     preview.innerHTML = '';
 
     if (!metadata.songName && !chords.length) {
@@ -19,9 +28,12 @@ const Export = (() => {
     }
 
     // Helper: make a blockquote editable with visual indicators
+    // Restores previously edited content from _bqOverrides
     function makeEditable(el, bqKey) {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
+      // Restore user's previous edit if exists
+      if (_bqOverrides[bqKey]) el.innerHTML = _bqOverrides[bqKey];
       el.style.cursor = 'text';
       el.style.borderRadius = '4px';
       el.style.padding = '8px 12px';
