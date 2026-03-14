@@ -456,7 +456,7 @@ const Export = (() => {
 
     // Title in blockquote
     html += `<blockquote style="margin:0 0 2px 0;">`;
-    html += `<font size="5"><b>곡정보</b></font>`;
+    html += `더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)`;
     html += `</blockquote>`;
 
     // Song info table (outside blockquote)
