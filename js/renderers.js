@@ -138,7 +138,7 @@ const Renderers = (() => {
   // =========================================
   // Guitar Tab (기타 타브)
   // =========================================
-  function renderGuitarTab(container, chords, voicingIndexMap) {
+  function renderGuitarTab(container, chords, voicingIndexMap, options) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 기타 타브가 표시됩니다.</p>';
@@ -152,8 +152,9 @@ const Renderers = (() => {
       return { name, positions: positions ? positions[clamped] : null };
     });
 
+    const compactWidth = options && options.compactWidth;
     const minContentWidth = chordsWithPositions.length * 120 + 80;
-    const width = getAvailableWidth(container, minContentWidth);
+    const width = compactWidth || getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, 180);
     const context = renderer.getContext();
@@ -218,7 +219,7 @@ const Renderers = (() => {
   // =========================================
   // Ukulele Tab (우쿨렐레 타브)
   // =========================================
-  function renderUkuleleTab(container, chords, voicingIndexMap) {
+  function renderUkuleleTab(container, chords, voicingIndexMap, options) {
     container.innerHTML = '';
     if (!chords.length) {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 우쿨렐레 타브가 표시됩니다.</p>';
@@ -232,8 +233,9 @@ const Renderers = (() => {
       return { name, positions: positions ? positions[clamped] : null };
     });
 
+    const compactWidth = options && options.compactWidth;
     const minContentWidth = chordsWithPositions.length * 120 + 80;
-    const width = getAvailableWidth(container, minContentWidth);
+    const width = compactWidth || getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, 160);
     const context = renderer.getContext();

@@ -1120,10 +1120,11 @@ const ViewerApp = (() => {
     grid.classList.toggle('voicing-modal-grid-tab', isTab);
 
     if (isTab) {
-      // Tab mode: render each voicing as a single-chord tab
+      // Tab mode: render each voicing as a single-chord tab (compact width for bigger display)
       const renderTabFn = instrument === 'guitar'
         ? Renderers.renderGuitarTab
         : Renderers.renderUkuleleTab;
+      const compactWidth = instrument === 'guitar' ? 130 : 110;
 
       positions.forEach((pos, i) => {
         const item = document.createElement('div');
@@ -1138,7 +1139,7 @@ const ViewerApp = (() => {
         tabContainer.style.overflow = 'hidden';
         item.appendChild(tabContainer);
 
-        renderTabFn(tabContainer, [chordName], { [chordName]: i });
+        renderTabFn(tabContainer, [chordName], { [chordName]: i }, { compactWidth });
 
         item.addEventListener('click', () => {
           setVoicingIndex(chordName, instrument, i);
