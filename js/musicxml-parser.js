@@ -204,7 +204,19 @@ const MusicXMLParser = (() => {
       // Skip unknown kinds
       if (suffix === undefined) continue;
 
-      const chordName = root + suffix;
+      // Parse bass note for slash chords (e.g., G/B)
+      let bassStr = '';
+      const bassStep = harmony.querySelector('bass bass-step');
+      if (bassStep) {
+        let bass = bassStep.textContent.trim();
+        const bassAlter = harmony.querySelector('bass bass-alter');
+        if (bassAlter) {
+          bass += ALTER_MAP[bassAlter.textContent.trim()] || '';
+        }
+        bassStr = '/' + bass;
+      }
+
+      const chordName = root + suffix + bassStr;
       if (!seen.has(chordName)) {
         seen.add(chordName);
         chords.push(chordName);
