@@ -498,25 +498,25 @@ const ViewerApp = (() => {
         case 'guitar-tab': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
           Renderers.renderGuitarTab(panel, singleChord, idxMap);
-          addVoicingControls(panel, useChord, 'guitar', card, chordName);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName, 'tab');
           break;
         }
         case 'guitar-diagram': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
           Renderers.renderGuitarDiagrams(panel, singleChord, idxMap);
-          addVoicingControls(panel, useChord, 'guitar', card, chordName);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName, 'diagram');
           break;
         }
         case 'ukulele-tab': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
           Renderers.renderUkuleleTab(panel, singleChord, idxMap);
-          addVoicingControls(panel, useChord, 'ukulele', card, chordName);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'tab');
           break;
         }
         case 'ukulele-diagram': {
           const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
           Renderers.renderUkuleleDiagrams(panel, singleChord, idxMap);
-          addVoicingControls(panel, useChord, 'ukulele', card, chordName);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'diagram');
           break;
         }
         case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
@@ -538,7 +538,7 @@ const ViewerApp = (() => {
   /**
    * Add voicing navigation controls below a diagram panel
    */
-  function addVoicingControls(panel, useChord, instrument, card, originalChordName) {
+  function addVoicingControls(panel, useChord, instrument, card, originalChordName, notationType) {
     const positions = instrument === 'guitar'
       ? ChordDB.getGuitarChord(useChord)
       : ChordDB.getUkuleleChord(useChord);
@@ -567,7 +567,7 @@ const ViewerApp = (() => {
     });
     controls.querySelector('.voicing-all-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      openVoicingModal(useChord, instrument, card, originalChordName);
+      openVoicingModal(useChord, instrument, card, originalChordName, notationType);
     });
 
     panel.appendChild(controls);
@@ -1099,7 +1099,7 @@ const ViewerApp = (() => {
     });
   }
 
-  function openVoicingModal(chordName, instrument, card, originalChordName) {
+  function openVoicingModal(chordName, instrument, card, originalChordName, notationType) {
     const overlay = document.getElementById('voicingModal');
     const title = document.getElementById('voicingModalTitle');
     const grid = document.getElementById('voicingModalGrid');
@@ -1112,39 +1112,74 @@ const ViewerApp = (() => {
 
     activeVoicingModal = { chordName, instrument, card, originalChordName };
     const currentIdx = getVoicingIndex(chordName, instrument);
+    const isTab = notationType === 'tab';
 
     title.textContent = `${chordName} 운지법 (${positions.length}개)`;
     grid.innerHTML = '';
+    // Switch grid layout for tab vs diagram
+    grid.classList.toggle('voicing-modal-grid-tab', isTab);
 
-    const drawFn = instrument === 'guitar'
-      ? Renderers.drawGuitarDiagram
-      : Renderers.drawUkuleleDiagram;
+    if (isTab) {
+      // Tab mode: render each voicing as a single-chord tab
+      const renderTabFn = instrument === 'guitar'
+        ? Renderers.renderGuitarTab
+        : Renderers.renderUkuleleTab;
 
-    positions.forEach((pos, i) => {
-      const item = document.createElement('div');
-      item.className = 'voicing-modal-item' + (i === currentIdx ? ' selected' : '');
+      positions.forEach((pos, i) => {
+        const item = document.createElement('div');
+        item.className = 'voicing-modal-item voicing-modal-item-tab' + (i === currentIdx ? ' selected' : '');
 
-      const numberLabel = document.createElement('span');
-      numberLabel.className = 'voicing-number';
-      numberLabel.textContent = `#${i + 1}`;
-      item.appendChild(numberLabel);
+        const numberLabel = document.createElement('span');
+        numberLabel.className = 'voicing-number';
+        numberLabel.textContent = `#${i + 1}`;
+        item.appendChild(numberLabel);
 
-      const svgContainer = document.createElement('div');
-      svgContainer.style.width = instrument === 'guitar' ? '100px' : '80px';
-      svgContainer.style.height = '150px';
-      svgContainer.style.margin = '0 auto';
-      item.appendChild(svgContainer);
+        const tabContainer = document.createElement('div');
+        tabContainer.style.overflow = 'hidden';
+        item.appendChild(tabContainer);
 
-      drawFn(svgContainer, pos, chordName);
+        renderTabFn(tabContainer, [chordName], { [chordName]: i });
 
-      item.addEventListener('click', () => {
-        setVoicingIndex(chordName, instrument, i);
-        renderCardNotations(activeVoicingModal.card, activeVoicingModal.originalChordName);
-        closeVoicingModal();
+        item.addEventListener('click', () => {
+          setVoicingIndex(chordName, instrument, i);
+          renderCardNotations(activeVoicingModal.card, activeVoicingModal.originalChordName);
+          closeVoicingModal();
+        });
+
+        grid.appendChild(item);
       });
+    } else {
+      // Diagram mode
+      const drawFn = instrument === 'guitar'
+        ? Renderers.drawGuitarDiagram
+        : Renderers.drawUkuleleDiagram;
 
-      grid.appendChild(item);
-    });
+      positions.forEach((pos, i) => {
+        const item = document.createElement('div');
+        item.className = 'voicing-modal-item' + (i === currentIdx ? ' selected' : '');
+
+        const numberLabel = document.createElement('span');
+        numberLabel.className = 'voicing-number';
+        numberLabel.textContent = `#${i + 1}`;
+        item.appendChild(numberLabel);
+
+        const svgContainer = document.createElement('div');
+        svgContainer.style.width = instrument === 'guitar' ? '100px' : '80px';
+        svgContainer.style.height = '150px';
+        svgContainer.style.margin = '0 auto';
+        item.appendChild(svgContainer);
+
+        drawFn(svgContainer, pos, chordName);
+
+        item.addEventListener('click', () => {
+          setVoicingIndex(chordName, instrument, i);
+          renderCardNotations(activeVoicingModal.card, activeVoicingModal.originalChordName);
+          closeVoicingModal();
+        });
+
+        grid.appendChild(item);
+      });
+    }
 
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';

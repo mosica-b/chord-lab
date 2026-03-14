@@ -567,8 +567,20 @@
       position: absolute; top: 4px; right: 6px;
       font-size: 10px; color: #9ca3af; font-weight: 500;
     }
+    /* Tab mode grid: wider items for tab staves */
+    .voicing-modal-grid-tab {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    .voicing-modal-item-tab {
+      padding: 8px;
+    }
+    .voicing-modal-item-tab svg {
+      max-width: 100%;
+      height: auto;
+    }
     @media (max-width: 480px) {
       .voicing-modal-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+      .voicing-modal-grid-tab { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -724,7 +736,7 @@
   <script src="js/renderers.js?v=3"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=2"></script>
-  <script src="js/viewer-app.js?v=16"></script>
+  <script src="js/viewer-app.js?v=17"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">
