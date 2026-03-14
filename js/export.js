@@ -128,17 +128,16 @@ const Export = (() => {
       // Info rows
       const allTableRows = [...infoRows];
 
-      // 사용 코드 row (after 키/카포)
+      // 사용 코드 row (after 키/카포) — includes derived triads from advanced chords
       if (chords.length > 0) {
-        const basic = chords.filter(c => isPrimaryChord(c, metadata.key));
-        const advanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
-        const basicLinks = basic.map(c => {
+        const { basicChords: infoBasic, advancedChords: infoAdvanced } = splitChordsWithTriads(chords, metadata.key);
+        const basicLinks = infoBasic.map(c => {
           const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
           return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
         }).join(', ');
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
         let chordsHtml = basicLinks;
-        if (advanced.length > 0) {
+        if (infoAdvanced.length > 0) {
           chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;font-size:12px;text-decoration:none;" target="_blank">전체 코드 보기</a> 🎹`;
         }
         chordsHtml += `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>`;
@@ -570,10 +569,9 @@ const Export = (() => {
       // Build extra rows for the info table
       const extraRows = [];
 
-      // 사용 코드 row
+      // 사용 코드 row — includes derived triads from advanced chords
       if (chords.length > 0) {
-        const nBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
-        const nAdvanced = chords.filter(c => !isPrimaryChord(c, metadata.key));
+        const { basicChords: nBasic, advancedChords: nAdvanced } = splitChordsWithTriads(chords, metadata.key);
         const basicLinks = nBasic.map(c => {
           const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
           return `<a href="${url}"><b>${esc(c)}</b></a>`;
