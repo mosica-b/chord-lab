@@ -179,50 +179,96 @@ const ChordDB = (() => {
       return [...matching, ...others];
     }
 
-    // No matching position found — try to create a modified voicing
-    const modified = createSlashVoicing(positions[0], bassTarget, tuning);
-    if (modified) {
-      return [modified, ...positions];
+    // No matching position — try to create one from each existing voicing
+    for (const pos of positions) {
+      const modified = createSlashVoicing(pos, bassTarget, tuning);
+      if (modified) {
+        return [modified, ...positions];
+      }
     }
 
     return positions;
   }
 
   /**
+   * Convert position frets to absolute fret numbers.
+   * Open (0) stays 0, muted (-1) stays -1, others add baseFret offset.
+   */
+  function toAbsoluteFrets(frets, baseFret) {
+    return frets.map(f => {
+      if (f <= 0) return f; // muted (-1) or open (0)
+      return f + (baseFret - 1);
+    });
+  }
+
+  /**
+   * Convert absolute frets to relative frets + baseFret for diagram display.
+   * Returns { frets, baseFret }.
+   */
+  function toRelativeFrets(absFrets) {
+    const fretted = absFrets.filter(f => f > 0);
+    if (fretted.length === 0) {
+      return { frets: [...absFrets], baseFret: 1 };
+    }
+    const minFret = Math.min(...fretted);
+    // If all fretted notes are within first 4 frets, use baseFret 1
+    const newBaseFret = minFret <= 4 ? 1 : minFret;
+    const relFrets = absFrets.map(f => {
+      if (f <= 0) return f;
+      return f - (newBaseFret - 1);
+    });
+    return { frets: relFrets, baseFret: newBaseFret };
+  }
+
+  /**
+   * Check if a set of absolute frets is playable by a human hand.
+   * Max fret span of 4, at least minStrings sounding.
+   */
+  function isPlayable(absFrets, minStrings) {
+    const sounding = absFrets.filter(f => f >= 0).length;
+    if (sounding < minStrings) return false;
+    const fretted = absFrets.filter(f => f > 0);
+    if (fretted.length <= 1) return true; // Only open strings + at most 1 fretted = always playable
+    const span = Math.max(...fretted) - Math.min(...fretted);
+    return span <= 4;
+  }
+
+  /**
    * Create a modified voicing with the correct bass note.
-   * Tries to find a fret on the lowest available string that produces
-   * the target bass note, within a playable fret range.
+   * Works with absolute frets to avoid baseFret conversion bugs.
+   * Checks playability (fret span ≤ 4, ≥ 3 sounding strings).
    */
   function createSlashVoicing(position, bassTarget, tuning) {
-    const frets = [...position.frets];
-    const baseFret = position.baseFret || 1;
+    const origBaseFret = position.baseFret || 1;
+    const absFrets = toAbsoluteFrets(position.frets, origBaseFret);
+    const numStrings = tuning.length;
+    const minStrings = numStrings <= 4 ? 3 : 3; // at least 3 sounding strings
 
     // Try each string from lowest to highest as potential bass string
-    for (let strIdx = 0; strIdx < tuning.length; strIdx++) {
+    for (let strIdx = 0; strIdx < numStrings; strIdx++) {
       const openSemitone = MusicTheory.noteIndex(tuning[strIdx].note);
       // Calculate the fret needed to produce the bass note
-      const neededFret = ((bassTarget - openSemitone) % 12 + 12) % 12;
+      const baseFret0 = ((bassTarget - openSemitone) % 12 + 12) % 12;
 
-      // Try this fret and one octave up, within playable range (0-5)
-      for (const fret of [neededFret, neededFret + 12]) {
-        if (fret >= 0 && fret <= 5) {
-          const newFrets = [...frets];
-          // Mute any strings lower than this bass string
-          for (let j = 0; j < strIdx; j++) {
-            newFrets[j] = -1;
-          }
-          newFrets[strIdx] = fret;
+      // Try this fret and one octave up
+      for (const bassFret of [baseFret0, baseFret0 + 12]) {
+        if (bassFret < 0 || bassFret > 12) continue;
 
-          // Verify chord still has at least 3 sounding strings (including bass)
-          const sounding = newFrets.filter(f => f >= 0).length;
-          if (sounding >= 3) {
-            return {
-              frets: newFrets,
-              baseFret: 1,
-              barres: [],
-              fingers: [],
-            };
-          }
+        const newAbs = [...absFrets];
+        // Mute strings below the bass string
+        for (let j = 0; j < strIdx; j++) {
+          newAbs[j] = -1;
+        }
+        newAbs[strIdx] = bassFret;
+
+        if (isPlayable(newAbs, minStrings)) {
+          const rel = toRelativeFrets(newAbs);
+          return {
+            frets: rel.frets,
+            baseFret: rel.baseFret,
+            barres: [],
+            fingers: [],
+          };
         }
       }
     }
