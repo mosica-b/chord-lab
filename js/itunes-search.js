@@ -61,15 +61,18 @@ const ITunesSearch = (() => {
     const artist = (hit.result.primary_artist?.name || '').toLowerCase();
     const title = (hit.result.title || '').toLowerCase();
     return artist.includes('genius') || artist.includes('translation') ||
-      artist.includes('romanization') || title.includes('translation') ||
-      title.includes('romanized') || title.includes('번역');
+      artist.includes('romanization') || artist.includes('transcription') ||
+      title.includes('translation') || title.includes('romanized') ||
+      title.includes('transcription') || title.includes('번역') ||
+      title.includes('annotated');
   }
 
   /**
    * Pick the best Genius URL from search hits, filtering out translations.
    */
-  function pickBestHit(hits, songName) {
+  function pickBestHit(hits, songName, artist) {
     const songLower = (songName || '').toLowerCase();
+    const artistLower = (artist || '').toLowerCase();
     // Pass 1: title matches song name & not a translation
     for (const hit of hits) {
       if (isTranslationPage(hit)) continue;
@@ -77,9 +80,11 @@ const ITunesSearch = (() => {
         return hit.result.url;
       }
     }
-    // Pass 2: first non-translation result
+    // Pass 2: not translation AND (artist matches OR title matches song)
     for (const hit of hits) {
-      if (!isTranslationPage(hit)) return hit.result.url;
+      if (isTranslationPage(hit)) continue;
+      const hitArtist = (hit.result.primary_artist?.name || '').toLowerCase();
+      if (artistLower && hitArtist.includes(artistLower)) return hit.result.url;
     }
     // Pass 3: title matches (even translation, as last resort)
     for (const hit of hits) {
@@ -94,10 +99,17 @@ const ITunesSearch = (() => {
   async function searchGeniusLyrics(songName, artist, altSongName) {
     if (!songName) return null;
 
-    // Build query list: original, then alternate (e.g. English trackName from iTunes)
-    const queries = [`${artist || ''} ${songName}`.trim()];
+    // Build query list: song-first order works better (avoids translation page dominance)
+    const queries = [
+      `${songName} ${artist || ''}`.trim(),
+    ];
     if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
-      queries.push(`${artist || ''} ${altSongName}`.trim());
+      queries.push(`${altSongName} ${artist || ''}`.trim());
+    }
+    // Also try artist-first as fallback
+    const artistFirst = `${artist || ''} ${songName}`.trim();
+    if (!queries.includes(artistFirst)) {
+      queries.push(artistFirst);
     }
 
     for (const query of queries) {
@@ -116,7 +128,7 @@ const ITunesSearch = (() => {
           const hits = data.response && data.response.hits;
           if (!hits || hits.length === 0) break; // try next query
 
-          const url = pickBestHit(hits, altSongName || songName);
+          const url = pickBestHit(hits, altSongName || songName, artist);
           if (url) return url;
           break;
         } catch (e) {
