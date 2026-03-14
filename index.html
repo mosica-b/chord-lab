@@ -206,6 +206,14 @@
         <p class="text-xs text-blue-700">① "텍스트 복사" 클릭 → 블로그 에디터에 Ctrl+V (곡 정보 + 표 + 링크)</p>
         <p class="text-xs text-blue-700">② "이미지 다운로드" 클릭 → 블로그 에디터에서 사진 추가 (오선보+타브+다이어그램+피아노 1장)</p>
       </div>
+      <div id="bqPresetBar" class="flex items-center gap-2 mb-2 text-sm hidden" style="max-width: 860px; margin: 0 auto;">
+        <span class="text-gray-500 font-medium">📝 인용구 프리셋</span>
+        <select id="bqPresetSelect" class="border border-gray-300 rounded px-2 py-1 text-sm">
+          <option value="__default__">기본</option>
+        </select>
+        <button id="bqPresetSaveBtn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm transition">저장</button>
+        <button id="bqPresetDeleteBtn" class="bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 px-3 py-1 rounded text-sm transition">삭제</button>
+      </div>
       <div id="blogPreview" class="border-2 border-gray-200 rounded-lg p-6 bg-white" style="max-width: 860px; margin: 0 auto;">
         <!-- Blog content will be rendered here -->
       </div>

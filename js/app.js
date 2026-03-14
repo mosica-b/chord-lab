@@ -618,6 +618,72 @@ const App = (() => {
         }
       });
     }
+
+    // ── Blockquote Preset Controls ──
+    const bqSelect = document.getElementById('bqPresetSelect');
+    const bqSaveBtn = document.getElementById('bqPresetSaveBtn');
+    const bqDeleteBtn = document.getElementById('bqPresetDeleteBtn');
+
+    function refreshBqPresetSelect(selectValue) {
+      if (!bqSelect) return;
+      const presets = Export.getBqPresets();
+      bqSelect.innerHTML = '<option value="__default__">기본</option>';
+      presets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        bqSelect.appendChild(opt);
+      });
+      if (selectValue) bqSelect.value = selectValue;
+    }
+
+    if (bqSelect) {
+      // Populate on init
+      refreshBqPresetSelect();
+
+      bqSelect.addEventListener('change', () => {
+        Export.loadBqPreset(bqSelect.value);
+        updatePreview();
+      });
+    }
+
+    if (bqSaveBtn) {
+      bqSaveBtn.addEventListener('click', () => {
+        const current = bqSelect ? bqSelect.value : '__default__';
+        let name;
+        if (current === '__default__') {
+          name = prompt('프리셋 이름을 입력하세요 (최대 10개):');
+          if (!name || !name.trim()) return;
+          name = name.trim();
+        } else {
+          if (!confirm(`"${current}" 프리셋을 덮어쓸까요?`)) return;
+          name = current;
+        }
+        const ok = Export.saveBqPreset(name);
+        if (!ok) {
+          alert('프리셋 저장 실패: 최대 10개까지 저장할 수 있습니다.');
+          return;
+        }
+        refreshBqPresetSelect(name);
+        bqSaveBtn.textContent = '저장 완료!';
+        setTimeout(() => { bqSaveBtn.textContent = '저장'; }, 1500);
+      });
+    }
+
+    if (bqDeleteBtn) {
+      bqDeleteBtn.addEventListener('click', () => {
+        const current = bqSelect ? bqSelect.value : '__default__';
+        if (current === '__default__') {
+          alert('기본 프리셋은 삭제할 수 없습니다.');
+          return;
+        }
+        if (!confirm(`"${current}" 프리셋을 삭제할까요?`)) return;
+        Export.deleteBqPreset(current);
+        Export.loadBqPreset('__default__');
+        refreshBqPresetSelect('__default__');
+        updatePreview();
+      });
+    }
   }
 
   // =========================================
@@ -763,10 +829,14 @@ const App = (() => {
 
   function updatePreview() {
     const previewSection = document.getElementById('previewSection');
+    const bqPresetBar = document.getElementById('bqPresetBar');
     const hasContent = state.selectedChords.length > 0 || state.metadata.songName;
 
     if (previewSection) {
       previewSection.classList.toggle('hidden', !hasContent);
+    }
+    if (bqPresetBar) {
+      bqPresetBar.classList.toggle('hidden', !hasContent);
     }
 
     if (hasContent) {

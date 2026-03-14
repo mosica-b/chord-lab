@@ -5,8 +5,59 @@
  */
 const Export = (() => {
 
-  // Persist user-edited blockquote content across preview re-renders
+  // Blockquote overrides: populated only by explicit preset load
   const _bqOverrides = {};
+  const BQ_STORAGE_KEY = 'songChordLab_bqPresets';
+
+  // ── Blockquote Preset CRUD ──
+
+  /** Read current blockquote values from preview DOM */
+  function _readCurrentBqValues() {
+    const preview = document.getElementById('blogPreview');
+    if (!preview) return null;
+    const values = {};
+    preview.querySelectorAll('[data-bq]').forEach(el => {
+      values[el.getAttribute('data-bq')] = el.innerHTML;
+    });
+    return Object.keys(values).length ? values : null;
+  }
+
+  /** Get all saved presets from localStorage */
+  function getBqPresets() {
+    try { return JSON.parse(localStorage.getItem(BQ_STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  /** Save current blockquote edits as a named preset (max 10) */
+  function saveBqPreset(name) {
+    const values = _readCurrentBqValues();
+    if (!values || !name) return false;
+    const presets = getBqPresets();
+    const idx = presets.findIndex(p => p.name === name);
+    const entry = { name, values, savedAt: Date.now() };
+    if (idx >= 0) presets[idx] = entry;
+    else if (presets.length >= 10) return false;
+    else presets.push(entry);
+    localStorage.setItem(BQ_STORAGE_KEY, JSON.stringify(presets));
+    return true;
+  }
+
+  /** Load a preset into _bqOverrides (caller must re-render) */
+  function loadBqPreset(name) {
+    Object.keys(_bqOverrides).forEach(k => delete _bqOverrides[k]);
+    if (name !== '__default__') {
+      const preset = getBqPresets().find(p => p.name === name);
+      if (!preset) return false;
+      Object.assign(_bqOverrides, preset.values);
+    }
+    return true;
+  }
+
+  /** Delete a preset by name */
+  function deleteBqPreset(name) {
+    const presets = getBqPresets().filter(p => p.name !== name);
+    localStorage.setItem(BQ_STORAGE_KEY, JSON.stringify(presets));
+  }
 
   /**
    * Generate blog preview HTML (visual preview on page)
@@ -14,12 +65,6 @@ const Export = (() => {
   function generateBlogPreview(metadata, chords, capoPosition) {
     const preview = document.getElementById('blogPreview');
     if (!preview) return;
-
-    // Save any user-edited blockquote content before clearing
-    preview.querySelectorAll('[data-bq]').forEach(el => {
-      _bqOverrides[el.getAttribute('data-bq')] = el.innerHTML;
-    });
-
     preview.innerHTML = '';
 
     if (!metadata.songName && !chords.length) {
@@ -28,11 +73,10 @@ const Export = (() => {
     }
 
     // Helper: make a blockquote editable with visual indicators
-    // Restores previously edited content from _bqOverrides
+    // Applies preset override if loaded
     function makeEditable(el, bqKey) {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
-      // Restore user's previous edit if exists
       if (_bqOverrides[bqKey]) el.innerHTML = _bqOverrides[bqKey];
       el.style.cursor = 'text';
       el.style.borderRadius = '4px';
@@ -1225,5 +1269,9 @@ const Export = (() => {
     selectAllPreview,
     convertSVGsToImages,
     downloadImages,
+    getBqPresets,
+    saveBqPreset,
+    loadBqPreset,
+    deleteBqPreset,
   };
 })();
