@@ -334,7 +334,23 @@ const MusicTheory = (() => {
     }
 
     const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
-    return newRoot + suffix;
+    let result = newRoot + suffix;
+
+    // Transpose bass note for slash chords (e.g., D#7/G → E7/G#)
+    if (parsed.bassNote) {
+      const bassIdx = noteIndex(parsed.bassNote);
+      if (bassIdx >= 0) {
+        const newBassIdx = ((bassIdx + semitones) % 12 + 12) % 12;
+        let newBass = NOTE_NAMES[newBassIdx];
+        // Keep flat notation if original bass used flats
+        if (parsed.bassNote.includes('b') && ENHARMONIC[newBass]) {
+          newBass = ENHARMONIC[newBass];
+        }
+        result += '/' + newBass;
+      }
+    }
+
+    return result;
   }
 
   /**
