@@ -861,7 +861,7 @@ const ViewerApp = (() => {
     MusicTheory.getChordNotesDisplay(chordName).forEach(n => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
-      badge.textContent = n;
+      badge.textContent = MusicTheory.formatNoteDisplay(n);
       notesEl.appendChild(badge);
     });
 
