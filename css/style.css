@@ -353,14 +353,19 @@
   margin-top: 2px;
 }
 
-.db-delete-btn {
-  font-size: 18px;
+.db-action-btn {
+  font-size: 11px;
   line-height: 1;
-  background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-weight: 500;
+  transition: opacity 0.15s;
 }
+.db-action-btn:hover { opacity: 0.8; }
+.db-edit-btn { background: #3b82f6; color: white; }
+.db-delete-btn { background: #ef4444; color: white; }
 
 /* Responsive */
 @media (max-width: 768px) {

@@ -118,21 +118,22 @@ const SongDB = (() => {
       const date = (s.updated_at || '').substring(0, 10);
       return `
         <div class="db-result-item" data-id="${s.id}">
-          <div>
+          <div style="flex:1;min-width:0;">
             <div class="db-result-title">${escapeHtml(s.song_name)}</div>
             <div class="db-result-meta">${escapeHtml(s.artist || '아티스트 없음')}${s.album_name ? ' · ' + escapeHtml(s.album_name) : ''}${s.key_signature ? ' · ' + s.key_signature : ''}</div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-400">${date}</span>
-            <button class="db-delete-btn text-gray-300 hover:text-red-500 text-sm" data-id="${s.id}" title="삭제">&times;</button>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span class="text-xs text-gray-400" style="white-space:nowrap;">${date}</span>
+            <button class="db-action-btn db-edit-btn" data-id="${s.id}" title="수정">수정</button>
+            <button class="db-action-btn db-delete-btn" data-id="${s.id}" title="삭제">삭제</button>
           </div>
         </div>`;
     }).join('');
 
-    // Click to load
+    // Click row to load
     container.querySelectorAll('.db-result-item').forEach(el => {
       el.addEventListener('click', async (e) => {
-        if (e.target.closest('.db-delete-btn')) return;
+        if (e.target.closest('.db-action-btn')) return;
         const id = el.dataset.id;
         try {
           el.style.opacity = '0.5';
@@ -146,6 +147,36 @@ const SongDB = (() => {
       });
     });
 
+    // Edit buttons — load song, close modal (user edits, then saves to overwrite)
+    container.querySelectorAll('.db-edit-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const item = btn.closest('.db-result-item');
+        try {
+          btn.textContent = '...';
+          const songData = await loadSong(id);
+          App.loadFromDB(songData);
+          document.getElementById('dbLoadModal').classList.add('hidden');
+          // Brief visual hint that song is loaded for editing
+          const saveBtn = document.getElementById('saveToDbBtn');
+          if (saveBtn) {
+            saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            saveBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+            saveBtn.textContent = '수정 저장';
+            setTimeout(() => {
+              saveBtn.textContent = 'DB 저장';
+              saveBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+              saveBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            }, 3000);
+          }
+        } catch (err) {
+          alert('불러오기 실패: ' + err.message);
+          btn.textContent = '수정';
+        }
+      });
+    });
+
     // Delete buttons
     container.querySelectorAll('.db-delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -153,7 +184,7 @@ const SongDB = (() => {
         if (!confirm('이 곡을 삭제할까요?')) return;
         try {
           await deleteSong(btn.dataset.id);
-          loadResults(); // refresh list
+          loadResults();
         } catch (err) {
           alert('삭제 실패: ' + err.message);
         }
