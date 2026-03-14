@@ -206,8 +206,7 @@ const Export = (() => {
         '7sus4': '7서스 4', 'aug7': '어그먼트 7', '5': '파워 코드',
       };
 
-      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
-      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const { basicChords, advancedChords } = splitChordsWithTriads(chords, metadata.key);
       const hasKey = !!metadata.key;
       // Helper: build a chord table section (3-column: 코드, 타입, 구성음)
       // Roman numeral shown as small text above chord name
@@ -620,8 +619,7 @@ const Export = (() => {
 
     // Chord notes table - split into primary and advanced, sorted by degree
     if (chords.length > 0) {
-      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
-      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const { basicChords, advancedChords } = splitChordsWithTriads(chords, metadata.key);
       const hasKey = !!metadata.key;
       // 3-column layout for all renderers
 
@@ -800,8 +798,7 @@ const Export = (() => {
     }
 
     if (chords.length > 0) {
-      const basicChords = sortByScaleDegree(chords.filter(c => isPrimaryChord(c, metadata.key)), metadata.key);
-      const advancedChords = sortByScaleDegree(chords.filter(c => !isPrimaryChord(c, metadata.key)), metadata.key);
+      const { basicChords, advancedChords } = splitChordsWithTriads(chords, metadata.key);
       const hasKey = !!metadata.key;
 
       function buildPlainTable(chordList) {
@@ -948,6 +945,32 @@ const Export = (() => {
   }
 
   /**
+   * Derive triad name from an extended chord (7th, 9th, etc.)
+   * e.g., Bm7→Bm, C#m7→C#m, Dmaj7→D, Fdim7→Fdim, Am7b5→Adim, G9→G
+   * Returns null if already a triad or cannot derive.
+   */
+  function getTriadFromChord(name) {
+    const parsed = MusicTheory.parseChordName(name);
+    if (!parsed) return null;
+    const suffix = parsed.suffix || '';
+    const intervalKey = MusicTheory.SUFFIX_MAP[suffix] || MusicTheory.SUFFIX_MAP[suffix.toLowerCase()];
+    if (!intervalKey) return null;
+    // Map extended chord types → triad suffix
+    const triadMap = {
+      '7': '', 'm7': 'm', 'maj7': '', 'dim7': 'dim', 'm7b5': 'dim',
+      '9': '', 'm9': 'm', 'maj9': '',
+      '11': '', '13': '',
+      '6': '', 'm6': 'm',
+      'aug7': 'aug',
+      '7sus4': 'sus4',
+    };
+    if (!(intervalKey in triadMap)) return null;
+    const triadSuffix = triadMap[intervalKey];
+    const bass = parsed.bassNote ? `/${parsed.bassNote}` : '';
+    return parsed.root + triadSuffix + bass;
+  }
+
+  /**
    * Get the dominant 7th (V7) chord name for a given key
    * e.g., key "A" → "E7", key "Am" → "E7", key "Eb" → "Bb7"
    */
@@ -973,6 +996,28 @@ const Export = (() => {
     if (isTriadChord(name)) return true;
     const v7 = getDominant7th(key);
     return v7 && name === v7;
+  }
+
+  /**
+   * Split chords into primary (triads + V7) and advanced,
+   * then derive triads from advanced chords and add to primary if missing.
+   * Returns { basicChords, advancedChords } both sorted by scale degree.
+   */
+  function splitChordsWithTriads(chords, key) {
+    const basicSet = new Set(chords.filter(c => isPrimaryChord(c, key)));
+    const advancedList = chords.filter(c => !isPrimaryChord(c, key));
+
+    // Derive triads from advanced chords and add to primary
+    advancedList.forEach(name => {
+      const triad = getTriadFromChord(name);
+      if (triad && !basicSet.has(triad)) {
+        basicSet.add(triad);
+      }
+    });
+
+    const basicChords = sortByScaleDegree([...basicSet], key);
+    const advancedChords = sortByScaleDegree(advancedList, key);
+    return { basicChords, advancedChords };
   }
 
   /**
