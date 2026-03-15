@@ -76,8 +76,59 @@ const MusicXMLParser = (() => {
     return '';
   }
 
+  /**
+   * Parse key name from <words> text like "Original Bm key", "More D key"
+   * Returns key name (e.g. "Bm", "D", "F#m") or null
+   */
+  function parseKeyFromWords(text) {
+    // Match patterns: "Original Bm key", "More D key", "Origin F#m Key", etc.
+    const m = text.match(/(?:Original|Origin|More)\s+([A-G][#b]?m?)\s*[Kk]ey/i);
+    return m ? m[1] : null;
+  }
+
+  /**
+   * Scan <words> elements for annotated key info (Original/More key).
+   * Returns array of key names in order of appearance.
+   */
+  function parseKeysFromWords(doc) {
+    const keys = [];
+    const measures = doc.querySelectorAll('part:first-of-type measure');
+    for (const measure of measures) {
+      const wordEls = measure.querySelectorAll('direction direction-type words');
+      for (const w of wordEls) {
+        const key = parseKeyFromWords(w.textContent.trim());
+        if (key && (keys.length === 0 || keys[keys.length - 1] !== key)) {
+          keys.push(key);
+        }
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * Determine mode from fifths value using annotated key hint.
+   * If the annotated key ends with 'm', it's minor; otherwise major.
+   */
+  function resolveKeyFromFifths(fifthsVal, modeVal, annotatedKey) {
+    if (annotatedKey) {
+      const isMinor = annotatedKey.endsWith('m');
+      return isMinor
+        ? (FIFTHS_TO_MINOR[fifthsVal] || '')
+        : (FIFTHS_TO_MAJOR[fifthsVal] || '');
+    }
+    return modeVal === 'minor'
+      ? (FIFTHS_TO_MINOR[fifthsVal] || '')
+      : (FIFTHS_TO_MAJOR[fifthsVal] || '');
+  }
+
   function parseKey(doc) {
-    // Collect all key changes across measures in order
+    // First, check <words> annotations for explicit key info
+    const annotatedKeys = parseKeysFromWords(doc);
+    if (annotatedKeys.length > 0) {
+      return annotatedKeys.join(' → ');
+    }
+
+    // Fallback: collect key changes from <key> elements across measures
     const measures = doc.querySelectorAll('part:first-of-type measure');
     const keySequence = [];
     let lastKey = '';
