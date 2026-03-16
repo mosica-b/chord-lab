@@ -96,15 +96,17 @@ const SongDB = (() => {
   /**
    * Search songs by query string
    */
+  const PER_PAGE = 7;
+
   async function searchSongs(query, page = 1) {
-    return apiRequest(`${API_BASE}?action=search&q=${encodeURIComponent(query)}&page=${page}`);
+    return apiRequest(`${API_BASE}?action=search&q=${encodeURIComponent(query)}&page=${page}&per_page=${PER_PAGE}`);
   }
 
   /**
    * Get recent songs
    */
   async function recentSongs(page = 1) {
-    return apiRequest(`${API_BASE}?action=recent&page=${page}`);
+    return apiRequest(`${API_BASE}?action=recent&page=${page}&per_page=${PER_PAGE}`);
   }
 
   /**
@@ -150,7 +152,10 @@ const SongDB = (() => {
       return;
     }
 
-    container.innerHTML = data.songs.map(s => {
+    // Limit display to PER_PAGE items (safety fallback if server ignores per_page)
+    const songs = data.songs.slice(0, PER_PAGE);
+
+    container.innerHTML = songs.map(s => {
       const date = (s.updated_at || '').substring(0, 10);
       return `
         <div class="db-result-item" data-id="${s.id}">

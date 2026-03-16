@@ -188,7 +188,7 @@ try {
 /* ── Router ── */
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
-$limit = 10;
+$limit = min(max(1, intval($_GET['per_page'] ?? 7)), 20);
 
 switch ($action) {
 
