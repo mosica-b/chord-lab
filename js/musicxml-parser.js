@@ -63,13 +63,26 @@ const MusicXMLParser = (() => {
     for (const creator of creators) {
       const text = creator.textContent;
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+      // Try exact line-based matching first (standard format)
       for (const line of lines) {
         if (line.startsWith(prefix)) {
-          // Extract name: "Artist 김현식 (Kim Hyun-sik)" → "김현식"
           let value = line.substring(prefix.length).trim();
           // Remove English name in parentheses
           value = value.replace(/\s*\(.*?\)\s*/g, '').trim();
           return value;
+        }
+      }
+
+      // Handle combined "Composer & Lyrics" format (same people for both)
+      // e.g. "Composer & by Lylrics  Names... Artist ArtistName"
+      if (prefix === 'Composed by' || prefix === 'Lyrics by') {
+        const fullText = lines.join(' ');
+        const m = fullText.match(
+          /Compos\w*\s*(?:&|and)\s*(?:by\s+)?Ly\w*ics(?:\s+by)?\s+(.*?)(?=\s+Artist\b|$)/i
+        );
+        if (m) {
+          return m[1].replace(/\s+/g, ' ').replace(/,\s*$/, '').trim();
         }
       }
     }
