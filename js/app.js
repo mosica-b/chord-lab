@@ -53,81 +53,37 @@ const App = (() => {
   }
 
   // =========================================
-  // Meta Accordion (expand/collapse + attention animation)
+  // Meta Accordion (expand/collapse only)
   // =========================================
-  let _metaAttentionTimer = null;
-
   function setupMetaAccordion() {
     const header = document.getElementById('metaHeader');
     const body = document.getElementById('metaBody');
-    const chevron = document.getElementById('metaChevron');
     if (!header || !body) return;
 
-    // Toggle on click
     header.addEventListener('click', () => {
       const isOpen = body.classList.contains('meta-body-open');
+      const chevron = document.getElementById('metaChevron');
       if (isOpen) {
-        collapseMetaBody();
+        body.classList.remove('meta-body-open');
+        body.classList.add('meta-body-closed');
+        if (chevron) chevron.classList.add('chevron-collapsed');
+        header.setAttribute('aria-expanded', 'false');
       } else {
-        expandMetaBody();
+        body.classList.remove('meta-body-closed');
+        body.classList.add('meta-body-open');
+        if (chevron) chevron.classList.remove('chevron-collapsed');
+        header.setAttribute('aria-expanded', 'true');
       }
     });
 
-    // Auto: start expanded → collapse after 1s → pulse every 1.5s
+    // Auto: start expanded → collapse after 1s
     setTimeout(() => {
-      collapseMetaBody();
-      // Start attention animation loop after collapse
-      setTimeout(() => startMetaAttention(), 500);
+      body.classList.remove('meta-body-open');
+      body.classList.add('meta-body-closed');
+      const chevron = document.getElementById('metaChevron');
+      if (chevron) chevron.classList.add('chevron-collapsed');
+      header.setAttribute('aria-expanded', 'false');
     }, 1000);
-  }
-
-  function expandMetaBody() {
-    const body = document.getElementById('metaBody');
-    const chevron = document.getElementById('metaChevron');
-    const header = document.getElementById('metaHeader');
-    if (!body) return;
-    body.classList.remove('meta-body-closed');
-    body.classList.add('meta-body-open');
-    if (chevron) chevron.classList.remove('chevron-collapsed');
-    if (header) header.setAttribute('aria-expanded', 'true');
-    stopMetaAttention();
-  }
-
-  function collapseMetaBody() {
-    const body = document.getElementById('metaBody');
-    const chevron = document.getElementById('metaChevron');
-    const header = document.getElementById('metaHeader');
-    if (!body) return;
-    body.classList.remove('meta-body-open');
-    body.classList.add('meta-body-closed');
-    if (chevron) chevron.classList.add('chevron-collapsed');
-    if (header) header.setAttribute('aria-expanded', 'false');
-  }
-
-  function startMetaAttention() {
-    const section = document.getElementById('songMetaSection');
-    if (!section) return;
-    stopMetaAttention();
-    // Fire once immediately
-    triggerMetaAttention(section);
-    _metaAttentionTimer = setInterval(() => triggerMetaAttention(section), 1500);
-    // Stop after a few cycles (e.g., 5 times = 7.5s total)
-    setTimeout(() => stopMetaAttention(), 7500);
-  }
-
-  function triggerMetaAttention(section) {
-    section.classList.remove('meta-attention');
-    void section.offsetWidth; // reflow to restart animation
-    section.classList.add('meta-attention');
-  }
-
-  function stopMetaAttention() {
-    if (_metaAttentionTimer) {
-      clearInterval(_metaAttentionTimer);
-      _metaAttentionTimer = null;
-    }
-    const section = document.getElementById('songMetaSection');
-    if (section) section.classList.remove('meta-attention');
   }
 
   // =========================================

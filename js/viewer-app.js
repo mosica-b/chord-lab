@@ -87,6 +87,33 @@ const ViewerApp = (() => {
       if (topToggle) topToggle.classList.add('open');
       if (topHint) topHint.textContent = '접기';
     }
+
+    // Start notation attention animation (highlight + shake every 1.5s)
+    startNotationAttention();
+  }
+
+  // =========================================
+  // Notation Accordion Attention Animation
+  // =========================================
+  let _notationAttentionTimer = null;
+
+  function startNotationAttention() {
+    const el = document.getElementById('topAccordion');
+    if (!el || el.classList.contains('hidden')) return;
+    _notationAttentionTimer = setInterval(() => {
+      el.classList.remove('notation-attention');
+      void el.offsetWidth;
+      el.classList.add('notation-attention');
+    }, 1500);
+  }
+
+  function stopNotationAttention() {
+    if (_notationAttentionTimer) {
+      clearInterval(_notationAttentionTimer);
+      _notationAttentionTimer = null;
+    }
+    const el = document.getElementById('topAccordion');
+    if (el) el.classList.remove('notation-attention');
   }
 
   // =========================================
