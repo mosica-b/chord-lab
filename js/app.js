@@ -47,43 +47,7 @@ const App = (() => {
     // Initialize DB UI (save/load buttons)
     if (typeof SongDB !== 'undefined') SongDB.initUI();
 
-    setupMetaAccordion();
-
     console.log('Song & Chord Lab initialized');
-  }
-
-  // =========================================
-  // Meta Accordion (expand/collapse only)
-  // =========================================
-  function setupMetaAccordion() {
-    const header = document.getElementById('metaHeader');
-    const body = document.getElementById('metaBody');
-    if (!header || !body) return;
-
-    header.addEventListener('click', () => {
-      const isOpen = body.classList.contains('meta-body-open');
-      const chevron = document.getElementById('metaChevron');
-      if (isOpen) {
-        body.classList.remove('meta-body-open');
-        body.classList.add('meta-body-closed');
-        if (chevron) chevron.classList.add('chevron-collapsed');
-        header.setAttribute('aria-expanded', 'false');
-      } else {
-        body.classList.remove('meta-body-closed');
-        body.classList.add('meta-body-open');
-        if (chevron) chevron.classList.remove('chevron-collapsed');
-        header.setAttribute('aria-expanded', 'true');
-      }
-    });
-
-    // Auto: start expanded → collapse after 1s
-    setTimeout(() => {
-      body.classList.remove('meta-body-open');
-      body.classList.add('meta-body-closed');
-      const chevron = document.getElementById('metaChevron');
-      if (chevron) chevron.classList.add('chevron-collapsed');
-      header.setAttribute('aria-expanded', 'false');
-    }, 1000);
   }
 
   // =========================================

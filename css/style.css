@@ -367,25 +367,6 @@
 .db-edit-btn { background: #3b82f6; color: white; }
 .db-delete-btn { background: #ef4444; color: white; }
 
-/* Meta accordion */
-#metaBody {
-  overflow: hidden;
-  transition: max-height 0.4s ease, opacity 0.3s ease;
-}
-#metaBody.meta-body-open {
-  max-height: 600px;
-  opacity: 1;
-}
-#metaBody.meta-body-closed {
-  max-height: 0;
-  opacity: 0;
-  margin: 0;
-  padding: 0;
-}
-#metaChevron.chevron-collapsed {
-  transform: rotate(-90deg);
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .notation-tab {

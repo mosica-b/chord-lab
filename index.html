@@ -55,18 +55,15 @@
           <p class="text-xs text-gray-400 mt-1">.xml, .musicxml, .mxl</p>
         </div>
       </div>
-      <div id="metaHeader" class="flex items-center justify-between mb-4 cursor-pointer select-none" role="button" aria-expanded="true" aria-controls="metaBody">
-        <div class="flex items-center gap-2">
-          <svg id="metaChevron" class="w-5 h-5 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          <h2 class="text-lg font-semibold text-gray-700">곡 정보</h2>
-        </div>
-        <div class="flex gap-2" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-700">곡 정보</h2>
+        <div class="flex gap-2">
           <input type="file" id="mxmlFileInput" accept=".xml,.musicxml,.mxl" class="hidden">
           <button id="uploadMxmlBtn" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-600 transition">MusicXML 불러오기</button>
           <button id="resetSongBtn" class="bg-gray-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-500 transition">초기화</button>
         </div>
       </div>
-      <div id="metaBody" class="grid grid-cols-2 md:grid-cols-3 gap-4 meta-body-open">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">곡명</label>
           <input type="text" id="songName" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="곡명을 입력하세요">

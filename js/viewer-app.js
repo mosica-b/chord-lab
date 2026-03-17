@@ -78,7 +78,7 @@ const ViewerApp = (() => {
     setupVoicingModal();
     render();
 
-    // Open accordion by default on initial load
+    // Open accordion by default on initial load, then auto-collapse after 1s
     const topBody = document.getElementById('topAccordionBody');
     const topToggle = document.getElementById('topAccordionToggle');
     const topHint = document.getElementById('topAccordionHint');
@@ -86,10 +86,15 @@ const ViewerApp = (() => {
       topBody.classList.add('open');
       if (topToggle) topToggle.classList.add('open');
       if (topHint) topHint.textContent = '접기';
-    }
 
-    // Start notation attention animation (highlight + shake every 1.5s)
-    startNotationAttention();
+      // Auto-collapse after 1s, then start attention animation
+      setTimeout(() => {
+        topBody.classList.remove('open');
+        if (topToggle) topToggle.classList.remove('open');
+        if (topHint) topHint.textContent = '열기';
+        startNotationAttention();
+      }, 1000);
+    }
   }
 
   // =========================================
