@@ -235,15 +235,34 @@ const MusicXMLParser = (() => {
     return significant.map(c => c.sig).join(' → ');
   }
 
+  const BEAT_UNIT_SYMBOL = {
+    'quarter': '♩', 'eighth': '♪', 'half': '𝅗𝅥',
+    'whole': '𝅝', '16th': '♬', '32nd': '♬',
+  };
+
   function parseTempo(doc) {
-    const metronome = doc.querySelector('metronome');
-    if (metronome) {
-      const perMin = metronome.querySelector('per-minute');
-      if (perMin) return perMin.textContent.trim();
+    const metronomes = doc.querySelectorAll('metronome');
+    if (metronomes.length > 0) {
+      const seen = new Set();
+      const tempos = [];
+      for (const m of metronomes) {
+        const perMin = m.querySelector('per-minute');
+        const beatUnit = m.querySelector('beat-unit');
+        if (!perMin) continue;
+        const bpm = perMin.textContent.trim();
+        const unit = beatUnit ? beatUnit.textContent.trim() : 'quarter';
+        const symbol = BEAT_UNIT_SYMBOL[unit] || '♩';
+        const label = `${symbol}=${bpm}`;
+        if (!seen.has(label)) {
+          seen.add(label);
+          tempos.push(label);
+        }
+      }
+      if (tempos.length > 0) return tempos.join(' / ');
     }
     // Fallback: sound element with tempo attribute
     const sound = doc.querySelector('sound[tempo]');
-    if (sound) return sound.getAttribute('tempo');
+    if (sound) return '♩=' + sound.getAttribute('tempo');
     return '';
   }
 
