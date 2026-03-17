@@ -90,6 +90,17 @@ const MusicXMLParser = (() => {
   }
 
   /**
+   * Append Major/Minor label to a key name.
+   * "D" → "D Maj", "Am" → "Am Min", "F#m" → "F#m Min"
+   */
+  function labelKey(keyName) {
+    if (!keyName) return '';
+    return keyName.endsWith('m')
+      ? keyName + ' (Min)'
+      : keyName + ' (Maj)';
+  }
+
+  /**
    * Parse key name from <words> text like "Original Bm key", "More D key"
    * Returns key name (e.g. "Bm", "D", "F#m") or null
    */
@@ -138,7 +149,7 @@ const MusicXMLParser = (() => {
     // First, check <words> annotations for explicit key info
     const annotatedKeys = parseKeysFromWords(doc);
     if (annotatedKeys.length > 0) {
-      return annotatedKeys.join(' → ');
+      return annotatedKeys.map(labelKey).join(' → ');
     }
 
     // Fallback: collect key changes from <key> elements across measures
@@ -158,7 +169,7 @@ const MusicXMLParser = (() => {
           ? (FIFTHS_TO_MINOR[fifthsVal] || '')
           : (FIFTHS_TO_MAJOR[fifthsVal] || '');
         if (keyName && keyName !== lastKey) {
-          keySequence.push(keyName);
+          keySequence.push(labelKey(keyName));
           lastKey = keyName;
         }
       }
@@ -173,9 +184,10 @@ const MusicXMLParser = (() => {
       const fifthsVal = fifths.textContent.trim();
       const mode = keyEl.querySelector('mode');
       const modeVal = mode ? mode.textContent.trim() : 'major';
-      return modeVal === 'minor'
+      const keyName = modeVal === 'minor'
         ? (FIFTHS_TO_MINOR[fifthsVal] || '')
         : (FIFTHS_TO_MAJOR[fifthsVal] || '');
+      return labelKey(keyName);
     }
 
     // Single key or modulation sequence
