@@ -5,6 +5,41 @@
 const ITunesSearch = (() => {
 
   /**
+   * Extract English name from parenthesized text.
+   * "사랑의 언어 (Love Language)" → "Love Language"
+   * "김민석" → null (no English found)
+   */
+  function extractEnglishName(text) {
+    if (!text) return null;
+    // Try parenthesized English: "한국어 (English)"
+    const m = text.match(/\(([A-Za-z][\w\s.,'&-]*)\)/);
+    if (m) return m[1].trim();
+    // If the whole string is English/romanized, return it
+    if (/^[A-Za-z][\w\s.,'&()-]*$/.test(text.trim())) return text.trim();
+    return null;
+  }
+
+  /**
+   * Romanize Korean surname (first character) for LRCLIB search.
+   * "김민석" → "Kim", "이하이" → "Lee", "박효신" → "Park"
+   */
+  const SURNAME_MAP = {
+    '김':'Kim','이':'Lee','박':'Park','최':'Choi','정':'Jung','강':'Kang',
+    '조':'Cho','윤':'Yoon','장':'Jang','임':'Lim','한':'Han','오':'Oh',
+    '서':'Seo','신':'Shin','권':'Kwon','황':'Hwang','안':'Ahn','송':'Song',
+    '류':'Ryu','전':'Jeon','홍':'Hong','고':'Ko','문':'Moon','양':'Yang',
+    '손':'Son','배':'Bae','백':'Baek','허':'Heo','유':'Yoo','남':'Nam',
+    '심':'Shim','노':'Noh','하':'Ha','곽':'Kwak','성':'Sung','차':'Cha',
+    '주':'Joo','우':'Woo','민':'Min','변':'Byun','나':'Na','엄':'Um',
+    '구':'Koo','천':'Chun','방':'Bang','공':'Kong','탁':'Tak',
+  };
+  function romanizeSurname(name) {
+    if (!name) return null;
+    const first = name.charAt(0);
+    return SURNAME_MAP[first] || null;
+  }
+
+  /**
    * Search for album info using song name and artist
    * @param {string} songName
    * @param {string} artist
@@ -34,7 +69,7 @@ const ITunesSearch = (() => {
         }
       }
 
-      return {
+      const result = {
         albumName: best.collectionName || '',
         artworkUrl: best.artworkUrl100 || '',
         releaseDate: best.releaseDate ? best.releaseDate.substring(0, 10) : '',
@@ -43,6 +78,12 @@ const ITunesSearch = (() => {
         trackName: best.trackName || '',
         artistName: best.artistName || '',
       };
+
+      // Extract English name from parentheses: "사랑의 언어 (Love Language)" → "Love Language"
+      result.trackNameEN = extractEnglishName(result.trackName);
+      result.artistNameEN = extractEnglishName(result.artistName);
+
+      return result;
     } catch (e) {
       console.warn('iTunes search failed:', e);
       return null;
@@ -153,17 +194,21 @@ const ITunesSearch = (() => {
     if (!songName) return null;
 
     // Build query list with various song/artist combinations
-    const queries = [`${songName} ${artist || ''}`.trim()];
+    const seen = new Set();
+    const queries = [];
+    const addQ = (q) => { const t = q.trim(); if (t && !seen.has(t)) { seen.add(t); queries.push(t); } };
+    addQ(`${songName} ${artist || ''}`);
     if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
-      queries.push(`${altSongName} ${artist || ''}`.trim());
-      // Try alt song name with alt artist (both English)
+      addQ(`${altSongName} ${artist || ''}`);
       if (altArtist && altArtist.toLowerCase() !== (artist || '').toLowerCase()) {
-        queries.push(`${altSongName} ${altArtist}`.trim());
+        addQ(`${altSongName} ${altArtist}`);
       }
+      // Try English song name + romanized Korean surname
+      const surname = romanizeSurname(artist);
+      if (surname) addQ(`${altSongName} ${surname}`);
     }
-    // Try original song name with alt artist
     if (altArtist && altArtist.toLowerCase() !== (artist || '').toLowerCase()) {
-      queries.push(`${songName} ${altArtist}`.trim());
+      addQ(`${songName} ${altArtist}`);
     }
 
     for (const query of queries) {

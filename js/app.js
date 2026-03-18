@@ -125,8 +125,8 @@ const App = (() => {
       }
 
       // Step 2: Genius search with English trackName as alternate query
-      const altSongName = album?.trackName || null;
-      const altArtist = album?.artistName || null;
+      const altSongName = album?.trackNameEN || album?.trackName || null;
+      const altArtist = album?.artistNameEN || album?.artistName || null;
       const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName);
       if (geniusUrl) {
         state.metadata.geniusUrl = geniusUrl;
@@ -211,8 +211,8 @@ const App = (() => {
           }
           if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
         }
-        const altName = album?.trackName || null;
-        const altArtistName = album?.artistName || null;
+        const altName = album?.trackNameEN || album?.trackName || null;
+        const altArtistName = album?.artistNameEN || album?.artistName || null;
         const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
         if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
         saveState();
@@ -335,8 +335,8 @@ const App = (() => {
             document.getElementById('albumName').value = album.albumName;
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
           }
-          const altName = album?.trackName || null;
-          const altArtistName2 = album?.artistName || null;
+          const altName = album?.trackNameEN || album?.trackName || null;
+          const altArtistName2 = album?.artistNameEN || album?.artistName || null;
           const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altName);
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
