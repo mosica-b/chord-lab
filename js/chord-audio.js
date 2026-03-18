@@ -6,6 +6,42 @@ const ChordAudio = (() => {
   let audioCtx = null;
   let isPlaying = false;
   let currentInstrument = 'piano';
+  let muteWarningShown = false;
+
+  // Detect iOS device (iPhone/iPad)
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  // Show iOS silent mode warning toast (once per session)
+  function showMuteWarning() {
+    if (muteWarningShown || !isIOS()) return;
+    muteWarningShown = true;
+
+    const toast = document.createElement('div');
+    toast.id = 'ios-mute-toast';
+    toast.innerHTML = '🔇 소리가 안 들리나요?<br><b>무음 모드(매너 모드)를 해제</b>해 주세요';
+    Object.assign(toast.style, {
+      position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(0,0,0,0.85)', color: '#fff', padding: '12px 20px',
+      borderRadius: '12px', fontSize: '14px', lineHeight: '1.5',
+      textAlign: 'center', zIndex: '99999', maxWidth: '320px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      opacity: '0', transition: 'opacity 0.3s ease',
+    });
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+    // Auto-dismiss after 4 seconds, or tap to dismiss
+    const dismiss = () => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    };
+    toast.addEventListener('click', dismiss);
+    setTimeout(dismiss, 4000);
+  }
 
   const NOTE_FREQ = {
     'C': 261.63, 'C#': 277.18, 'D': 293.66, 'D#': 311.13,
@@ -262,6 +298,9 @@ const ChordAudio = (() => {
   function playChord(chordName, duration = 1.5, instrument) {
     const inst = instrument || currentInstrument;
     console.log('Playing chord:', chordName, 'instrument:', inst);
+
+    // Show iOS silent mode reminder on first play
+    showMuteWarning();
 
     return new Promise((resolve) => {
       const ctx = getAudioContext();
