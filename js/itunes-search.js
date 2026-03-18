@@ -149,13 +149,21 @@ const ITunesSearch = (() => {
    * @param {number} [maxLines=4] - Max lines to return
    * @returns {Promise<string|null>} First few lines or null on failure
    */
-  async function fetchLyricsIntro(songName, artist, altSongName, maxLines = 2) {
+  async function fetchLyricsIntro(songName, artist, altSongName, maxLines = 2, altArtist) {
     if (!songName) return null;
 
-    // Build query list: original, then alternate
+    // Build query list with various song/artist combinations
     const queries = [`${songName} ${artist || ''}`.trim()];
     if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
       queries.push(`${altSongName} ${artist || ''}`.trim());
+      // Try alt song name with alt artist (both English)
+      if (altArtist && altArtist.toLowerCase() !== (artist || '').toLowerCase()) {
+        queries.push(`${altSongName} ${altArtist}`.trim());
+      }
+    }
+    // Try original song name with alt artist
+    if (altArtist && altArtist.toLowerCase() !== (artist || '').toLowerCase()) {
+      queries.push(`${songName} ${altArtist}`.trim());
     }
 
     for (const query of queries) {
@@ -170,22 +178,25 @@ const ITunesSearch = (() => {
         if (!results || results.length === 0) continue;
 
         // Find best match with plainLyrics
-        const songLower = (songName || '').toLowerCase();
-        const artistLower = (artist || '').toLowerCase();
+        const songNames = [songName, altSongName].filter(Boolean).map(s => s.toLowerCase());
+        const artistNames = [artist, altArtist].filter(Boolean).map(s => s.toLowerCase());
         let best = null;
 
-        // Pass 1: match both track name and artist
+        // Pass 1: match both track name and artist (any combination)
         for (const r of results) {
           if (!r.plainLyrics) continue;
           const tn = (r.trackName || '').toLowerCase();
           const an = (r.artistName || '').toLowerCase();
-          if (tn.includes(songLower) && an.includes(artistLower)) { best = r; break; }
+          const trackMatch = songNames.some(s => tn.includes(s));
+          const artistMatch = artistNames.some(a => an.includes(a));
+          if (trackMatch && artistMatch) { best = r; break; }
         }
         // Pass 2: match track name only
         if (!best) {
           for (const r of results) {
             if (!r.plainLyrics) continue;
-            if ((r.trackName || '').toLowerCase().includes(songLower)) { best = r; break; }
+            const tn = (r.trackName || '').toLowerCase();
+            if (songNames.some(s => tn.includes(s))) { best = r; break; }
           }
         }
         // Pass 3: first result with lyrics

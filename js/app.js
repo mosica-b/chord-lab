@@ -126,6 +126,7 @@ const App = (() => {
 
       // Step 2: Genius search with English trackName as alternate query
       const altSongName = album?.trackName || null;
+      const altArtist = album?.artistName || null;
       const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName);
       if (geniusUrl) {
         state.metadata.geniusUrl = geniusUrl;
@@ -140,7 +141,7 @@ const App = (() => {
       // Step 3: Auto-fetch lyrics intro via LRCLIB (non-blocking)
       // Skip if user has manually typed lyrics
       if (!state.metadata.lyricsIntro || _autoLyrics) {
-        ITunesSearch.fetchLyricsIntro(songName, artist, altSongName).then(intro => {
+        ITunesSearch.fetchLyricsIntro(songName, artist, altSongName, 2, altArtist).then(intro => {
           if (intro) {
             state.metadata.lyricsIntro = intro;
             _autoLyrics = true;
@@ -211,6 +212,7 @@ const App = (() => {
           if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
         }
         const altName = album?.trackName || null;
+        const altArtistName = album?.artistName || null;
         const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
         if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
         saveState();
@@ -218,7 +220,7 @@ const App = (() => {
 
         // Auto-fetch lyrics intro via LRCLIB
         if (!state.metadata.lyricsIntro || _autoLyrics) {
-          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName).then(intro => {
+          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
             if (intro) {
               state.metadata.lyricsIntro = intro;
               _autoLyrics = true;
@@ -334,6 +336,7 @@ const App = (() => {
             if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
           }
           const altName = album?.trackName || null;
+          const altArtistName2 = album?.artistName || null;
           const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altName);
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
@@ -341,7 +344,7 @@ const App = (() => {
 
           // Auto-fetch lyrics intro via LRCLIB
           if (!state.metadata.lyricsIntro || _autoLyrics) {
-            ITunesSearch.fetchLyricsIntro(songName, artist, altName).then(intro => {
+            ITunesSearch.fetchLyricsIntro(songName, artist, altName, 2, altArtistName2).then(intro => {
               if (intro) {
                 state.metadata.lyricsIntro = intro;
                 _autoLyrics = true;
