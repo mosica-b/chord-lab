@@ -193,24 +193,11 @@ const SongDB = (() => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
-        const item = btn.closest('.db-result-item');
         try {
           btn.textContent = '...';
           const songData = await loadSong(id);
-          App.loadFromDB(songData);
+          App.loadFromDB(songData, true);
           document.getElementById('dbLoadModal').classList.add('hidden');
-          // Brief visual hint that song is loaded for editing
-          const saveBtn = document.getElementById('saveToDbBtn');
-          if (saveBtn) {
-            saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-            saveBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
-            saveBtn.textContent = '수정 저장';
-            setTimeout(() => {
-              saveBtn.textContent = 'DB 저장';
-              saveBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-              saveBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
-            }, 3000);
-          }
         } catch (err) {
           alert('불러오기 실패: ' + err.message);
           btn.textContent = '수정';
@@ -403,16 +390,15 @@ const SongDB = (() => {
       try {
         await saveSong(App.state);
         saveBtn.textContent = '저장됨!';
-        saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'bg-amber-500', 'hover:bg-amber-600');
         saveBtn.classList.add('bg-green-500');
+        App.clearEditingFlag();
         setTimeout(() => {
-          saveBtn.textContent = origText;
-          saveBtn.classList.remove('bg-green-500');
-          saveBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+          App.updateSaveBtnState();
         }, 1500);
       } catch (err) {
         alert('저장 실패: ' + err.message);
-        saveBtn.textContent = origText;
+        App.updateSaveBtnState();
       } finally {
         saveBtn.disabled = false;
       }

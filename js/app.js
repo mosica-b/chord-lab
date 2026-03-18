@@ -22,6 +22,7 @@ const App = (() => {
   // All chord names for search
   let allChordNames = [];
   let highlightIndex = -1;
+  let _editingFromDB = false;
 
   /**
    * Initialize the application
@@ -303,6 +304,8 @@ const App = (() => {
         // Clear metadata
         state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
+        _editingFromDB = false;
+        updateSaveBtnState();
 
         // Clear form fields
         ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'capoPosition'].forEach(id => {
@@ -908,7 +911,8 @@ const App = (() => {
   /**
    * Load song data from DB into the app
    */
-  function loadFromDB(songData) {
+  function loadFromDB(songData, editing = false) {
+    _editingFromDB = editing;
     Object.assign(state.metadata, songData.metadata);
     state.selectedChords = songData.selectedChords || [];
     state.capoPosition = songData.capoPosition || 0;
@@ -939,8 +943,27 @@ const App = (() => {
     renderSelectedChords();
     saveState();
     updateAll();
+    updateSaveBtnState();
+  }
+
+  function updateSaveBtnState() {
+    const saveBtn = document.getElementById('saveToDbBtn');
+    if (!saveBtn) return;
+    saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'bg-amber-500', 'hover:bg-amber-600', 'bg-green-500');
+    if (_editingFromDB) {
+      saveBtn.textContent = '수정 저장';
+      saveBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+    } else {
+      saveBtn.textContent = 'DB 저장';
+      saveBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+    }
+  }
+
+  function clearEditingFlag() {
+    _editingFromDB = false;
+    updateSaveBtnState();
   }
 
   // Initialization is now called by auth.js after login
-  return { init, state, addChord, removeChord, loadFromDB };
+  return { init, state, addChord, removeChord, loadFromDB, clearEditingFlag, updateSaveBtnState };
 })();
