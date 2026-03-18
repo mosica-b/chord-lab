@@ -268,47 +268,70 @@ const SibeliusPDFParser = (() => {
     return { korean: titleCandidate, english: '' };
   }
 
-  // Extract time signature from Sibelius notation font glyphs (OpusStd)
-  // Time signatures are rendered as music notation symbols, not text.
-  // e.g. 'c' in OpusStd = common time (4/4), stacked digits = numeric time sig
+  // Extract time signatures from Sibelius notation font glyphs (OpusStd)
+  // Supports multiple time signature changes (e.g. "4/4 → 3/4")
   function extractTimeSignature(allItems, chordFontRefs) {
-    const page1 = allItems.filter(i => i.page === 1);
-
-    // Find potential notation font items:
-    // - Not chord font, not metadata font
-    // - Height >= 14 (notation-sized, larger than text/lyrics ~10-12)
-    // - Single character (notation glyphs are individual items)
-    const notationItems = page1.filter(i =>
+    // Find notation font items across ALL pages
+    const notationItems = allItems.filter(i =>
       !chordFontRefs.has(i.fontName) &&
       !i.isMetaFont &&
       i.height >= 14 &&
       i.str.trim().length === 1
     );
 
-    // Common time: lowercase 'c' in Opus notation font = 4/4
+    // Collect all time signature occurrences with position info
+    const timeSigs = []; // { sig, page, x, y }
+
+    // 1) Common time 'c' = 4/4, Cut time 'v' = 2/2
     for (const item of notationItems) {
       const ch = item.str.trim();
-      if (ch === 'c') return '4/4';
-      // Cut time (alla breve): 'v' in Opus font = 2/2
-      if (ch === 'v') return '2/2';
+      if (ch === 'c') {
+        timeSigs.push({ sig: '4/4', page: item.page, x: item.x, y: item.y });
+      } else if (ch === 'v') {
+        timeSigs.push({ sig: '2/2', page: item.page, x: item.x, y: item.y });
+      }
     }
 
-    // Numeric time signatures: stacked digit glyphs at same X position
+    // 2) Numeric time signatures: stacked digit pairs at same X (within 3px)
     const digitItems = notationItems.filter(i => /^[0-9]$/.test(i.str.trim()));
-    if (digitItems.length >= 2) {
-      for (let a = 0; a < digitItems.length; a++) {
-        for (let b = a + 1; b < digitItems.length; b++) {
-          if (Math.abs(digitItems[a].x - digitItems[b].x) < 3) {
-            // Higher Y = higher on page = numerator (PDF coords)
-            const top = digitItems[a].y > digitItems[b].y ? digitItems[a] : digitItems[b];
-            const bot = digitItems[a].y > digitItems[b].y ? digitItems[b] : digitItems[a];
-            return `${top.str.trim()}/${bot.str.trim()}`;
-          }
+    const usedDigits = new Set();
+    for (let a = 0; a < digitItems.length; a++) {
+      if (usedDigits.has(a)) continue;
+      for (let b = a + 1; b < digitItems.length; b++) {
+        if (usedDigits.has(b)) continue;
+        if (digitItems[a].page !== digitItems[b].page) continue;
+        if (Math.abs(digitItems[a].x - digitItems[b].x) < 3) {
+          const top = digitItems[a].y > digitItems[b].y ? digitItems[a] : digitItems[b];
+          const bot = digitItems[a].y > digitItems[b].y ? digitItems[b] : digitItems[a];
+          timeSigs.push({
+            sig: `${top.str.trim()}/${bot.str.trim()}`,
+            page: top.page, x: top.x, y: top.y,
+          });
+          usedDigits.add(a);
+          usedDigits.add(b);
+          break;
         }
       }
     }
 
-    return '';
+    if (timeSigs.length === 0) return '';
+
+    // Sort by position: page first, then Y descending (top of page), then X ascending
+    timeSigs.sort((a, b) => {
+      if (a.page !== b.page) return a.page - b.page;
+      if (Math.abs(a.y - b.y) > 20) return b.y - a.y;
+      return a.x - b.x;
+    });
+
+    // Deduplicate consecutive same signatures
+    const unique = [timeSigs[0].sig];
+    for (let i = 1; i < timeSigs.length; i++) {
+      if (timeSigs[i].sig !== unique[unique.length - 1]) {
+        unique.push(timeSigs[i].sig);
+      }
+    }
+
+    return unique.join(' → ');
   }
 
   // Main parse function
