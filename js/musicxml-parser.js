@@ -68,8 +68,6 @@ const MusicXMLParser = (() => {
       for (const line of lines) {
         if (line.startsWith(prefix)) {
           let value = line.substring(prefix.length).trim();
-          // Remove English name in parentheses
-          value = value.replace(/\s*\(.*?\)\s*/g, '').trim();
           return value;
         }
       }
