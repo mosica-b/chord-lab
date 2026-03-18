@@ -319,7 +319,7 @@ const Export = (() => {
         return section;
       }
 
-      const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' ');
+      const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' - ');
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
         preview.appendChild(buildChordTable(songLabel, '주요 코드', basicChords, false, 'primary-chords'));
@@ -679,7 +679,7 @@ const Export = (() => {
       }
 
       // Primary chords (label part editable via override)
-      const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' ');
+      const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' - ');
       if (basicChords.length > 0) {
         const primaryLabel = overrides['primary-chords'] || '주요 코드';
         html += `<blockquote style="margin:0;">${naverSongLabel} ${primaryLabel}`;
