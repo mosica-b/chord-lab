@@ -268,6 +268,49 @@ const SibeliusPDFParser = (() => {
     return { korean: titleCandidate, english: '' };
   }
 
+  // Extract time signature from Sibelius notation font glyphs (OpusStd)
+  // Time signatures are rendered as music notation symbols, not text.
+  // e.g. 'c' in OpusStd = common time (4/4), stacked digits = numeric time sig
+  function extractTimeSignature(allItems, chordFontRefs) {
+    const page1 = allItems.filter(i => i.page === 1);
+
+    // Find potential notation font items:
+    // - Not chord font, not metadata font
+    // - Height >= 14 (notation-sized, larger than text/lyrics ~10-12)
+    // - Single character (notation glyphs are individual items)
+    const notationItems = page1.filter(i =>
+      !chordFontRefs.has(i.fontName) &&
+      !i.isMetaFont &&
+      i.height >= 14 &&
+      i.str.trim().length === 1
+    );
+
+    // Common time: lowercase 'c' in Opus notation font = 4/4
+    for (const item of notationItems) {
+      const ch = item.str.trim();
+      if (ch === 'c') return '4/4';
+      // Cut time (alla breve): 'v' in Opus font = 2/2
+      if (ch === 'v') return '2/2';
+    }
+
+    // Numeric time signatures: stacked digit glyphs at same X position
+    const digitItems = notationItems.filter(i => /^[0-9]$/.test(i.str.trim()));
+    if (digitItems.length >= 2) {
+      for (let a = 0; a < digitItems.length; a++) {
+        for (let b = a + 1; b < digitItems.length; b++) {
+          if (Math.abs(digitItems[a].x - digitItems[b].x) < 3) {
+            // Higher Y = higher on page = numerator (PDF coords)
+            const top = digitItems[a].y > digitItems[b].y ? digitItems[a] : digitItems[b];
+            const bot = digitItems[a].y > digitItems[b].y ? digitItems[b] : digitItems[a];
+            return `${top.str.trim()}/${bot.str.trim()}`;
+          }
+        }
+      }
+    }
+
+    return '';
+  }
+
   // Main parse function
   async function parse(arrayBuffer) {
     if (typeof pdfjsLib === 'undefined') {
@@ -354,6 +397,11 @@ const SibeliusPDFParser = (() => {
     if (meta.key) result.key = meta.key;
     if (meta.tempo) result.tempo = meta.tempo;
     if (meta.timeSignature) result.timeSignature = meta.timeSignature;
+
+    // Fallback: extract time signature from notation font glyphs
+    if (!result.timeSignature) {
+      result.timeSignature = extractTimeSignature(allItems, chordFontRefs);
+    }
 
     // --- Extract title ---
     const title = extractTitle(allItems);
