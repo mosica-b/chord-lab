@@ -51,20 +51,32 @@ const ChordAudio = (() => {
     'G#': 415.30, 'A': 440.00, 'A#': 466.16, 'B': 493.88,
   };
 
-  function getAudioContext() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function createAudioContext() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // iOS: attempt resume when returning from lock screen / background
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+    });
+  }
 
-      // iOS: resume AudioContext when returning from lock screen / background
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-      });
-    }
-    // Always try to resume if suspended (e.g. after iOS screen lock)
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+  // Ensure AudioContext is running (handles iOS suspend/interrupt after screen lock)
+  async function getAudioContext() {
+    if (!audioCtx) createAudioContext();
+
+    // iOS: 'suspended' (normal pause) or 'interrupted' (hardware interrupt)
+    if (audioCtx.state !== 'running') {
+      try {
+        await audioCtx.resume();
+      } catch (e) { /* ignore */ }
+
+      // If still not running, recreate (iOS interrupted state can't resume)
+      if (audioCtx.state !== 'running') {
+        try { audioCtx.close(); } catch (e) { /* ignore */ }
+        createAudioContext();
+        await audioCtx.resume().catch(() => {});
+      }
     }
     return audioCtx;
   }
@@ -308,15 +320,17 @@ const ChordAudio = (() => {
   // =========================================
   // Chord playback
   // =========================================
-  function playChord(chordName, duration = 1.5, instrument) {
+  async function playChord(chordName, duration = 1.5, instrument) {
     const inst = instrument || currentInstrument;
     console.log('Playing chord:', chordName, 'instrument:', inst);
 
     // Show iOS silent mode reminder on first play
     showMuteWarning();
 
+    // Await AudioContext ready (handles iOS resume after screen lock)
+    const ctx = await getAudioContext();
+
     return new Promise((resolve) => {
-      const ctx = getAudioContext();
       const notes = MusicTheory.getChordNotes(chordName);
       if (notes.length === 0) { resolve(); return; }
 
