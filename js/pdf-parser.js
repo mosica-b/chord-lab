@@ -118,6 +118,10 @@ const SibeliusPDFParser = (() => {
     return text
       .replace(/\s+/g, ' ')           // collapse multiple spaces
       .replace(/([가-힣])\s+([가-힣])/g, '$1$2')  // remove spaces between Korean chars
+      .replace(/([A-Za-z])\s+(\d)/g, '$1$2')      // "J1 4" → "J14" (letter+digit)
+      .replace(/(\d)\s+(\d)/g, '$1$2')             // "1 53" → "153" (digit+digit)
+      .replace(/([가-힣])\s+(\d)/g, '$1$2')        // "1 0 월" fix: digit before Korean
+      .replace(/(\d)\s+([가-힣])/g, '$1$2')        // "10 월" → "10월"
       .replace(/\(\s+/g, '(')         // "( " → "("
       .replace(/\s+\)/g, ')')         // " )" → ")"
       .replace(/\s+,/g, ',')          // " ," → ","
@@ -139,31 +143,62 @@ const SibeliusPDFParser = (() => {
     };
 
     // Helper: collect all items on the same Y line (within threshold)
+    // Uses larger threshold (5px) to catch items in different fonts at same visual line
     function getLineText(targetY) {
-      const sameY = items.filter(i => Math.abs(i.y - targetY) < 3);
+      const sameY = items.filter(i => Math.abs(i.y - targetY) < 5);
       sameY.sort((a, b) => a.x - b.x);
       return sameY.map(i => i.str).join(' ');
+    }
+
+    // Helper: collect text spanning multiple lines starting from targetY
+    // Sibelius metadata can wrap across lines (e.g. long Lyrics by credits)
+    // PDF Y is bottom-up: higher Y = higher on page. Going DOWN = decreasing Y.
+    function getMultiLineText(targetY, label) {
+      // Find the starting line containing the label
+      const startLine = getLineText(targetY);
+      const labelMatch = startLine.match(new RegExp(label + '\\s+(.+)', 'i'));
+      if (!labelMatch) return '';
+
+      let result = labelMatch[1].trim();
+
+      // Check subsequent lines (decreasing Y = lower on page in PDF coords)
+      const nextYs = [...new Set(items.map(i => i.y))]
+        .filter(y => y < targetY - 3)
+        .sort((a, b) => b - a); // descending Y = going down the page
+
+      for (const nextY of nextYs) {
+        // Stop if Y gap is too large (> 30px = new section)
+        if (targetY - nextY > 30) break;
+
+        const lineText = getLineText(nextY);
+        // Stop if next line starts with a known label or tempo marking
+        if (/^(Composed|Lyrics|Artist|Original)\s/i.test(lineText.trim())) break;
+        if (/[q♩]\s*=\s*\d+/.test(lineText.trim())) break;
+        // Stop if line is empty or too short
+        if (!lineText.trim() || lineText.trim().length < 2) break;
+
+        result += ' ' + lineText.trim();
+        targetY = nextY;
+      }
+
+      return result;
     }
 
     for (const item of items) {
       const s = item.str.trim();
 
-      // "Composed by ..." → collect full line
-      if (/^Composed\s+by$/i.test(s)) {
-        const line = getLineText(item.y);
-        const match = line.match(/Composed\s+by\s+(.+)/i);
-        if (match) meta.composer = match[1].trim();
+      // "Composed by ..." → supports multi-line continuation
+      if (/^Composed\s+by/i.test(s) && !meta.composer) {
+        meta.composer = getMultiLineText(item.y, 'Composed\\s+by');
       }
 
-      // "Lyrics by ..." → collect full line
-      if (/^Lyrics\s+by$/i.test(s)) {
-        const line = getLineText(item.y);
-        const match = line.match(/Lyrics\s+by\s+(.+)/i);
-        if (match) meta.lyricist = match[1].trim();
+      // "Lyrics by ..." → supports multi-line continuation
+      if (/^Lyrics\s+by/i.test(s) && !meta.lyricist) {
+        meta.lyricist = getMultiLineText(item.y, 'Lyrics\\s+by');
       }
 
-      // "Artist ..." → collect full line
-      if (/^Artist$/i.test(s)) {
+      // "Artist ..." → collect full line (with items from other fonts)
+      if (/^Artist/i.test(s) && !meta.artist) {
         const line = getLineText(item.y);
         const match = line.match(/Artist\s+(.+)/i);
         if (match) meta.artist = match[1].trim();
@@ -175,10 +210,12 @@ const SibeliusPDFParser = (() => {
         meta.key = keyMatch[1].replace(/\s+/g, '').trim();
       }
 
-      // Tempo: "q = 120" or "♩ = 120"
-      const tempoMatch = s.match(/[q♩]\s*=\s*(\d+)/);
-      if (tempoMatch) {
-        meta.tempo = '♩=' + tempoMatch[1];
+      // Tempo: "q = 120" or "♩ = 120" (first occurrence only for meta)
+      if (!meta.tempo) {
+        const tempoMatch = s.match(/[q♩]\s*=\s*(\d+)/);
+        if (tempoMatch) {
+          meta.tempo = '♩=' + tempoMatch[1];
+        }
       }
     }
 
@@ -266,6 +303,44 @@ const SibeliusPDFParser = (() => {
     }
 
     return { korean: titleCandidate, english: '' };
+  }
+
+  // Extract tempo markings from all pages, detecting changes (e.g. "♩=80 → ♩=160")
+  function extractTempo(allItems, chordFontRefs) {
+    const tempoItems = [];
+
+    for (const item of allItems) {
+      if (chordFontRefs.has(item.fontName)) continue;
+      const m = item.str.match(/[q♩]\s*=\s*(\d+)/);
+      if (m) {
+        tempoItems.push({
+          bpm: m[1],
+          page: item.page,
+          x: item.x,
+          y: item.y,
+        });
+      }
+    }
+
+    if (tempoItems.length === 0) return '';
+
+    // Sort by position: page, then Y descending (top first), then X
+    tempoItems.sort((a, b) => {
+      if (a.page !== b.page) return a.page - b.page;
+      if (Math.abs(a.y - b.y) > 20) return b.y - a.y;
+      return a.x - b.x;
+    });
+
+    // Deduplicate consecutive same BPM values
+    const unique = ['♩=' + tempoItems[0].bpm];
+    for (let i = 1; i < tempoItems.length; i++) {
+      const label = '♩=' + tempoItems[i].bpm;
+      if (label !== unique[unique.length - 1]) {
+        unique.push(label);
+      }
+    }
+
+    return unique.join(' → ');
   }
 
   // Extract time signatures from Sibelius notation font glyphs (OpusStd)
@@ -418,8 +493,10 @@ const SibeliusPDFParser = (() => {
     if (meta.lyricist) result.lyricist = cleanExtractedText(meta.lyricist);
     if (meta.artist) result.artist = cleanExtractedText(meta.artist);
     if (meta.key) result.key = meta.key;
-    if (meta.tempo) result.tempo = meta.tempo;
     if (meta.timeSignature) result.timeSignature = meta.timeSignature;
+
+    // --- Extract tempo (all pages, detect changes) ---
+    result.tempo = extractTempo(allItems, chordFontRefs);
 
     // Fallback: extract time signature from notation font glyphs
     if (!result.timeSignature) {
