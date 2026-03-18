@@ -159,8 +159,102 @@ const App = (() => {
   }
 
   // =========================================
-  // MusicXML Upload
+  // MusicXML / PDF Upload
   // =========================================
+  async function processUploadedFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'pdf') {
+      await processPDFFile(file);
+    } else {
+      await processMusicXMLFile(file);
+    }
+  }
+
+  async function processPDFFile(file) {
+    const btn = document.getElementById('uploadMxmlBtn');
+    try {
+      if (btn) { btn.textContent = '불러오는 중...'; btn.disabled = true; }
+
+      if (typeof pdfjsLib === 'undefined') {
+        alert('PDF.js 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await SibeliusPDFParser.parse(arrayBuffer);
+
+      // Fill metadata (same flow as MusicXML)
+      if (result.songName) { state.metadata.songName = result.songName; document.getElementById('songName').value = result.songName; }
+      if (result.artist) { state.metadata.artist = result.artist; document.getElementById('artist').value = result.artist; }
+      if (result.composer) { state.metadata.composer = result.composer; document.getElementById('composer').value = result.composer; }
+      if (result.lyricist) { state.metadata.lyricist = result.lyricist; document.getElementById('lyricist').value = result.lyricist; }
+      if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
+      if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
+      if (result.key) {
+        state.metadata.key = result.key;
+        const keySelect = document.getElementById('songKey');
+        if (!keySelect.querySelector(`option[value="${result.key}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = result.key;
+          opt.textContent = result.key;
+          keySelect.appendChild(opt);
+        }
+        keySelect.value = result.key;
+      }
+
+      // Add chords
+      if (result.chords.length > 0) {
+        state.selectedChords = [];
+        result.chords.forEach(name => {
+          if (!state.selectedChords.includes(name)) {
+            state.selectedChords.push(name);
+          }
+        });
+        renderSelectedChords();
+      }
+
+      saveState();
+      updateAll();
+
+      // Search album via iTunes + Genius lyrics
+      if (result.songName || result.artist) {
+        const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
+        if (album) {
+          if (album.albumName && !state.metadata.albumName) {
+            state.metadata.albumName = album.albumName;
+            document.getElementById('albumName').value = album.albumName;
+          }
+          if (album.trackViewUrl) state.metadata.appleMusicUrl = album.trackViewUrl;
+        }
+        const altName = album?.trackNameEN || album?.trackName || null;
+        const altArtistName = album?.artistNameEN || album?.artistName || null;
+        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
+        if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
+        saveState();
+        updatePreview();
+
+        // Auto-fetch lyrics intro via LRCLIB
+        if (!state.metadata.lyricsIntro || _autoLyrics) {
+          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
+            if (intro) {
+              state.metadata.lyricsIntro = intro;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = intro;
+              saveState();
+              updatePreview();
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('PDF parse failed:', err);
+      alert('PDF 파일을 읽지 못했습니다: ' + err.message);
+    } finally {
+      if (btn) { btn.textContent = '악보 불러오기'; btn.disabled = false; }
+    }
+  }
+
   async function processMusicXMLFile(file) {
     const btn = document.getElementById('uploadMxmlBtn');
     try {
@@ -237,7 +331,7 @@ const App = (() => {
       console.error('MusicXML parse failed:', err);
       alert('MusicXML 파일을 읽지 못했습니다.');
     } finally {
-      if (btn) { btn.textContent = 'MusicXML 불러오기'; btn.disabled = false; }
+      if (btn) { btn.textContent = '악보 불러오기'; btn.disabled = false; }
     }
   }
 
@@ -250,7 +344,7 @@ const App = (() => {
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      await processMusicXMLFile(file);
+      await processUploadedFile(file);
       input.value = '';
     });
 
@@ -289,12 +383,12 @@ const App = (() => {
       if (!file) return;
 
       const ext = file.name.toLowerCase();
-      if (!ext.endsWith('.xml') && !ext.endsWith('.musicxml') && !ext.endsWith('.mxl')) {
-        alert('MusicXML 파일(.xml, .musicxml, .mxl)만 지원합니다.');
+      if (!ext.endsWith('.xml') && !ext.endsWith('.musicxml') && !ext.endsWith('.mxl') && !ext.endsWith('.pdf')) {
+        alert('악보 파일(.xml, .musicxml, .mxl, .pdf)만 지원합니다.');
         return;
       }
 
-      await processMusicXMLFile(file);
+      await processUploadedFile(file);
     });
 
     // Reset song button

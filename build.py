@@ -27,6 +27,7 @@ JS_FILES = [
     'js/chord-db.js',
     'js/renderers.js',
     'js/musicxml-parser.js',
+    'js/pdf-parser.js',
     'js/itunes-search.js',
     'js/export.js',
     'js/db.js',

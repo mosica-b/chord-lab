@@ -8,6 +8,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -51,15 +53,15 @@
       <div id="mxmlDropOverlay" class="hidden absolute inset-0 z-10 rounded-lg bg-blue-500/10 border-2 border-dashed border-blue-400 flex items-center justify-center pointer-events-none">
         <div class="bg-white/90 rounded-xl px-6 py-4 shadow text-center">
           <svg class="mx-auto mb-2 w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          <p class="text-sm font-semibold text-blue-600">MusicXML 파일을 여기에 놓으세요</p>
-          <p class="text-xs text-gray-400 mt-1">.xml, .musicxml, .mxl</p>
+          <p class="text-sm font-semibold text-blue-600">악보 파일을 여기에 놓으세요</p>
+          <p class="text-xs text-gray-400 mt-1">.xml, .musicxml, .mxl, .pdf</p>
         </div>
       </div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-700">곡 정보</h2>
         <div class="flex gap-2">
-          <input type="file" id="mxmlFileInput" accept=".xml,.musicxml,.mxl" class="hidden">
-          <button id="uploadMxmlBtn" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-600 transition">MusicXML 불러오기</button>
+          <input type="file" id="mxmlFileInput" accept=".xml,.musicxml,.mxl,.pdf" class="hidden">
+          <button id="uploadMxmlBtn" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-600 transition">악보 불러오기</button>
           <button id="resetSongBtn" class="bg-gray-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-500 transition">초기화</button>
         </div>
       </div>
