@@ -387,6 +387,15 @@ const ChordDB = (() => {
   // Lookup functions
   // =========================================
 
+  /**
+   * Build full suffix including degree modifications.
+   * "(#9)" → "#9", "(#9,b13)" → "#9b13"
+   */
+  function buildFullSuffix(suffix, degreeMods) {
+    if (!degreeMods) return null;
+    return suffix + degreeMods.replace(/[(),]/g, '');
+  }
+
   function lookupPositions(dbData, root, suffix, instrument) {
     const dbKey = normalizeKey(root, instrument);
     const dbSuffix = normalizeSuffix(suffix);
@@ -409,18 +418,31 @@ const ChordDB = (() => {
   /**
    * Get guitar chord voicings.
    * Priority:
-   *   1. jguitar direct lookup (including slash chords)
+   *   1. jguitar direct lookup (full suffix with degreeMods, e.g., "7#9")
    *   2. jguitar base chord + slash algorithm
-   *   3. CDN DB fallback
+   *   3. CDN DB (full suffix first, then base suffix fallback)
    */
   function getGuitarChord(chordName) {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
+    const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
+
     // 1. Try jguitar direct lookup (full chord name including slash)
     const jgDirect = lookupJGuitar(chordName);
     if (jgDirect && jgDirect.length > 0) {
       return [...jgDirect];
+    }
+
+    // 1b. Try jguitar with full suffix (e.g., "B7#9" for "B7(#9)")
+    if (fullSuffix) {
+      const jgFull = lookupJGuitarBase(parsed.root, fullSuffix);
+      if (jgFull && jgFull.length > 0) {
+        if (parsed.bassNote) {
+          return applySlashBass([...jgFull], parsed.bassNote, MusicTheory.GUITAR_TUNING);
+        }
+        return [...jgFull];
+      }
     }
 
     // 2. For slash chords: try base chord from jguitar + algorithmic slash
@@ -431,10 +453,16 @@ const ChordDB = (() => {
       }
     }
 
-    // 3. Fall back to CDN DB
+    // 3. Fall back to CDN DB — try full suffix first (e.g., "7#9"), then base
     if (!guitarData) return null;
 
-    let positions = lookupPositions(guitarData, parsed.root, parsed.suffix);
+    let positions = null;
+    if (fullSuffix) {
+      positions = lookupPositions(guitarData, parsed.root, fullSuffix);
+    }
+    if (!positions) {
+      positions = lookupPositions(guitarData, parsed.root, parsed.suffix);
+    }
     if (!positions) return null;
 
     if (parsed.bassNote) {
@@ -447,18 +475,31 @@ const ChordDB = (() => {
   /**
    * Get ukulele chord voicings.
    * Priority:
-   *   1. jguitar ukulele direct lookup (including slash chords)
+   *   1. jguitar ukulele direct lookup (full suffix with degreeMods)
    *   2. jguitar ukulele base chord + slash algorithm
-   *   3. CDN DB fallback
+   *   3. CDN DB (full suffix first, then base suffix fallback)
    */
   function getUkuleleChord(chordName) {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
+    const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
+
     // 1. Try jguitar ukulele direct lookup (full chord name including slash)
     const jgDirect = lookupJGuitarUkulele(chordName);
     if (jgDirect && jgDirect.length > 0) {
       return [...jgDirect];
+    }
+
+    // 1b. Try jguitar ukulele with full suffix (e.g., "B7#9")
+    if (fullSuffix) {
+      const jgFull = lookupJGuitarUkuleleBase(parsed.root, fullSuffix);
+      if (jgFull && jgFull.length > 0) {
+        if (parsed.bassNote) {
+          return applySlashBass([...jgFull], parsed.bassNote, MusicTheory.UKULELE_TUNING);
+        }
+        return [...jgFull];
+      }
     }
 
     // 2. For slash chords: try base chord from jguitar ukulele + algorithmic slash
@@ -469,10 +510,16 @@ const ChordDB = (() => {
       }
     }
 
-    // 3. Fall back to CDN DB
+    // 3. Fall back to CDN DB — try full suffix first, then base
     if (!ukuleleData) return null;
 
-    let positions = lookupPositions(ukuleleData, parsed.root, parsed.suffix, 'ukulele');
+    let positions = null;
+    if (fullSuffix) {
+      positions = lookupPositions(ukuleleData, parsed.root, fullSuffix, 'ukulele');
+    }
+    if (!positions) {
+      positions = lookupPositions(ukuleleData, parsed.root, parsed.suffix, 'ukulele');
+    }
     if (!positions) return null;
 
     if (parsed.bassNote) {
