@@ -76,9 +76,6 @@ const ViewerApp = (() => {
     setupCustomCombo();
     setupHorizontalToggle();
     setupVoicingModal();
-    // 모바일 무음 모드 안내 (render 전에 표시)
-    ChordAudio.showMuteWarning();
-
     render();
 
     // Open accordion by default on initial load, then auto-collapse after 1s
