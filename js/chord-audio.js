@@ -8,15 +8,17 @@ const ChordAudio = (() => {
   let currentInstrument = 'piano';
   let muteWarningShown = false;
 
-  // Detect iOS device (iPhone/iPad)
-  function isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // Detect mobile device (iOS / Android / touch device)
+  function isMobile() {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return true;
+    // iPad desktop mode (iOS 13+): Macintosh UA + touch support
+    if (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)) return true;
+    return false;
   }
 
   // Show iOS silent mode warning toast (once per session)
   function showMuteWarning() {
-    if (muteWarningShown || !isIOS()) return;
+    if (muteWarningShown || !isMobile()) return;
     muteWarningShown = true;
 
     const toast = document.createElement('div');
