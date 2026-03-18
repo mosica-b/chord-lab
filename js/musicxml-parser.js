@@ -255,7 +255,6 @@ const MusicXMLParser = (() => {
   function parseTempo(doc) {
     const metronomes = doc.querySelectorAll('metronome');
     if (metronomes.length > 0) {
-      const seen = new Set();
       const tempos = [];
       for (const m of metronomes) {
         const perMin = m.querySelector('per-minute');
@@ -265,16 +264,25 @@ const MusicXMLParser = (() => {
         const unit = beatUnit ? beatUnit.textContent.trim() : 'quarter';
         const symbol = BEAT_UNIT_SYMBOL[unit] || '♩';
         const label = `${symbol}=${bpm}`;
-        if (!seen.has(label)) {
-          seen.add(label);
+        // Deduplicate consecutive same tempo (allow back-and-forth changes)
+        if (tempos.length === 0 || tempos[tempos.length - 1] !== label) {
           tempos.push(label);
         }
       }
-      if (tempos.length > 0) return tempos.join(' / ');
+      if (tempos.length > 0) return tempos.join(' → ');
     }
     // Fallback: sound element with tempo attribute
-    const sound = doc.querySelector('sound[tempo]');
-    if (sound) return '♩=' + sound.getAttribute('tempo');
+    const sounds = doc.querySelectorAll('sound[tempo]');
+    if (sounds.length > 0) {
+      const tempos = [];
+      for (const s of sounds) {
+        const label = '♩=' + s.getAttribute('tempo');
+        if (tempos.length === 0 || tempos[tempos.length - 1] !== label) {
+          tempos.push(label);
+        }
+      }
+      return tempos.join(' → ');
+    }
     return '';
   }
 
