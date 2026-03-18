@@ -54,6 +54,17 @@ const ChordAudio = (() => {
   function getAudioContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // iOS: resume AudioContext when returning from lock screen / background
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      });
+    }
+    // Always try to resume if suspended (e.g. after iOS screen lock)
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
     return audioCtx;
   }
