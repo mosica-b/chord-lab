@@ -374,5 +374,6 @@ const ChordAudio = (() => {
     getIsPlaying,
     setInstrument,
     getInstrument,
+    showMuteWarning,
   };
 })();

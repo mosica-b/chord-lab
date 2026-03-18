@@ -78,6 +78,9 @@ const ViewerApp = (() => {
     setupVoicingModal();
     render();
 
+    // iOS 무음 모드 안내 (첫 진입 시)
+    ChordAudio.showMuteWarning();
+
     // Open accordion by default on initial load, then auto-collapse after 1s
     const topBody = document.getElementById('topAccordionBody');
     const topToggle = document.getElementById('topAccordionToggle');
