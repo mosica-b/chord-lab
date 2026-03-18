@@ -648,8 +648,18 @@ const Renderers = (() => {
 
     const keyboardY = labelHeight;
 
-    // Normalize highlight notes and find the best octave range
-    const normalizedHighlight = highlightNotes.map(n => MusicTheory.normalizeNote(n));
+    // Normalize highlight notes and sort non-bass notes in ascending pitch
+    // to prevent octave jumps from slash chord rotation (e.g., A9/C# [C#,E,G,B,A] → [C#,E,G,A,B])
+    const normalizedRaw = highlightNotes.map(n => MusicTheory.normalizeNote(n));
+    const normalizedHighlight = normalizedRaw.length > 1
+      ? [normalizedRaw[0], ...normalizedRaw.slice(1).sort((a, b) => {
+          const noteOrder_ = MusicTheory.NOTE_NAMES;
+          const bassSt = noteOrder_.indexOf(normalizedRaw[0]);
+          const sa = (noteOrder_.indexOf(a) - bassSt + 12) % 12;
+          const sb = (noteOrder_.indexOf(b) - bassSt + 12) % 12;
+          return sa - sb;
+        })]
+      : [...normalizedRaw];
 
     // Determine which octave to highlight: pick the range starting from root note
     // Highlight notes in ascending order starting from root
