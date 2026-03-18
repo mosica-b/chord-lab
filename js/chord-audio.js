@@ -52,32 +52,63 @@ const ChordAudio = (() => {
   };
 
   function createAudioContext() {
+    try { if (audioCtx) audioCtx.close(); } catch (e) { /* ignore */ }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // iOS: attempt resume when returning from lock screen / background
+  }
+
+  // iOS: resume AudioContext on any user interaction (touch/click)
+  // This catches taps after screen unlock before the play button is hit
+  let gestureListenerAdded = false;
+  function addGestureResumeListener() {
+    if (gestureListenerAdded) return;
+    gestureListenerAdded = true;
+
+    const resumeOnGesture = () => {
+      if (audioCtx) {
+        if (audioCtx.state === 'interrupted' || audioCtx.state === 'closed') {
+          createAudioContext();
+          audioCtx.resume();
+        } else if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
+    };
+
+    document.addEventListener('touchstart', resumeOnGesture, { passive: true });
+    document.addEventListener('touchend', resumeOnGesture, { passive: true });
+    document.addEventListener('click', resumeOnGesture, true);
+
+    // Also try resume when page becomes visible again (returning from lock screen)
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
+      if (!document.hidden && audioCtx) {
+        if (audioCtx.state === 'interrupted' || audioCtx.state === 'closed') {
+          // iOS 'interrupted' state: must recreate
+          createAudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
       }
     });
   }
 
-  // Ensure AudioContext is running (handles iOS suspend/interrupt after screen lock)
-  async function getAudioContext() {
-    if (!audioCtx) createAudioContext();
-
-    // iOS: 'suspended' (normal pause) or 'interrupted' (hardware interrupt)
-    if (audioCtx.state !== 'running') {
-      try {
-        await audioCtx.resume();
-      } catch (e) { /* ignore */ }
-
-      // If still not running, recreate (iOS interrupted state can't resume)
-      if (audioCtx.state !== 'running') {
-        try { audioCtx.close(); } catch (e) { /* ignore */ }
-        createAudioContext();
-        await audioCtx.resume().catch(() => {});
-      }
+  // Synchronous getAudioContext — preserves iOS Safari user gesture context
+  function getAudioContext() {
+    if (!audioCtx) {
+      createAudioContext();
+      addGestureResumeListener();
     }
+
+    // iOS interrupted/closed state: cannot resume, must recreate
+    if (audioCtx.state === 'interrupted' || audioCtx.state === 'closed') {
+      createAudioContext();
+    }
+
+    // Synchronous resume — MUST stay synchronous for iOS user gesture chain
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
     return audioCtx;
   }
 
@@ -320,15 +351,15 @@ const ChordAudio = (() => {
   // =========================================
   // Chord playback
   // =========================================
-  async function playChord(chordName, duration = 1.5, instrument) {
+  function playChord(chordName, duration = 1.5, instrument) {
     const inst = instrument || currentInstrument;
     console.log('Playing chord:', chordName, 'instrument:', inst);
 
     // Show iOS silent mode reminder on first play
     showMuteWarning();
 
-    // Await AudioContext ready (handles iOS resume after screen lock)
-    const ctx = await getAudioContext();
+    // Synchronous — preserves iOS user gesture context
+    const ctx = getAudioContext();
 
     return new Promise((resolve) => {
       const notes = MusicTheory.getChordNotes(chordName);
