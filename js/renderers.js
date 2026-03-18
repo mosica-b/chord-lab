@@ -110,17 +110,34 @@ const Renderers = (() => {
    * Handles both sharp and flat note names (e.g., Bb, Eb, C#, F#)
    */
   function assignOctavesForStaff(noteNames) {
+    if (noteNames.length === 0) return [];
+
+    // Sort non-bass notes in ascending pitch relative to the first note (bass).
+    // Prevents octave jumps from slash-chord rotation,
+    // e.g., A9/C# rotation [C#,E,G,B,A] → sorted [C#,E,G,A,B]
+    const sorted = [noteNames[0]];
+    if (noteNames.length > 1) {
+      const bassSemitone = MusicTheory.noteIndex(noteNames[0]);
+      const rest = noteNames.slice(1);
+      rest.sort((a, b) => {
+        const sa = (MusicTheory.noteIndex(a) - bassSemitone + 12) % 12;
+        const sb = (MusicTheory.noteIndex(b) - bassSemitone + 12) % 12;
+        return sa - sb;
+      });
+      sorted.push(...rest);
+    }
+
     const keys = [];
     let currentOctave = 4;
 
-    for (let i = 0; i < noteNames.length; i++) {
-      const noteName = noteNames[i];
+    for (let i = 0; i < sorted.length; i++) {
+      const noteName = sorted[i];
       // Convert to VexFlow lowercase format (Bb → bb, C# → c#, F → f)
       const vfNote = noteName.toLowerCase();
 
       if (i > 0) {
         // Use semitone index for accurate comparison (works with both sharps and flats)
-        const prevSemitone = MusicTheory.noteIndex(noteNames[i - 1]);
+        const prevSemitone = MusicTheory.noteIndex(sorted[i - 1]);
         const currSemitone = MusicTheory.noteIndex(noteName);
         if (currSemitone <= prevSemitone) {
           currentOctave++;
