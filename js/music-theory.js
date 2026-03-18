@@ -140,13 +140,21 @@ const MusicTheory = (() => {
   function parseChordName(name) {
     if (!name) return null;
 
-    // Handle slash chords: G/B → base chord G with bass note B
+    // Handle slash chords: G/B, B7(#9)/D# → base chord with bass note
     let bassNote = null;
     let chordPart = name;
-    const slashIdx = name.indexOf('/');
-    if (slashIdx > 0) {
-      chordPart = name.substring(0, slashIdx);
-      bassNote = name.substring(slashIdx + 1);
+    const slashMatch = name.match(/^(.+?)\/([A-G][#b]?)$/);
+    if (slashMatch) {
+      chordPart = slashMatch[1];
+      bassNote = slashMatch[2];
+    }
+
+    // Extract degree modifications in parentheses: B7(#9) → base "B7", degreeMods "(#9)"
+    let degreeMods = '';
+    const parenIdx = chordPart.indexOf('(');
+    if (parenIdx > 0) {
+      degreeMods = chordPart.substring(parenIdx);
+      chordPart = chordPart.substring(0, parenIdx);
     }
 
     let root, suffix;
@@ -158,7 +166,7 @@ const MusicTheory = (() => {
       suffix = chordPart.substring(1);
     }
 
-    return { root, suffix: suffix || 'major', bassNote: bassNote || null };
+    return { root, suffix: suffix || 'major', bassNote: bassNote || null, degreeMods };
   }
 
   /**
@@ -176,7 +184,30 @@ const MusicTheory = (() => {
     const intervals = CHORD_INTERVALS[intervalKey];
     if (!intervals) return [];
 
-    let notes = intervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
+    // Apply degree modifications (#9, b5, add9, etc.)
+    let finalIntervals = intervals;
+    if (parsed.degreeMods) {
+      finalIntervals = [...intervals];
+      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
+      for (const mod of mods) {
+        // Check if the natural version of this degree exists and needs alteration
+        const baseSemitone = DEGREE_SEMITONES[mod.degree];
+        if (baseSemitone !== undefined && mod.alter) {
+          const idx = finalIntervals.indexOf(baseSemitone);
+          if (idx >= 0) {
+            finalIntervals[idx] = mod.semitone;
+            continue;
+          }
+        }
+        // Add new note if not already present (check both raw and mod12)
+        const mod12 = ((mod.semitone % 12) + 12) % 12;
+        if (!finalIntervals.some(i => ((i % 12) + 12) % 12 === mod12)) {
+          finalIntervals.push(mod.semitone);
+        }
+      }
+    }
+
+    let notes = finalIntervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
 
     // Handle slash chord: put bass note first (inversion)
     if (parsed.bassNote) {
@@ -198,8 +229,44 @@ const MusicTheory = (() => {
   const SEMITONE_TO_DEGREE = {
     0: '1', 1: '♭2', 2: '2', 3: '♭3', 4: '3', 5: '4',
     6: '♭5', 7: '5', 8: '♯5', 9: '6', 10: '♭7', 11: '7',
-    14: '9', 17: '11', 21: '13',
+    13: '♭9', 14: '9', 15: '♯9', 17: '11', 18: '♯11', 20: '♭13', 21: '13',
   };
+
+  // Degree number → base semitones from root (natural interval)
+  const DEGREE_SEMITONES = {
+    '2': 2, '3': 4, '4': 5, '5': 7, '6': 9, '7': 11,
+    '9': 14, '11': 17, '13': 21,
+  };
+
+  /**
+   * Parse degree modifications string like "(#9)" or "(#9,b13)" or "(add9)"
+   * Returns array of { alter, degree, semitone }
+   */
+  function parseDegreeModsToSemitones(degreeMods) {
+    if (!degreeMods) return [];
+    const inner = degreeMods.replace(/[()]/g, '');
+    if (!inner) return [];
+
+    const parts = inner.split(',');
+    const result = [];
+    for (const part of parts) {
+      const trimmed = part.trim();
+      const m = trimmed.match(/^(?:add)?(#|b)?(\d+)$/);
+      if (!m) continue;
+      const alter = m[1] || '';
+      const degreeNum = m[2];
+
+      const baseSemitone = DEGREE_SEMITONES[degreeNum];
+      if (baseSemitone === undefined) continue;
+
+      let semitone = baseSemitone;
+      if (alter === '#') semitone++;
+      else if (alter === 'b') semitone--;
+
+      result.push({ alter, degree: degreeNum, semitone });
+    }
+    return result;
+  }
 
   /**
    * Get degree labels for a chord's intervals
@@ -211,7 +278,19 @@ const MusicTheory = (() => {
     const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
     const intervals = CHORD_INTERVALS[intervalKey];
     if (!intervals) return [];
-    return intervals.map(i => SEMITONE_TO_DEGREE[i] || String(i));
+    const labels = intervals.map(i => SEMITONE_TO_DEGREE[i] || String(i));
+
+    // Add degree modification labels
+    if (parsed.degreeMods) {
+      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
+      for (const mod of mods) {
+        const label = SEMITONE_TO_DEGREE[mod.semitone] ||
+          ((mod.alter === '#' ? '♯' : mod.alter === 'b' ? '♭' : '') + mod.degree);
+        labels.push(label);
+      }
+    }
+
+    return labels;
   }
 
   /**
@@ -265,6 +344,28 @@ const MusicTheory = (() => {
     let notes = intervals.map((interval, i) =>
       spellChordNote(rootLetter, rootIdx, interval, degreeNums[i])
     );
+
+    // Apply degree modifications (#9, b13, add9, etc.)
+    if (parsed.degreeMods) {
+      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
+      for (const mod of mods) {
+        const degNum = parseInt(mod.degree);
+        const note = spellChordNote(rootLetter, rootIdx, mod.semitone, degNum);
+        const noteNorm = normalizeNote(note);
+        // Replace existing natural version or add new
+        const existingIdx = notes.findIndex(n => {
+          const baseSemitone = DEGREE_SEMITONES[mod.degree];
+          if (baseSemitone === undefined || !mod.alter) return false;
+          const naturalNote = NOTE_NAMES[(rootIdx + baseSemitone) % 12];
+          return normalizeNote(n) === naturalNote;
+        });
+        if (existingIdx >= 0) {
+          notes[existingIdx] = note;
+        } else if (!notes.some(n => normalizeNote(n) === noteNorm)) {
+          notes.push(note);
+        }
+      }
+    }
 
     // Handle slash chord: put bass note first (inversion)
     if (parsed.bassNote) {
@@ -334,7 +435,7 @@ const MusicTheory = (() => {
     }
 
     const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
-    let result = newRoot + suffix;
+    let result = newRoot + suffix + (parsed.degreeMods || '');
 
     // Transpose bass note for slash chords (e.g., D#7/G → E7/G#)
     if (parsed.bassNote) {

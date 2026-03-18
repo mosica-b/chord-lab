@@ -278,6 +278,44 @@ const MusicXMLParser = (() => {
     return '';
   }
 
+  /**
+   * Parse <degree> elements for chord modifications (e.g., #9, b5, add9).
+   * MusicXML example for B7(#9):
+   *   <kind>dominant</kind>
+   *   <degree><degree-value>9</degree-value><degree-alter>1</degree-alter><degree-type>add</degree-type></degree>
+   */
+  function parseDegrees(harmony) {
+    const degrees = harmony.querySelectorAll('degree');
+    if (degrees.length === 0) return '';
+
+    const parts = [];
+    for (const deg of degrees) {
+      const degValue = deg.querySelector('degree-value');
+      if (!degValue) continue;
+
+      const value = degValue.textContent.trim();
+      const degAlter = deg.querySelector('degree-alter');
+      const alter = degAlter ? degAlter.textContent.trim() : '0';
+      const degType = deg.querySelector('degree-type');
+      const type = degType ? degType.textContent.trim() : 'add';
+
+      // Skip subtracted notes (omit3, omit5)
+      if (type === 'subtract') continue;
+
+      let label = '';
+      if (alter === '1') label = '#' + value;
+      else if (alter === '-1') label = 'b' + value;
+      else if (type === 'add') label = 'add' + value;
+      else label = value; // 'alter' type with no alteration (natural)
+
+      parts.push(label);
+    }
+
+    if (parts.length === 0) return '';
+    // Combine: B7(#9), Cmaj7(#11,b13)
+    return '(' + parts.join(',') + ')';
+  }
+
   function parseChords(doc) {
     const harmonies = doc.querySelectorAll('harmony');
     const seen = new Set();
@@ -295,9 +333,20 @@ const MusicXMLParser = (() => {
 
       const kind = harmony.querySelector('kind');
       const kindText = kind ? kind.textContent.trim() : 'major';
-      const suffix = KIND_TO_SUFFIX[kindText];
-      // Skip unknown kinds
-      if (suffix === undefined) continue;
+      let suffix = KIND_TO_SUFFIX[kindText];
+
+      // Fallback: use text attribute of <kind> for unknown types (e.g., "other")
+      if (suffix === undefined) {
+        const textAttr = kind ? kind.getAttribute('text') : null;
+        if (textAttr) {
+          suffix = textAttr;
+        } else {
+          continue; // truly unknown, skip
+        }
+      }
+
+      // Parse degree modifications (#9, b5, add9, etc.)
+      const degreeStr = parseDegrees(harmony);
 
       // Parse bass note for slash chords (e.g., G/B)
       let bassStr = '';
@@ -311,7 +360,7 @@ const MusicXMLParser = (() => {
         bassStr = '/' + bass;
       }
 
-      const chordName = root + suffix + bassStr;
+      const chordName = root + suffix + degreeStr + bassStr;
       if (!seen.has(chordName)) {
         seen.add(chordName);
         chords.push(chordName);
