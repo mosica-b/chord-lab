@@ -32,12 +32,279 @@ const MusicXMLParser = (() => {
 
   const ALTER_MAP = { '1': '#', '-1': 'b' };
 
+  // ── Part name abbreviation → full instrument name ──
+  const PART_NAME_MAP = {
+    'vn': 'Violin', 'vln': 'Violin', 'violin': 'Violin',
+    'va': 'Viola', 'vla': 'Viola', 'viola': 'Viola',
+    'vc': 'Cello', 'vcl': 'Cello', 'cello': 'Cello',
+    'cb': 'Double Bass', 'db': 'Double Bass', 'double bass': 'Double Bass',
+    'fl': 'Flute', 'flute': 'Flute',
+    'ob': 'Oboe', 'oboe': 'Oboe',
+    'cl': 'Clarinet', 'clarinet': 'Clarinet',
+    'bn': 'Bassoon', 'bsn': 'Bassoon', 'bassoon': 'Bassoon',
+    'sax': 'Saxophone', 'saxophone': 'Saxophone',
+    'hn': 'Horn', 'hr': 'Horn', 'horn': 'Horn',
+    'tp': 'Trumpet', 'tpt': 'Trumpet', 'trumpet': 'Trumpet',
+    'tb': 'Trombone', 'tbn': 'Trombone', 'trombone': 'Trombone',
+    'tu': 'Tuba', 'tba': 'Tuba', 'tuba': 'Tuba',
+    'pf': 'Piano', 'pno': 'Piano', 'piano': 'Piano',
+    'gt': 'Guitar', 'gtr': 'Guitar', 'guitar': 'Guitar',
+    'hp': 'Harp', 'harp': 'Harp',
+    'perc': 'Percussion', 'percussion': 'Percussion',
+    'timp': 'Timpani', 'timpani': 'Timpani',
+    'vo': 'Vocal', 'vox': 'Vocal', 'voice': 'Vocal',
+    'bass': 'Bass', 'electric bass': 'Bass',
+  };
+
   /**
-   * Parse a MusicXML string and extract metadata + chords
-   * @param {string} xmlString - Raw XML content
-   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords }
+   * Detect instrument type from filename suffix (EPG/EPB).
+   * @returns 'guitar' | 'bass' | null
    */
-  function parse(xmlString) {
+  function detectInstrumentFromFileName(fileName) {
+    if (!fileName) return null;
+    // Remove extension, then check suffix
+    const base = fileName.replace(/\.(xml|musicxml|mxl)$/i, '');
+    if (/EPG$/i.test(base)) return 'guitar';
+    if (/EPB$/i.test(base)) return 'bass';
+    return null;
+  }
+
+  /**
+   * Detect instrument from <part-name> text using abbreviation map.
+   * @returns instrument name string or null
+   */
+  function detectInstrumentFromPartName(partName) {
+    if (!partName) return null;
+    const normalized = partName.trim().toLowerCase();
+    // Try exact match first
+    if (PART_NAME_MAP[normalized]) return PART_NAME_MAP[normalized];
+    // Try matching each key as prefix/word
+    for (const [abbr, name] of Object.entries(PART_NAME_MAP)) {
+      if (normalized === abbr || normalized.startsWith(abbr + ' ') || normalized.startsWith(abbr + '.')) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Analyze each <part> in the document and return structural info.
+   * @returns Array of { id, name, instrument, staves, clefs[], hasTab, tabLines, hasLyric, hasBrace }
+   */
+  function analyzePartStructure(doc) {
+    const parts = [];
+
+    // Get part-list info (names, groups)
+    const scoreParts = doc.querySelectorAll('part-list score-part');
+    const partNames = {};
+    for (const sp of scoreParts) {
+      const id = sp.getAttribute('id');
+      const nameEl = sp.querySelector('part-name');
+      partNames[id] = nameEl ? nameEl.textContent.trim() : '';
+    }
+
+    // Check for brace groupings
+    const bracePartIds = new Set();
+    const partGroups = doc.querySelectorAll('part-list part-group');
+    let braceGroupStart = null;
+    const partIdOrder = Array.from(scoreParts).map(sp => sp.getAttribute('id'));
+    for (const pg of partGroups) {
+      const type = pg.getAttribute('type');
+      const symbol = pg.querySelector('group-symbol');
+      if (type === 'start' && symbol && symbol.textContent.trim() === 'brace') {
+        braceGroupStart = pg;
+      } else if (type === 'stop' && braceGroupStart) {
+        // Find parts between start and stop in part-list order
+        // Since part-group elements are interspersed with score-part elements,
+        // we track which score-parts fall between the start/stop
+        braceGroupStart = null;
+      }
+    }
+
+    // Simpler brace detection: iterate part-list children in order
+    let inBrace = false;
+    const partListChildren = doc.querySelector('part-list');
+    if (partListChildren) {
+      for (const child of partListChildren.children) {
+        if (child.tagName === 'part-group') {
+          const type = child.getAttribute('type');
+          const symbol = child.querySelector('group-symbol');
+          if (type === 'start' && symbol && symbol.textContent.trim() === 'brace') {
+            inBrace = true;
+          } else if (type === 'stop' && inBrace) {
+            inBrace = false;
+          }
+        } else if (child.tagName === 'score-part' && inBrace) {
+          bracePartIds.add(child.getAttribute('id'));
+        }
+      }
+    }
+
+    // Analyze each part element
+    const partEls = doc.querySelectorAll('score-partwise > part, part');
+    const seenIds = new Set();
+    for (const partEl of partEls) {
+      const id = partEl.getAttribute('id');
+      if (!id || seenIds.has(id)) continue;
+      seenIds.add(id);
+
+      const info = {
+        id,
+        name: partNames[id] || '',
+        instrument: detectInstrumentFromPartName(partNames[id]),
+        staves: 1,
+        clefs: [],
+        hasTab: false,
+        tabLines: 0,
+        hasLyric: false,
+        hasBrace: bracePartIds.has(id),
+      };
+
+      // Check first measure for attributes
+      const firstMeasure = partEl.querySelector('measure');
+      if (firstMeasure) {
+        const stavesEl = firstMeasure.querySelector('attributes staves');
+        if (stavesEl) info.staves = parseInt(stavesEl.textContent.trim()) || 1;
+
+        const clefEls = firstMeasure.querySelectorAll('attributes clef');
+        for (const c of clefEls) {
+          const sign = c.querySelector('sign');
+          if (sign) info.clefs.push(sign.textContent.trim());
+        }
+
+        // If no clef in first measure, try any measure
+        if (info.clefs.length === 0) {
+          const anyClef = partEl.querySelector('clef sign');
+          if (anyClef) info.clefs.push(anyClef.textContent.trim());
+        }
+
+        // Check staff-lines for TAB
+        const staffDetails = firstMeasure.querySelectorAll('attributes staff-details');
+        for (const sd of staffDetails) {
+          const linesEl = sd.querySelector('staff-lines');
+          if (linesEl) {
+            const lines = parseInt(linesEl.textContent.trim());
+            if (lines && lines !== 5) info.tabLines = lines;
+          }
+        }
+      }
+
+      // Check if any clef is TAB
+      info.hasTab = info.clefs.includes('TAB');
+      if (info.hasTab && info.tabLines === 0) {
+        // Default tab lines: 6 for guitar, 4 for bass
+        info.tabLines = 6;
+      }
+
+      // Check for lyrics anywhere in this part
+      info.hasLyric = !!partEl.querySelector('lyric');
+
+      parts.push(info);
+    }
+
+    return parts;
+  }
+
+  /**
+   * Determine the score type label from filename + XML structure.
+   * @param {Document} doc - Parsed XML document
+   * @param {string} fileName - Original filename (for EPG/EPB detection)
+   * @returns {string} Score type label (e.g. "Guitar (Tab)", "Melody + Piano")
+   */
+  function parseScoreType(doc, fileName) {
+    const fileInstrument = detectInstrumentFromFileName(fileName);
+    const parts = analyzePartStructure(doc);
+
+    if (parts.length === 0) return '';
+
+    // Classify each part
+    const classified = parts.map(p => {
+      let type = '';
+      let instrument = p.instrument || '';
+
+      // Piano detection: staves >= 2 with brace or multi-stave in same part (no TAB)
+      if (!p.hasTab && (p.staves >= 2 || p.hasBrace)) {
+        // Check it's not a Staff+Tab combo
+        const hasTabClef = p.clefs.includes('TAB');
+        if (!hasTabClef) {
+          return { type: 'Piano', instrument: 'Piano' };
+        }
+      }
+
+      // Determine instrument from file name or part analysis
+      if (fileInstrument === 'guitar' || instrument === 'Guitar') {
+        instrument = 'Guitar';
+      } else if (fileInstrument === 'bass' || instrument === 'Bass') {
+        instrument = 'Bass';
+      }
+
+      // TAB-based detection
+      if (p.hasTab) {
+        const lines = p.tabLines || 6;
+        let instLabel = instrument || (lines <= 5 ? 'Bass' : 'Guitar');
+        let linesLabel = '';
+        if (instLabel === 'Bass' && lines === 5) linesLabel = ' 5-String';
+
+        // Staff + Tab combo?
+        const nonTabClefs = p.clefs.filter(c => c !== 'TAB');
+        if (nonTabClefs.length > 0) {
+          // Has both staff and tab
+          if (p.hasLyric) {
+            return { type: `Vocal + ${instLabel} (Melody+Tab)`, instrument: instLabel };
+          }
+          return { type: `${instLabel}${linesLabel} (Staff+Tab)`, instrument: instLabel };
+        }
+
+        return { type: `${instLabel}${linesLabel} (Tab)`, instrument: instLabel };
+      }
+
+      // Staff only (no TAB)
+      if (instrument === 'Guitar') {
+        return { type: 'Guitar (Staff)', instrument: 'Guitar' };
+      }
+      if (instrument === 'Bass') {
+        return { type: 'Bass (Staff)', instrument: 'Bass' };
+      }
+
+      // Melody / Vocal / named instrument
+      if (p.hasLyric) {
+        return { type: instrument || 'Melody', instrument: instrument || 'Melody' };
+      }
+
+      return { type: instrument || 'Melody', instrument: instrument || 'Melody' };
+    });
+
+    // If single part, return its type directly
+    if (classified.length === 1) return classified[0].type;
+
+    // Multi-part: combine labels
+    const typeLabels = classified.map(c => c.type);
+    // Simplify common combos
+    const hasVocal = classified.some(c => c.type === 'Melody' || c.type === 'Vocal');
+    const hasPiano = classified.some(c => c.type === 'Piano');
+    const hasGuitarTab = classified.some(c => c.instrument === 'Guitar' && c.type.includes('Tab'));
+    const hasBassTab = classified.some(c => c.instrument === 'Bass' && c.type.includes('Tab'));
+
+    if (hasVocal && hasPiano && hasGuitarTab) {
+      return 'Melody + Piano + Guitar';
+    }
+    if (hasVocal && hasPiano && !hasGuitarTab) {
+      return 'Melody + Piano';
+    }
+    if (hasVocal && hasGuitarTab) {
+      return 'Vocal + Guitar';
+    }
+
+    return typeLabels.join(' + ');
+  }
+
+  /**
+   * Parse a MusicXML string and extract metadata + chords + score type
+   * @param {string} xmlString - Raw XML content
+   * @param {string} [fileName] - Original filename (for EPG/EPB detection)
+   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords, scoreType }
+   */
+  function parse(xmlString, fileName) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlString, 'text/xml');
 
@@ -50,6 +317,7 @@ const MusicXMLParser = (() => {
       timeSignature: parseTimeSignature(doc),
       tempo: parseTempo(doc),
       chords: parseChords(doc),
+      scoreType: parseScoreType(doc, fileName || ''),
     };
   }
 
@@ -88,29 +356,35 @@ const MusicXMLParser = (() => {
   }
 
   /**
-   * Append Major/Minor label to a key name.
-   * "D" → "D Maj", "Am" → "Am Min", "F#m" → "F#m Min"
+   * Append Major/Minor label to a key name, with optional tag.
+   * "D" → "D (Maj)", "Am" → "Am (Min)"
+   * With tag: "Bm", "Original" → "Bm (Min) [Original]"
    */
-  function labelKey(keyName) {
+  function labelKey(keyName, tag) {
     if (!keyName) return '';
-    return keyName.endsWith('m')
+    let label = keyName.endsWith('m')
       ? keyName + ' (Min)'
       : keyName + ' (Maj)';
+    if (tag) label += ' [' + tag + ']';
+    return label;
   }
 
   /**
    * Parse key name from <words> text like "Original Bm key", "More D key"
-   * Returns key name (e.g. "Bm", "D", "F#m") or null
+   * Returns { key, tag } object or null
    */
   function parseKeyFromWords(text) {
     // Match patterns: "Original Bm key", "More D key", "Origin F#m Key", etc.
-    const m = text.match(/(?:Original|Origin|More)\s+([A-G][#b]?m?)\s*[Kk]ey/i);
-    return m ? m[1] : null;
+    const m = text.match(/(Original|Origin|More)\s+([A-G][#b]?m?)\s*[Kk]ey/i);
+    if (!m) return null;
+    const prefix = m[1];
+    const tag = /^(Original|Origin)$/i.test(prefix) ? 'Original' : null;
+    return { key: m[2], tag };
   }
 
   /**
    * Scan <words> elements for annotated key info (Original/More key).
-   * Returns array of key names in order of appearance.
+   * Returns array of { key, tag } objects in order of appearance.
    */
   function parseKeysFromWords(doc) {
     const keys = [];
@@ -118,9 +392,9 @@ const MusicXMLParser = (() => {
     for (const measure of measures) {
       const wordEls = measure.querySelectorAll('direction direction-type words');
       for (const w of wordEls) {
-        const key = parseKeyFromWords(w.textContent.trim());
-        if (key && (keys.length === 0 || keys[keys.length - 1] !== key)) {
-          keys.push(key);
+        const result = parseKeyFromWords(w.textContent.trim());
+        if (result && (keys.length === 0 || keys[keys.length - 1].key !== result.key)) {
+          keys.push(result);
         }
       }
     }
@@ -147,7 +421,7 @@ const MusicXMLParser = (() => {
     // First, check <words> annotations for explicit key info
     const annotatedKeys = parseKeysFromWords(doc);
     if (annotatedKeys.length > 0) {
-      return annotatedKeys.map(labelKey).join(' → ');
+      return annotatedKeys.map(k => labelKey(k.key, k.tag)).join(' → ');
     }
 
     // Fallback: collect key changes from <key> elements across measures
