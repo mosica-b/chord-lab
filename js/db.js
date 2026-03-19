@@ -175,23 +175,54 @@ const SongDB = (() => {
 
     const songs = data.songs.slice(0, PER_PAGE);
 
-    // Normalize artist for grouping: strip trailing parenthetical, trim, lowercase
-    function normalizeForGroup(str) {
-      if (!str) return '';
-      return str.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+    // Step 1: Exact grouping
+    const groups = [];
+    const exactMap = {};
+    songs.forEach(s => {
+      const key = (s.song_name || '') + '|||' + (s.artist || '');
+      if (!exactMap[key]) {
+        exactMap[key] = { songs: [] };
+        groups.push(exactMap[key]);
+      }
+      exactMap[key].songs.push(s);
+    });
+
+    // Step 2: Merge groups whose artist is a variant of another (same song_name)
+    // "한로로(HANRORO)" → variants: {"한로로(hanroro)", "한로로", "hanroro"}
+    function getArtistVariants(artist) {
+      if (!artist) return new Set(['']);
+      const v = new Set();
+      const t = artist.trim();
+      v.add(t.toLowerCase());
+      const stripped = t.replace(/\s*\([^)]*\)\s*$/, '');
+      if (stripped !== t) {
+        v.add(stripped.trim().toLowerCase());
+        const m = t.match(/\(([^)]*)\)\s*$/);
+        if (m) v.add(m[1].trim().toLowerCase());
+      }
+      return v;
     }
 
-    // Group songs by song_name + artist (normalized)
-    const groups = [];
-    const groupMap = {};
-    songs.forEach(s => {
-      const key = normalizeForGroup(s.song_name) + '|||' + normalizeForGroup(s.artist);
-      if (!groupMap[key]) {
-        groupMap[key] = { songs: [], key };
-        groups.push(groupMap[key]);
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const gi = groups[i];
+      const nameI = (gi.songs[0].song_name || '').trim().toLowerCase();
+      const varI = new Set();
+      gi.songs.forEach(s => getArtistVariants(s.artist).forEach(x => varI.add(x)));
+
+      for (let j = 0; j < i; j++) {
+        const gj = groups[j];
+        if ((gj.songs[0].song_name || '').trim().toLowerCase() !== nameI) continue;
+        const varJ = new Set();
+        gj.songs.forEach(s => getArtistVariants(s.artist).forEach(x => varJ.add(x)));
+        let overlap = false;
+        for (const x of varI) { if (varJ.has(x)) { overlap = true; break; } }
+        if (overlap) {
+          gj.songs.push(...gi.songs);
+          groups.splice(i, 1);
+          break;
+        }
       }
-      groupMap[key].songs.push(s);
-    });
+    }
 
     // Render grouped results
     let html = '';
