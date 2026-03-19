@@ -526,16 +526,21 @@ const SongDB = (() => {
       saveBtn.disabled = true;
       saveBtn.textContent = '저장 중...';
       try {
+        let result;
         if (editingId) {
-          await updateSong(editingId, App.state);
+          result = await updateSong(editingId, App.state);
         } else {
-          await saveSong(App.state);
+          result = await saveSong(App.state);
+        }
+        // After save, keep the record ID so subsequent saves update the same record
+        // (prevents duplicate when scoreType or other unique-key fields change)
+        if (result && result.id) {
+          editingId = result.id;
         }
         saveBtn.textContent = '저장됨!';
         saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'bg-amber-500', 'hover:bg-amber-600');
         saveBtn.classList.add('bg-green-500');
-        editingId = null;
-        App.clearEditingFlag();
+        App.setEditingFlag();
         setTimeout(() => {
           App.updateSaveBtnState();
         }, 1500);

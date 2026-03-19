@@ -1158,6 +1158,11 @@ const App = (() => {
     }
   }
 
+  function setEditingFlag() {
+    _editingFromDB = true;
+    updateSaveBtnState();
+  }
+
   function clearEditingFlag() {
     _editingFromDB = false;
     if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
@@ -1165,5 +1170,5 @@ const App = (() => {
   }
 
   // Initialization is now called by auth.js after login
-  return { init, state, addChord, removeChord, loadFromDB, clearEditingFlag, updateSaveBtnState };
+  return { init, state, addChord, removeChord, loadFromDB, setEditingFlag, clearEditingFlag, updateSaveBtnState };
 })();
