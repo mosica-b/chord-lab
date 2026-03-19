@@ -56,6 +56,17 @@
     .play-btn.playing {
       background: #ef4444;
     }
+    .play-btn-group {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .arp-btn {
+      background: #8b5cf6;
+    }
+    .arp-btn:hover { background: #7c3aed; }
+    .arp-btn:active { background: #6d28d9; }
+    .arp-btn.playing { background: #ef4444; }
     #playAllBtn.playing {
       background: #ef4444 !important;
     }
@@ -761,8 +772,8 @@
   <script src="js/chord-db.js?v=8"></script>
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
-  <script src="js/chord-audio.js?v=6"></script>
-  <script src="js/viewer-app.js?v=19"></script>
+  <script src="js/chord-audio.js?v=7"></script>
+  <script src="js/viewer-app.js?v=20"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">
