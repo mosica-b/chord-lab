@@ -258,13 +258,21 @@ const SongDB = (() => {
             </div>
           </div>`;
       } else {
-        // Multi-item group
+        // Multi-item group — accordion (collapsed by default)
+        const badgeList = g.songs.map(s => escapeHtml(s.score_type || '?')).join(', ');
         html += `<div class="db-result-group">`;
         html += `
-          <div class="db-result-group-header">
-            <div class="db-result-title">${escapeHtml(first.song_name)}</div>
-            <div class="db-result-meta">${metaStr}</div>
+          <div class="db-result-group-header db-accordion-toggle" role="button" tabindex="0">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="db-accordion-arrow">▶</span>
+              <div style="min-width:0;">
+                <div class="db-result-title">${escapeHtml(first.song_name)} <span class="db-group-count">${g.songs.length}</span></div>
+                <div class="db-result-meta">${metaStr}</div>
+              </div>
+            </div>
+            <div class="db-group-badges">${badgeList}</div>
           </div>`;
+        html += `<div class="db-accordion-body" style="display:none;">`;
         g.songs.forEach(s => {
           const date = (s.updated_at || '').substring(0, 10);
           const typeLabel = s.score_type || '(타입 없음)';
@@ -280,10 +288,25 @@ const SongDB = (() => {
               </div>
             </div>`;
         });
-        html += `</div>`;
+        html += `</div></div>`;
       }
     });
     container.innerHTML = html;
+
+    // Accordion toggle
+    container.querySelectorAll('.db-accordion-toggle').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.db-action-btn')) return;
+        const group = header.closest('.db-result-group');
+        const body = group.querySelector('.db-accordion-body');
+        const arrow = header.querySelector('.db-accordion-arrow');
+        const badges = header.querySelector('.db-group-badges');
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        if (arrow) arrow.textContent = open ? '▶' : '▼';
+        if (badges) badges.style.display = open ? '' : 'none';
+      });
+    });
 
     // Click row to load (single items + sub-items)
     container.querySelectorAll('.db-result-item[data-id], .db-result-subitem[data-id]').forEach(el => {

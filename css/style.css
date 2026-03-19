@@ -375,7 +375,48 @@
   background: #f8fafc;
 }
 .db-result-group-header {
-  padding: 8px 12px 2px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.db-result-group-header:hover {
+  background: #eff6ff;
+}
+.db-accordion-arrow {
+  font-size: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  width: 14px;
+  transition: transform 0.15s;
+}
+.db-group-count {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #3b82f6;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.db-group-badges {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  flex-shrink: 0;
+  text-align: right;
 }
 .db-result-subitem {
   padding: 6px 12px 6px 16px;
