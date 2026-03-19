@@ -175,11 +175,17 @@ const SongDB = (() => {
 
     const songs = data.songs.slice(0, PER_PAGE);
 
-    // Group songs by song_name + artist
+    // Normalize artist for grouping: strip trailing parenthetical, trim, lowercase
+    function normalizeForGroup(str) {
+      if (!str) return '';
+      return str.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+    }
+
+    // Group songs by song_name + artist (normalized)
     const groups = [];
     const groupMap = {};
     songs.forEach(s => {
-      const key = (s.song_name || '') + '|||' + (s.artist || '');
+      const key = normalizeForGroup(s.song_name) + '|||' + normalizeForGroup(s.artist);
       if (!groupMap[key]) {
         groupMap[key] = { songs: [], key };
         groups.push(groupMap[key]);
