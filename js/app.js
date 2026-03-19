@@ -24,6 +24,7 @@ const App = (() => {
   let allChordNames = [];
   let highlightIndex = -1;
   let _editingFromDB = false;
+  let _variantMode = false;
 
   /**
    * Initialize the application
@@ -233,6 +234,86 @@ const App = (() => {
     }
   }
 
+  /**
+   * Variant mode: parse file for scoreType + chords only, keeping current metadata.
+   */
+  async function processVariantFile(file) {
+    const btn = document.getElementById('uploadMxmlBtn');
+    try {
+      if (btn) { btn.textContent = '분석 중...'; btn.disabled = true; }
+      const ext = file.name.split('.').pop().toLowerCase();
+      let result;
+      if (ext === 'pdf') {
+        if (typeof pdfjsLib === 'undefined') { alert('PDF.js 라이브러리가 아직 로드되지 않았습니다.'); return; }
+        const arrayBuffer = await file.arrayBuffer();
+        result = await SibeliusPDFParser.parse(arrayBuffer);
+      } else {
+        const text = await file.text();
+        result = MusicXMLParser.parse(text, file.name);
+      }
+
+      // Only update scoreType and chords — keep all other metadata
+      if (result.scoreType) {
+        state.metadata.scoreType = result.scoreType;
+        const stEl = document.getElementById('scoreType');
+        if (stEl) stEl.value = result.scoreType;
+      } else {
+        state.metadata.scoreType = '';
+        const stEl = document.getElementById('scoreType');
+        if (stEl) stEl.value = '';
+      }
+
+      if (result.chords && result.chords.length > 0) {
+        state.selectedChords = [];
+        result.chords.forEach(name => {
+          if (!state.selectedChords.includes(name)) {
+            state.selectedChords.push(name);
+          }
+        });
+        renderSelectedChords();
+      }
+
+      _editingFromDB = false;
+      if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
+      updateSaveBtnState();
+      saveState();
+      updateAll();
+    } catch (err) {
+      console.error('Variant file parse failed:', err);
+      alert('악보 파일을 읽지 못했습니다: ' + err.message);
+    } finally {
+      if (btn) { btn.textContent = '악보 불러오기'; btn.disabled = false; }
+    }
+  }
+
+  function enterVariantMode() {
+    _variantMode = true;
+    const overlay = document.getElementById('mxmlDropOverlay');
+    const overlayText = document.getElementById('dropOverlayText');
+    const overlayHint = document.getElementById('dropOverlayHint');
+    if (overlay) {
+      overlay.classList.remove('hidden');
+      overlay.classList.remove('pointer-events-none');
+      overlay.style.cursor = 'pointer';
+    }
+    if (overlayText) overlayText.textContent = '다른 악보 파일을 여기에 놓거나 클릭하세요';
+    if (overlayHint) overlayHint.classList.remove('hidden');
+  }
+
+  function exitVariantMode() {
+    _variantMode = false;
+    const overlay = document.getElementById('mxmlDropOverlay');
+    const overlayText = document.getElementById('dropOverlayText');
+    const overlayHint = document.getElementById('dropOverlayHint');
+    if (overlay) {
+      overlay.classList.add('hidden');
+      overlay.classList.add('pointer-events-none');
+      overlay.style.cursor = '';
+    }
+    if (overlayText) overlayText.textContent = '악보 파일을 여기에 놓으세요';
+    if (overlayHint) overlayHint.classList.add('hidden');
+  }
+
   async function processUploadedFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'pdf') {
@@ -418,7 +499,11 @@ const App = (() => {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
 
-      if (files.length === 1) {
+      if (_variantMode) {
+        // Variant mode — only take scoreType + chords from file
+        await processVariantFile(files[0]);
+        exitVariantMode();
+      } else if (files.length === 1) {
         // Single file — normal flow
         await processUploadedFile(files[0]);
       } else {
@@ -457,7 +542,6 @@ const App = (() => {
     dropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
       dragCounter = 0;
-      overlay.classList.add('hidden');
 
       const allFiles = Array.from(e.dataTransfer.files || []);
       const validFiles = allFiles.filter(f => {
@@ -466,35 +550,50 @@ const App = (() => {
       });
 
       if (validFiles.length === 0) {
+        if (_variantMode) exitVariantMode();
+        else overlay.classList.add('hidden');
         alert('악보 파일(.xml, .musicxml, .mxl, .pdf)만 지원합니다.');
         return;
       }
 
-      if (validFiles.length === 1) {
-        await processUploadedFile(validFiles[0]);
+      if (_variantMode) {
+        // Variant mode — only take scoreType + chords from file
+        await processVariantFile(validFiles[0]);
+        exitVariantMode();
       } else {
-        await processBatchUpload(validFiles);
+        overlay.classList.add('hidden');
+        if (validFiles.length === 1) {
+          await processUploadedFile(validFiles[0]);
+        } else {
+          await processBatchUpload(validFiles);
+        }
       }
     });
 
-    // "다른 악보 추가" button — keep metadata, clear chords, trigger file upload
+    // "다른 악보 추가" button — show overlay in variant mode (drag & drop or click)
     const addVariantBtn = document.getElementById('addVariantBtn');
     if (addVariantBtn) {
       addVariantBtn.addEventListener('click', () => {
-        // Keep metadata, clear chord data + scoreType
-        state.selectedChords = [];
-        state.metadata.scoreType = '';
-        const stEl = document.getElementById('scoreType');
-        if (stEl) stEl.value = '';
-        _editingFromDB = false;
-        if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
-        updateSaveBtnState();
-        renderSelectedChords();
-        updateAll();
-        // Trigger file picker
-        input.click();
+        enterVariantMode();
       });
     }
+
+    // Overlay click handler — open file picker when in variant mode
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (_variantMode) {
+          e.stopPropagation();
+          input.click();
+        }
+      });
+    }
+
+    // Escape key to cancel variant mode
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && _variantMode) {
+        exitVariantMode();
+      }
+    });
 
     // Reset song button
     const resetBtn = document.getElementById('resetSongBtn');
