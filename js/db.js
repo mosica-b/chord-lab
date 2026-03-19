@@ -316,8 +316,8 @@ const SongDB = (() => {
         try {
           el.style.opacity = '0.5';
           const songData = await loadSong(id);
-          editingId = null;
-          App.loadFromDB(songData);
+          editingId = parseInt(id);
+          App.loadFromDB(songData, true);
           document.getElementById('dbLoadModal').classList.add('hidden');
         } catch (err) {
           alert('불러오기 실패: ' + err.message);
