@@ -187,12 +187,12 @@ const SongDB = (() => {
       exactMap[key].songs.push(s);
     });
 
-    // Step 2: Merge groups whose artist is a variant of another (same song_name)
+    // Step 2: Merge groups with overlapping song_name AND artist variants
     // "한로로(HANRORO)" → variants: {"한로로(hanroro)", "한로로", "hanroro"}
-    function getArtistVariants(artist) {
-      if (!artist) return new Set(['']);
+    function getVariants(str) {
+      if (!str) return new Set(['']);
       const v = new Set();
-      const t = artist.trim();
+      const t = str.trim();
       v.add(t.toLowerCase());
       const stripped = t.replace(/\s*\([^)]*\)\s*$/, '');
       if (stripped !== t) {
@@ -203,20 +203,29 @@ const SongDB = (() => {
       return v;
     }
 
+    function setsOverlap(a, b) {
+      for (const x of a) { if (b.has(x)) return true; }
+      return false;
+    }
+
     for (let i = groups.length - 1; i >= 0; i--) {
       const gi = groups[i];
-      const nameI = (gi.songs[0].song_name || '').trim().toLowerCase();
-      const varI = new Set();
-      gi.songs.forEach(s => getArtistVariants(s.artist).forEach(x => varI.add(x)));
+      const nameVarI = new Set();
+      const artistVarI = new Set();
+      gi.songs.forEach(s => {
+        getVariants(s.song_name).forEach(x => nameVarI.add(x));
+        getVariants(s.artist).forEach(x => artistVarI.add(x));
+      });
 
       for (let j = 0; j < i; j++) {
         const gj = groups[j];
-        if ((gj.songs[0].song_name || '').trim().toLowerCase() !== nameI) continue;
-        const varJ = new Set();
-        gj.songs.forEach(s => getArtistVariants(s.artist).forEach(x => varJ.add(x)));
-        let overlap = false;
-        for (const x of varI) { if (varJ.has(x)) { overlap = true; break; } }
-        if (overlap) {
+        const nameVarJ = new Set();
+        const artistVarJ = new Set();
+        gj.songs.forEach(s => {
+          getVariants(s.song_name).forEach(x => nameVarJ.add(x));
+          getVariants(s.artist).forEach(x => artistVarJ.add(x));
+        });
+        if (setsOverlap(nameVarI, nameVarJ) && setsOverlap(artistVarI, artistVarJ)) {
           gj.songs.push(...gi.songs);
           groups.splice(i, 1);
           break;
