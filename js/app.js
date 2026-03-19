@@ -14,6 +14,7 @@ const App = (() => {
       tempo: '',
       timeSignature: '',
       key: '',
+      scoreType: '',
     },
     selectedChords: [],
     capoPosition: 0,
@@ -58,7 +59,7 @@ const App = (() => {
   let _autoLyrics = false; // true when lyricsIntro was auto-populated
 
   function setupMetadataListeners() {
-    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey'];
+    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'scoreType'];
 
     fields.forEach(id => {
       const el = document.getElementById(id);
@@ -261,7 +262,7 @@ const App = (() => {
       if (btn) { btn.textContent = '불러오는 중...'; btn.disabled = true; }
 
       const text = await file.text();
-      const result = MusicXMLParser.parse(text);
+      const result = MusicXMLParser.parse(text, file.name);
 
       // Fill metadata
       if (result.songName) { state.metadata.songName = result.songName; document.getElementById('songName').value = result.songName; }
@@ -270,6 +271,7 @@ const App = (() => {
       if (result.lyricist) { state.metadata.lyricist = result.lyricist; document.getElementById('lyricist').value = result.lyricist; }
       if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
       if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
+      if (result.scoreType) { state.metadata.scoreType = result.scoreType; const stEl = document.getElementById('scoreType'); if (stEl) stEl.value = result.scoreType; }
       if (result.key) {
         state.metadata.key = result.key;
         const keySelect = document.getElementById('songKey');
@@ -396,13 +398,13 @@ const App = (() => {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         // Clear metadata
-        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', geniusUrl: '', appleMusicUrl: '' };
+        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', scoreType: '', geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
         _editingFromDB = false;
         updateSaveBtnState();
 
         // Clear form fields
-        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'capoPosition'].forEach(id => {
+        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'scoreType', 'capoPosition'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = id === 'capoPosition' ? '0' : '';
         });
@@ -1030,6 +1032,8 @@ const App = (() => {
     }
     keySelect.value = keyVal;
     document.getElementById('capoPosition').value = state.capoPosition;
+    const scoreTypeEl = document.getElementById('scoreType');
+    if (scoreTypeEl) scoreTypeEl.value = state.metadata.scoreType || '';
 
     // Mark lyrics as auto (came from DB, not manually typed now)
     _autoLyrics = false;
