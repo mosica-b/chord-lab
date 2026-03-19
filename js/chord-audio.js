@@ -396,6 +396,47 @@ const ChordAudio = (() => {
     });
   }
 
+  // =========================================
+  // Arpeggio playback (ascending, one note at a time)
+  // =========================================
+  function playChordArpeggio(chordName, noteDelay = 0.18, duration = 1.2, instrument) {
+    const inst = instrument || currentInstrument;
+    console.log('Playing arpeggio:', chordName, 'instrument:', inst);
+
+    showMuteWarning();
+    const ctx = getAudioContext();
+
+    return new Promise((resolve) => {
+      const notes = MusicTheory.getChordNotes(chordName);
+      if (notes.length === 0) { resolve(); return; }
+
+      const now = ctx.currentTime;
+      let currentOctave = (inst === 'guitar' || inst === 'piano') ? 3 : 4;
+
+      notes.forEach((note, i) => {
+        if (i > 0) {
+          const prevIdx = MusicTheory.noteIndex(notes[i - 1]);
+          const currIdx = MusicTheory.noteIndex(note);
+          if (currIdx <= prevIdx) currentOctave++;
+        }
+
+        const freq = noteFrequency(note, currentOctave);
+        const noteStart = now + i * noteDelay;
+
+        if (inst === 'guitar') {
+          playGuitarNote(ctx, ctx.destination, freq, noteStart, duration);
+        } else if (inst === 'ukulele') {
+          playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
+        } else {
+          playPianoNote(ctx, ctx.destination, freq, noteStart, duration);
+        }
+      });
+
+      const totalDuration = (notes.length - 1) * noteDelay + duration;
+      setTimeout(resolve, totalDuration * 1000);
+    });
+  }
+
   let playbackGen = 0; // generation counter to cancel stale sequences
 
   async function playChordSequence(chordNames, interval = 1.8, onChordStart, instrument) {
@@ -427,6 +468,7 @@ const ChordAudio = (() => {
 
   return {
     playChord,
+    playChordArpeggio,
     playChordSequence,
     stopPlayback,
     getIsPlaying,

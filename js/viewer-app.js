@@ -219,7 +219,11 @@ const ViewerApp = (() => {
     document.querySelectorAll('.card-play-btn').forEach(btn => {
       btn.dataset.instrument = tab ? tab.instrument : 'piano';
       if (!btn.classList.contains('playing')) {
-        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instLabel} 재생`;
+        if (btn.classList.contains('arp-btn')) {
+          btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
+        } else {
+          btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
+        }
       }
     });
     // Show/hide capo row and card labels
@@ -657,23 +661,43 @@ const ViewerApp = (() => {
     left.appendChild(capoLabel);
 
     const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
+
+    // Button container for play + arpeggio
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'play-btn-group';
+
     const playBtn = document.createElement('button');
     playBtn.className = 'play-btn card-play-btn';
     playBtn.dataset.instrument = currentTab.instrument;
-    playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[currentTab.instrument]} 재생`;
+    playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
     playBtn.addEventListener('click', async () => {
       const inst = playBtn.dataset.instrument;
-      const instLabel = instrumentLabels[inst];
       playBtn.classList.add('playing');
-      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> ${instLabel} 재생 중`;
+      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
       await ChordAudio.playChord(chordName, 2.0, inst);
       playBtn.classList.remove('playing');
-      const currentInst = playBtn.dataset.instrument;
-      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> ${instrumentLabels[currentInst]} 재생`;
+      playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
     });
 
+    const arpBtn = document.createElement('button');
+    arpBtn.className = 'play-btn arp-btn card-play-btn';
+    arpBtn.dataset.instrument = currentTab.instrument;
+    arpBtn.title = '아르페지오 (한 음씩 상행)';
+    arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
+    arpBtn.addEventListener('click', async () => {
+      const inst = arpBtn.dataset.instrument;
+      arpBtn.classList.add('playing');
+      arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
+      await ChordAudio.playChordArpeggio(chordName, 0.18, 1.2, inst);
+      arpBtn.classList.remove('playing');
+      arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
+    });
+
+    btnGroup.appendChild(playBtn);
+    btnGroup.appendChild(arpBtn);
+
     header.appendChild(left);
-    header.appendChild(playBtn);
+    header.appendChild(btnGroup);
     card.appendChild(header);
 
     TABS.forEach(({ id }) => {
