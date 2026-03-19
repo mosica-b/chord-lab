@@ -9,6 +9,7 @@ const SongDB = (() => {
   let currentPage = 1;
   let currentQuery = '';
   let debounceTimer = null;
+  let editingId = null;  // DB record ID for edit mode
   const TRASH_KEY = 'songChordLab_trash';
 
   /* ── Trash (localStorage) ── */
@@ -69,30 +70,48 @@ const SongDB = (() => {
     }
   }
 
+  /** Build common body payload from App.state */
+  function buildSongBody(state) {
+    return {
+      song_name: state.metadata.songName,
+      artist: state.metadata.artist,
+      album_name: state.metadata.albumName,
+      composer: state.metadata.composer,
+      lyricist: state.metadata.lyricist,
+      tempo: state.metadata.tempo,
+      time_signature: state.metadata.timeSignature,
+      key_signature: state.metadata.key,
+      lyrics_intro: state.metadata.lyricsIntro,
+      genius_url: state.metadata.geniusUrl || '',
+      apple_music_url: state.metadata.appleMusicUrl || '',
+      score_type: state.metadata.scoreType || '',
+      selected_chords: state.selectedChords,
+      capo_position: state.capoPosition,
+    };
+  }
+
   /**
-   * Save current song to DB (upsert by song_name + artist)
+   * Save current song to DB (upsert by song_name + artist + score_type)
    */
   async function saveSong(state) {
     return apiRequest(`${API_BASE}?action=save`, {
       method: 'POST',
-      body: JSON.stringify({
-        song_name: state.metadata.songName,
-        artist: state.metadata.artist,
-        album_name: state.metadata.albumName,
-        composer: state.metadata.composer,
-        lyricist: state.metadata.lyricist,
-        tempo: state.metadata.tempo,
-        time_signature: state.metadata.timeSignature,
-        key_signature: state.metadata.key,
-        lyrics_intro: state.metadata.lyricsIntro,
-        genius_url: state.metadata.geniusUrl || '',
-        apple_music_url: state.metadata.appleMusicUrl || '',
-        score_type: state.metadata.scoreType || '',
-        selected_chords: state.selectedChords,
-        capo_position: state.capoPosition,
-      }),
+      body: JSON.stringify(buildSongBody(state)),
     });
   }
+
+  /**
+   * Update existing song by ID (edit mode)
+   */
+  async function updateSong(id, state) {
+    return apiRequest(`${API_BASE}?action=update`, {
+      method: 'PUT',
+      body: JSON.stringify({ id, ...buildSongBody(state) }),
+    });
+  }
+
+  function setEditingId(id) { editingId = id; }
+  function getEditingId() { return editingId; }
 
   /**
    * Search songs by query string
@@ -154,33 +173,81 @@ const SongDB = (() => {
       return;
     }
 
-    // Limit display to PER_PAGE items (safety fallback if server ignores per_page)
     const songs = data.songs.slice(0, PER_PAGE);
 
-    container.innerHTML = songs.map(s => {
-      const date = (s.updated_at || '').substring(0, 10);
-      return `
-        <div class="db-result-item" data-id="${s.id}">
-          <div style="flex:1;min-width:0;">
-            <div class="db-result-title">${escapeHtml(s.song_name)}</div>
-            <div class="db-result-meta">${escapeHtml(s.artist || '아티스트 없음')}${s.album_name ? ' · ' + escapeHtml(s.album_name) : ''}${s.key_signature ? ' · ' + s.key_signature : ''}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-            <span class="text-xs text-gray-400" style="white-space:nowrap;">${date}</span>
-            <button class="db-action-btn db-edit-btn" data-id="${s.id}" title="수정">수정</button>
-            <button class="db-action-btn db-delete-btn" data-id="${s.id}" title="삭제">삭제</button>
-          </div>
-        </div>`;
-    }).join('');
+    // Group songs by song_name + artist
+    const groups = [];
+    const groupMap = {};
+    songs.forEach(s => {
+      const key = (s.song_name || '') + '|||' + (s.artist || '');
+      if (!groupMap[key]) {
+        groupMap[key] = { songs: [], key };
+        groups.push(groupMap[key]);
+      }
+      groupMap[key].songs.push(s);
+    });
 
-    // Click row to load
-    container.querySelectorAll('.db-result-item').forEach(el => {
+    // Render grouped results
+    let html = '';
+    groups.forEach(g => {
+      const first = g.songs[0];
+      const metaStr = escapeHtml(first.artist || '아티스트 없음')
+        + (first.album_name ? ' · ' + escapeHtml(first.album_name) : '')
+        + (first.key_signature ? ' · ' + first.key_signature : '');
+
+      if (g.songs.length === 1) {
+        // Single item — render as before, with score_type badge if available
+        const date = (first.updated_at || '').substring(0, 10);
+        const badge = first.score_type ? `<span class="db-score-badge">${escapeHtml(first.score_type)}</span>` : '';
+        html += `
+          <div class="db-result-item" data-id="${first.id}">
+            <div style="flex:1;min-width:0;">
+              <div class="db-result-title">${escapeHtml(first.song_name)} ${badge}</div>
+              <div class="db-result-meta">${metaStr}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <span class="text-xs text-gray-400" style="white-space:nowrap;">${date}</span>
+              <button class="db-action-btn db-edit-btn" data-id="${first.id}" title="수정">수정</button>
+              <button class="db-action-btn db-delete-btn" data-id="${first.id}" title="삭제">삭제</button>
+            </div>
+          </div>`;
+      } else {
+        // Multi-item group
+        html += `<div class="db-result-group">`;
+        html += `
+          <div class="db-result-group-header">
+            <div class="db-result-title">${escapeHtml(first.song_name)}</div>
+            <div class="db-result-meta">${metaStr}</div>
+          </div>`;
+        g.songs.forEach(s => {
+          const date = (s.updated_at || '').substring(0, 10);
+          const typeLabel = s.score_type || '(타입 없음)';
+          html += `
+            <div class="db-result-subitem" data-id="${s.id}">
+              <div style="flex:1;min-width:0;">
+                <span class="db-score-badge">${escapeHtml(typeLabel)}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                <span class="text-xs text-gray-400" style="white-space:nowrap;">${date}</span>
+                <button class="db-action-btn db-edit-btn" data-id="${s.id}" title="수정">수정</button>
+                <button class="db-action-btn db-delete-btn" data-id="${s.id}" title="삭제">삭제</button>
+              </div>
+            </div>`;
+        });
+        html += `</div>`;
+      }
+    });
+    container.innerHTML = html;
+
+    // Click row to load (single items + sub-items)
+    container.querySelectorAll('.db-result-item[data-id], .db-result-subitem[data-id]').forEach(el => {
       el.addEventListener('click', async (e) => {
         if (e.target.closest('.db-action-btn')) return;
         const id = el.dataset.id;
         try {
           el.style.opacity = '0.5';
           const songData = await loadSong(id);
+          editingId = null;
           App.loadFromDB(songData);
           document.getElementById('dbLoadModal').classList.add('hidden');
         } catch (err) {
@@ -190,7 +257,7 @@ const SongDB = (() => {
       });
     });
 
-    // Edit buttons — load song, close modal (user edits, then saves to overwrite)
+    // Edit buttons — load song with editing flag + editingId
     container.querySelectorAll('.db-edit-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -198,6 +265,7 @@ const SongDB = (() => {
         try {
           btn.textContent = '...';
           const songData = await loadSong(id);
+          editingId = parseInt(id);
           App.loadFromDB(songData, true);
           document.getElementById('dbLoadModal').classList.add('hidden');
         } catch (err) {
@@ -214,7 +282,6 @@ const SongDB = (() => {
         const id = btn.dataset.id;
         try {
           btn.textContent = '...';
-          // Save song data to trash before deleting
           const songRaw = await apiRequest(`${API_BASE}?action=get&id=${id}`);
           addToTrash(songRaw);
           await deleteSong(id);
@@ -315,6 +382,7 @@ const SongDB = (() => {
               lyrics_intro: item.lyrics_intro || '',
               genius_url: item.genius_url || '',
               apple_music_url: item.apple_music_url || '',
+              score_type: item.score_type || '',
               selected_chords: item.selected_chords || [],
               capo_position: item.capo_position || 0,
             }),
@@ -380,20 +448,24 @@ const SongDB = (() => {
 
     if (!saveBtn || !loadBtn || !modal) return;
 
-    // Save button
+    // Save button — branch on editingId for update vs save
     saveBtn.addEventListener('click', async () => {
       if (!App.state.metadata.songName.trim()) {
         alert('곡명을 먼저 입력해주세요.');
         return;
       }
-      const origText = saveBtn.textContent;
       saveBtn.disabled = true;
       saveBtn.textContent = '저장 중...';
       try {
-        await saveSong(App.state);
+        if (editingId) {
+          await updateSong(editingId, App.state);
+        } else {
+          await saveSong(App.state);
+        }
         saveBtn.textContent = '저장됨!';
         saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'bg-amber-500', 'hover:bg-amber-600');
         saveBtn.classList.add('bg-green-500');
+        editingId = null;
         App.clearEditingFlag();
         setTimeout(() => {
           App.updateSaveBtnState();
@@ -443,5 +515,5 @@ const SongDB = (() => {
     updateTrashCount();
   }
 
-  return { saveSong, searchSongs, recentSongs, loadSong, deleteSong, initUI };
+  return { saveSong, updateSong, searchSongs, recentSongs, loadSong, deleteSong, initUI, setEditingId, getEditingId };
 })();

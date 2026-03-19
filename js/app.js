@@ -162,6 +162,77 @@ const App = (() => {
   // =========================================
   // MusicXML / PDF Upload
   // =========================================
+
+  /** Show/hide "다른 악보 추가" button based on whether song has metadata */
+  function updateAddVariantBtn() {
+    const btn = document.getElementById('addVariantBtn');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !state.metadata.songName.trim());
+  }
+
+  /**
+   * Batch upload: parse multiple MusicXML files, show summary, save all at once.
+   * Metadata is taken from the first file; each file gets its own scoreType + chords.
+   */
+  async function processBatchUpload(files) {
+    const btn = document.getElementById('uploadMxmlBtn');
+    try {
+      if (btn) { btn.textContent = '분석 중...'; btn.disabled = true; }
+
+      const parsed = [];
+      for (const f of files) {
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (ext === 'pdf') continue; // PDF는 일괄 저장 미지원
+        const text = await f.text();
+        const result = MusicXMLParser.parse(text, f.name);
+        parsed.push({ fileName: f.name, result });
+      }
+
+      if (parsed.length === 0) {
+        alert('MusicXML 파일만 일괄 등록할 수 있습니다.');
+        return;
+      }
+
+      // Build summary list
+      const typeList = parsed.map(p => p.result.scoreType || '(알 수 없음)').join(', ');
+      const first = parsed[0].result;
+      const songLabel = (first.songName || '(곡명 없음)') + ' - ' + (first.artist || '(아티스트 없음)');
+
+      if (!confirm(`${parsed.length}개 악보가 감지되었습니다.\n\n곡: ${songLabel}\n악보 타입: ${typeList}\n\n일괄 저장하시겠습니까?`)) {
+        return;
+      }
+
+      // Apply first file metadata to UI (for display purposes)
+      await processUploadedFile(files[0]);
+
+      // Save each parsed result to DB
+      if (typeof SongDB !== 'undefined') {
+        let savedCount = 0;
+        for (const p of parsed) {
+          const r = p.result;
+          // Use current state metadata (filled from first file) but override scoreType + chords
+          const saveState = {
+            metadata: { ...state.metadata, scoreType: r.scoreType || '' },
+            selectedChords: r.chords || [],
+            capoPosition: state.capoPosition,
+          };
+          try {
+            await SongDB.saveSong(saveState);
+            savedCount++;
+          } catch (err) {
+            console.warn('Batch save failed for', p.fileName, err);
+          }
+        }
+        alert(`${savedCount}/${parsed.length}개 악보가 저장되었습니다.`);
+      }
+    } catch (err) {
+      console.error('Batch upload failed:', err);
+      alert('일괄 업로드 실패: ' + err.message);
+    } finally {
+      if (btn) { btn.textContent = '악보 불러오기'; btn.disabled = false; }
+    }
+  }
+
   async function processUploadedFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'pdf') {
@@ -344,9 +415,16 @@ const App = (() => {
 
     btn.addEventListener('click', () => input.click());
     input.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      await processUploadedFile(file);
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      if (files.length === 1) {
+        // Single file — normal flow
+        await processUploadedFile(files[0]);
+      } else {
+        // Multiple files — batch parse + batch save
+        await processBatchUpload(files);
+      }
       input.value = '';
     });
 
@@ -381,17 +459,42 @@ const App = (() => {
       dragCounter = 0;
       overlay.classList.add('hidden');
 
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
+      const allFiles = Array.from(e.dataTransfer.files || []);
+      const validFiles = allFiles.filter(f => {
+        const ext = f.name.toLowerCase();
+        return ext.endsWith('.xml') || ext.endsWith('.musicxml') || ext.endsWith('.mxl') || ext.endsWith('.pdf');
+      });
 
-      const ext = file.name.toLowerCase();
-      if (!ext.endsWith('.xml') && !ext.endsWith('.musicxml') && !ext.endsWith('.mxl') && !ext.endsWith('.pdf')) {
+      if (validFiles.length === 0) {
         alert('악보 파일(.xml, .musicxml, .mxl, .pdf)만 지원합니다.');
         return;
       }
 
-      await processUploadedFile(file);
+      if (validFiles.length === 1) {
+        await processUploadedFile(validFiles[0]);
+      } else {
+        await processBatchUpload(validFiles);
+      }
     });
+
+    // "다른 악보 추가" button — keep metadata, clear chords, trigger file upload
+    const addVariantBtn = document.getElementById('addVariantBtn');
+    if (addVariantBtn) {
+      addVariantBtn.addEventListener('click', () => {
+        // Keep metadata, clear chord data + scoreType
+        state.selectedChords = [];
+        state.metadata.scoreType = '';
+        const stEl = document.getElementById('scoreType');
+        if (stEl) stEl.value = '';
+        _editingFromDB = false;
+        if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
+        updateSaveBtnState();
+        renderSelectedChords();
+        updateAll();
+        // Trigger file picker
+        input.click();
+      });
+    }
 
     // Reset song button
     const resetBtn = document.getElementById('resetSongBtn');
@@ -401,6 +504,7 @@ const App = (() => {
         state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', scoreType: '', geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
         _editingFromDB = false;
+        if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
 
         // Clear form fields
@@ -927,6 +1031,7 @@ const App = (() => {
     renderChordNotesTable();
     renderCapoTable();
     updatePreview();
+    updateAddVariantBtn();
   }
 
   function updatePreview() {
@@ -1059,6 +1164,7 @@ const App = (() => {
 
   function clearEditingFlag() {
     _editingFromDB = false;
+    if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
     updateSaveBtnState();
   }
 

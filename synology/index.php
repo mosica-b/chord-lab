@@ -7,7 +7,8 @@
  *   GET  ?action=search&q=...&page=1   Search by song name / artist
  *   GET  ?action=recent&page=1         Recent songs list
  *   GET  ?action=get&id=123            Get full song data
- *   POST ?action=save                  Create or update (upsert)
+ *   POST ?action=save                  Create or update (upsert by song_name+artist+score_type)
+ *   PUT  ?action=update                Update by ID (edit mode)
  *   DELETE ?action=delete&id=123       Delete a song
  *
  * Security features:
@@ -24,7 +25,7 @@ require_once __DIR__ . '/config.php';
 
 // CORS
 header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-API-Key');
 
 // Content type
@@ -140,13 +141,62 @@ $db->exec("CREATE TABLE IF NOT EXISTS songs (
     apple_music_url TEXT DEFAULT '',
     selected_chords TEXT DEFAULT '[]',
     capo_position INTEGER DEFAULT 0,
+    score_type TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(song_name, artist)
+    UNIQUE(song_name, artist, score_type)
 )");
 $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_name ON songs(song_name)");
 $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist)");
 $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_updated ON songs(updated_at DESC)");
+
+/* ── Migration: add score_type column + change UNIQUE constraint ── */
+$cols = [];
+$colResult = $db->query("PRAGMA table_info(songs)");
+while ($col = $colResult->fetch(PDO::FETCH_ASSOC)) {
+    $cols[] = $col['name'];
+}
+if (!in_array('score_type', $cols)) {
+    // Table exists without score_type → migrate
+    $db->exec("BEGIN TRANSACTION");
+    try {
+        $db->exec("CREATE TABLE songs_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            song_name TEXT NOT NULL,
+            artist TEXT NOT NULL DEFAULT '',
+            album_name TEXT DEFAULT '',
+            composer TEXT DEFAULT '',
+            lyricist TEXT DEFAULT '',
+            tempo TEXT DEFAULT '',
+            time_signature TEXT DEFAULT '',
+            key_signature TEXT DEFAULT '',
+            lyrics_intro TEXT DEFAULT '',
+            genius_url TEXT DEFAULT '',
+            apple_music_url TEXT DEFAULT '',
+            selected_chords TEXT DEFAULT '[]',
+            capo_position INTEGER DEFAULT 0,
+            score_type TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(song_name, artist, score_type)
+        )");
+        $db->exec("INSERT INTO songs_new (id, song_name, artist, album_name, composer, lyricist,
+            tempo, time_signature, key_signature, lyrics_intro, genius_url, apple_music_url,
+            selected_chords, capo_position, score_type, created_at, updated_at)
+            SELECT id, song_name, artist, album_name, composer, lyricist,
+            tempo, time_signature, key_signature, lyrics_intro, genius_url, apple_music_url,
+            selected_chords, capo_position, '', created_at, updated_at FROM songs");
+        $db->exec("DROP TABLE songs");
+        $db->exec("ALTER TABLE songs_new RENAME TO songs");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_name ON songs(song_name)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_songs_updated ON songs(updated_at DESC)");
+        $db->exec("COMMIT");
+    } catch (Exception $e) {
+        $db->exec("ROLLBACK");
+        throw $e;
+    }
+}
 
 /* ── FTS5 Full-Text Search (trigram: substring matching with index) ── */
 $ftsAvailable = false;
@@ -204,7 +254,7 @@ switch ($action) {
             $ftsQ = '"' . str_replace('"', '""', $rawQ) . '"';
 
             $stmt = $db->prepare(
-                "SELECT s.id, s.song_name, s.artist, s.album_name, s.key_signature, s.updated_at
+                "SELECT s.id, s.song_name, s.artist, s.album_name, s.key_signature, s.score_type, s.updated_at
                  FROM songs s
                  JOIN songs_fts fts ON s.id = fts.rowid
                  WHERE songs_fts MATCH :q
@@ -225,7 +275,7 @@ switch ($action) {
             // Fallback: LIKE (short queries or FTS5 unavailable)
             $q = '%' . $rawQ . '%';
             $stmt = $db->prepare(
-                "SELECT id, song_name, artist, album_name, key_signature, updated_at
+                "SELECT id, song_name, artist, album_name, key_signature, score_type, updated_at
                  FROM songs
                  WHERE song_name LIKE :q OR artist LIKE :q
                  ORDER BY updated_at DESC
@@ -259,7 +309,7 @@ switch ($action) {
         $offset = ($page - 1) * $limit;
 
         $stmt = $db->prepare(
-            "SELECT id, song_name, artist, album_name, key_signature, updated_at
+            "SELECT id, song_name, artist, album_name, key_signature, score_type, updated_at
              FROM songs ORDER BY updated_at DESC
              LIMIT :limit OFFSET :offset"
         );
@@ -318,12 +368,12 @@ switch ($action) {
             "INSERT INTO songs
                 (song_name, artist, album_name, composer, lyricist, tempo,
                  time_signature, key_signature, lyrics_intro, genius_url,
-                 apple_music_url, selected_chords, capo_position)
+                 apple_music_url, selected_chords, capo_position, score_type)
              VALUES
                 (:song_name, :artist, :album_name, :composer, :lyricist, :tempo,
                  :time_signature, :key_signature, :lyrics_intro, :genius_url,
-                 :apple_music_url, :selected_chords, :capo_position)
-             ON CONFLICT(song_name, artist) DO UPDATE SET
+                 :apple_music_url, :selected_chords, :capo_position, :score_type)
+             ON CONFLICT(song_name, artist, score_type) DO UPDATE SET
                 album_name = excluded.album_name,
                 composer = excluded.composer,
                 lyricist = excluded.lyricist,
@@ -335,6 +385,7 @@ switch ($action) {
                 apple_music_url = excluded.apple_music_url,
                 selected_chords = excluded.selected_chords,
                 capo_position = excluded.capo_position,
+                score_type = excluded.score_type,
                 updated_at = datetime('now')"
         );
 
@@ -352,17 +403,78 @@ switch ($action) {
             ':apple_music_url' => $body['apple_music_url'] ?? '',
             ':selected_chords' => json_encode($body['selected_chords'] ?? []),
             ':capo_position'   => intval($body['capo_position'] ?? 0),
+            ':score_type'      => $body['score_type'] ?? '',
         ]);
 
         $id = $db->lastInsertId();
         if (!$id) {
-            $lookup = $db->prepare("SELECT id FROM songs WHERE song_name = :sn AND artist = :ar");
-            $lookup->execute([':sn' => $body['song_name'], ':ar' => $body['artist'] ?? '']);
+            $lookup = $db->prepare("SELECT id FROM songs WHERE song_name = :sn AND artist = :ar AND score_type = :st");
+            $lookup->execute([':sn' => $body['song_name'], ':ar' => $body['artist'] ?? '', ':st' => $body['score_type'] ?? '']);
             $id = $lookup->fetchColumn();
         }
 
         logRequest('save', 200, "id=$id, song={$body['song_name']}");
         echo json_encode(['ok' => true, 'id' => (int)$id]);
+        break;
+
+    /* ── Update by ID (edit mode) ── */
+    case 'update':
+        if ($method !== 'PUT') {
+            logRequest('update', 405);
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            break;
+        }
+
+        $body = json_decode(file_get_contents('php://input'), true);
+        $updateId = intval($body['id'] ?? 0);
+        if (!$body || !$updateId || empty($body['song_name'])) {
+            logRequest('update', 400, 'missing id or song_name');
+            http_response_code(400);
+            echo json_encode(['error' => 'id and song_name are required']);
+            break;
+        }
+
+        try {
+            $stmt = $db->prepare(
+                "UPDATE songs SET
+                    song_name = :song_name, artist = :artist, album_name = :album_name,
+                    composer = :composer, lyricist = :lyricist, tempo = :tempo,
+                    time_signature = :time_signature, key_signature = :key_signature,
+                    lyrics_intro = :lyrics_intro, genius_url = :genius_url,
+                    apple_music_url = :apple_music_url, selected_chords = :selected_chords,
+                    capo_position = :capo_position, score_type = :score_type,
+                    updated_at = datetime('now')
+                 WHERE id = :id"
+            );
+            $stmt->execute([
+                ':id'              => $updateId,
+                ':song_name'       => $body['song_name'] ?? '',
+                ':artist'          => $body['artist'] ?? '',
+                ':album_name'      => $body['album_name'] ?? '',
+                ':composer'        => $body['composer'] ?? '',
+                ':lyricist'        => $body['lyricist'] ?? '',
+                ':tempo'           => $body['tempo'] ?? '',
+                ':time_signature'  => $body['time_signature'] ?? '',
+                ':key_signature'   => $body['key_signature'] ?? '',
+                ':lyrics_intro'    => $body['lyrics_intro'] ?? '',
+                ':genius_url'      => $body['genius_url'] ?? '',
+                ':apple_music_url' => $body['apple_music_url'] ?? '',
+                ':selected_chords' => json_encode($body['selected_chords'] ?? []),
+                ':capo_position'   => intval($body['capo_position'] ?? 0),
+                ':score_type'      => $body['score_type'] ?? '',
+            ]);
+            logRequest('update', 200, "id=$updateId, song={$body['song_name']}");
+            echo json_encode(['ok' => true, 'id' => $updateId]);
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'UNIQUE constraint') !== false) {
+                logRequest('update', 409, "id=$updateId, UNIQUE conflict");
+                http_response_code(409);
+                echo json_encode(['error' => '이미 동일한 곡명/아티스트/악보 타입 조합이 존재합니다.']);
+            } else {
+                throw $e;
+            }
+        }
         break;
 
     /* ── Delete ── */
