@@ -9,10 +9,11 @@ const Export = (() => {
   const _bqOverrides = {};
   const BQ_STORAGE_KEY = 'songChordLab_bqPresets';
 
-  /** Replace {곡} shortcode with actual artist - songName */
+  /** Replace {아티스트}, {곡명} shortcodes with actual values */
   function resolveShortcodes(html, metadata) {
-    const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' - ');
-    return html.replace(/\{곡\}/g, songLabel);
+    return html
+      .replace(/\{아티스트\}/g, metadata.artist || '')
+      .replace(/\{곡명\}/g, metadata.songName || '');
   }
 
   // ── Blockquote Preset CRUD ──
@@ -220,8 +221,8 @@ const Export = (() => {
         section.style.marginBottom = '20px';
         const bq = document.createElement('blockquote');
         bq.style.margin = '0 0 2px 0';
-        // Use {곡} shortcode for artist-song, editable as a whole
-        bq.innerHTML = `{곡}&nbsp;&nbsp;${esc(labelText)}`;
+        // Use {아티스트} - {곡명} shortcodes, editable as a whole
+        bq.innerHTML = `{아티스트} - {곡명}&nbsp;&nbsp;${esc(labelText)}`;
         if (bqKey) makeEditable(bq, bqKey);
         if (hasKey) {
           const br = document.createElement('br');
@@ -385,7 +386,7 @@ const Export = (() => {
 
       const notationTitle = document.createElement('blockquote');
       notationTitle.style.margin = '0 0 2px 0';
-      notationTitle.innerHTML = `다양한 악기로 연주할 수 있게 정리한,<br>{곡} 코드 표기`;
+      notationTitle.innerHTML = `다양한 악기로 연주할 수 있게 정리한,<br>{아티스트} - {곡명} 코드 표기`;
       makeEditable(notationTitle, 'notation');
       notationSection.appendChild(notationTitle);
 
@@ -477,7 +478,7 @@ const Export = (() => {
    */
   async function copyTextToClipboard(metadata, chords, capoPosition) {
     try {
-      // Read edited blockquote content from preview DOM, resolve {곡} shortcodes
+      // Read edited blockquote content from preview DOM, resolve {아티스트}/{곡명} shortcodes
       const overrides = {};
       const preview = document.getElementById('blogPreview');
       if (preview) {
@@ -679,7 +680,7 @@ const Export = (() => {
         return t;
       }
 
-      // Primary chords (entire blockquote editable via override, {곡} resolved in overrides)
+      // Primary chords (entire blockquote editable via override, shortcodes resolved in overrides)
       const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' - ');
       if (basicChords.length > 0) {
         const primaryContent = overrides['primary-chords'] || `${naverSongLabel}&nbsp;&nbsp;주요 코드`;
@@ -689,7 +690,7 @@ const Export = (() => {
         html += buildNaverTable(basicChords, false);
       }
 
-      // Advanced chords (entire blockquote editable via override, {곡} resolved in overrides)
+      // Advanced chords (entire blockquote editable via override, shortcodes resolved in overrides)
       if (advancedChords.length > 0) {
         const advancedContent = overrides['advanced-chords'] || `${naverSongLabel}&nbsp;&nbsp;심화 코드`;
         html += `<blockquote style="margin:0;">${advancedContent}`;
