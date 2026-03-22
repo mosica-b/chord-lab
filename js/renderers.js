@@ -398,29 +398,40 @@ const Renderers = (() => {
       svg.appendChild(line);
     }
 
-    // Draw barres
+    // Draw barres (개방현/뮤트현 위치에서 끊어서 표기)
     barres.forEach(barreFret => {
-      const fretIdx = barreFret;
-      const y = marginTop + (fretIdx - 0.5) * fretSpacing;
-      // Find the range of strings for this barre
-      let fromStr = numStrings - 1;
-      let toStr = 0;
-      for (let i = 0; i < frets.length; i++) {
-        if (frets[i] === barreFret) {
-          fromStr = Math.min(fromStr, i);
-          toStr = Math.max(toStr, i);
+      const y = marginTop + (barreFret - 0.5) * fretSpacing;
+      let segStart = -1;
+      for (let i = 0; i <= frets.length; i++) {
+        if (i < frets.length && frets[i] === barreFret) {
+          if (segStart === -1) segStart = i;
+        } else {
+          if (segStart !== -1) {
+            if (segStart === i - 1) {
+              // 1개 현: dot으로 표기
+              const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', marginLeft + segStart * stringSpacing);
+              circle.setAttribute('cy', y);
+              circle.setAttribute('r', 5);
+              circle.setAttribute('fill', '#333');
+              svg.appendChild(circle);
+            } else {
+              // 2개 이상 연속: 바레 rect
+              const x1 = marginLeft + segStart * stringSpacing;
+              const x2 = marginLeft + (i - 1) * stringSpacing;
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', x1 - 3);
+              rect.setAttribute('y', y - 5);
+              rect.setAttribute('width', x2 - x1 + 6);
+              rect.setAttribute('height', 10);
+              rect.setAttribute('rx', 5);
+              rect.setAttribute('fill', '#333');
+              svg.appendChild(rect);
+            }
+            segStart = -1;
+          }
         }
       }
-      const x1 = marginLeft + fromStr * stringSpacing;
-      const x2 = marginLeft + toStr * stringSpacing;
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', x1 - 3);
-      rect.setAttribute('y', y - 5);
-      rect.setAttribute('width', x2 - x1 + 6);
-      rect.setAttribute('height', 10);
-      rect.setAttribute('rx', 5);
-      rect.setAttribute('fill', '#333');
-      svg.appendChild(rect);
     });
 
     // Draw finger dots and open/muted markers
@@ -533,23 +544,38 @@ const Renderers = (() => {
       svg.appendChild(createSVGLine(x, marginTop, x, marginTop + numFrets * fretSpacing, 1));
     }
 
+    // Draw barres (개방현/뮤트현 위치에서 끊어서 표기)
     barres.forEach(barreFret => {
       const y = marginTop + (barreFret - 0.5) * fretSpacing;
-      let fromStr = numStrings - 1, toStr = 0;
-      for (let i = 0; i < frets.length; i++) {
-        if (frets[i] === barreFret) {
-          fromStr = Math.min(fromStr, i);
-          toStr = Math.max(toStr, i);
+      let segStart = -1;
+      for (let i = 0; i <= frets.length; i++) {
+        if (i < frets.length && frets[i] === barreFret) {
+          if (segStart === -1) segStart = i;
+        } else {
+          if (segStart !== -1) {
+            if (segStart === i - 1) {
+              const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', marginLeft + segStart * stringSpacing);
+              circle.setAttribute('cy', y);
+              circle.setAttribute('r', 5);
+              circle.setAttribute('fill', '#333');
+              svg.appendChild(circle);
+            } else {
+              const x1 = marginLeft + segStart * stringSpacing;
+              const x2 = marginLeft + (i - 1) * stringSpacing;
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', x1 - 3);
+              rect.setAttribute('y', y - 5);
+              rect.setAttribute('width', x2 - x1 + 6);
+              rect.setAttribute('height', 10);
+              rect.setAttribute('rx', 5);
+              rect.setAttribute('fill', '#333');
+              svg.appendChild(rect);
+            }
+            segStart = -1;
+          }
         }
       }
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', marginLeft + fromStr * stringSpacing - 3);
-      rect.setAttribute('y', y - 5);
-      rect.setAttribute('width', (toStr - fromStr) * stringSpacing + 6);
-      rect.setAttribute('height', 10);
-      rect.setAttribute('rx', 5);
-      rect.setAttribute('fill', '#333');
-      svg.appendChild(rect);
     });
 
     for (let i = 0; i < frets.length; i++) {
