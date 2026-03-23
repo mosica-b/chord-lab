@@ -378,21 +378,24 @@ const MusicXMLParser = (() => {
       lines.push(words.join(' '));
     }
 
-    // Strip leading vocalizations and filter pure-vocalization lines
+    // Clean up lines: remove melisma placeholders, keep vocalizations as lyrics
     const vocalizationPattern = /^(woo|la|na|oh|ah|ooh|yeah|hey|da|uh|mm|hmm)$/i;
-    const meaningful = lines.map(line => {
+    const cleaned = lines.map(line => {
       const allWords = line.replace(/\s+/g, ' ').trim().split(' ');
-      // Strip leading vocalizations from each line
-      while (allWords.length > 0 && vocalizationPattern.test(allWords[0])) {
-        allWords.shift();
-      }
       // Remove long-vowel marks (ー) used as melisma placeholders
       return allWords.filter(w => w !== 'ー' && w !== '-').join(' ');
     }).filter(line => line.length > 0);
 
-    return meaningful.length > 0
-      ? meaningful.slice(0, maxLines).join('\n')
-      : lines.slice(0, maxLines).join('\n');
+    // Collect lines: vocalization-only lines don't count towards maxLines
+    const result = [];
+    let meaningfulCount = 0;
+    for (const line of cleaned) {
+      const isVocOnly = line.split(' ').every(w => vocalizationPattern.test(w));
+      result.push(line);
+      if (!isVocOnly) meaningfulCount++;
+      if (meaningfulCount >= maxLines) break;
+    }
+    return result.join('\n');
   }
 
   /**
