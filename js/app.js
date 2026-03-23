@@ -305,7 +305,8 @@ const App = (() => {
         saveState();
         updatePreview();
 
-        // Auto-fetch lyrics intro via LRCLIB
+        // Auto-fetch lyrics intro via LRCLIB, fallback to MusicXML lyrics
+        const xmlLyrics = result.lyricsIntro || '';
         if (!state.metadata.lyricsIntro || _autoLyrics) {
           ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
             if (intro) {
@@ -315,8 +316,24 @@ const App = (() => {
               if (el) el.value = intro;
               saveState();
               updatePreview();
+            } else if (xmlLyrics) {
+              state.metadata.lyricsIntro = xmlLyrics;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = xmlLyrics;
+              saveState();
+              updatePreview();
             }
-          }).catch(() => {});
+          }).catch(() => {
+            if (xmlLyrics && (!state.metadata.lyricsIntro || _autoLyrics)) {
+              state.metadata.lyricsIntro = xmlLyrics;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = xmlLyrics;
+              saveState();
+              updatePreview();
+            }
+          });
         }
       }
     } catch (err) {
@@ -386,7 +403,8 @@ const App = (() => {
         saveState();
         updatePreview();
 
-        // Auto-fetch lyrics intro via LRCLIB
+        // Auto-fetch lyrics intro via LRCLIB, fallback to MusicXML lyrics
+        const xmlLyrics = result.lyricsIntro || '';
         if (!state.metadata.lyricsIntro || _autoLyrics) {
           ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
             if (intro) {
@@ -396,8 +414,24 @@ const App = (() => {
               if (el) el.value = intro;
               saveState();
               updatePreview();
+            } else if (xmlLyrics) {
+              state.metadata.lyricsIntro = xmlLyrics;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = xmlLyrics;
+              saveState();
+              updatePreview();
             }
-          }).catch(() => {});
+          }).catch(() => {
+            if (xmlLyrics && (!state.metadata.lyricsIntro || _autoLyrics)) {
+              state.metadata.lyricsIntro = xmlLyrics;
+              _autoLyrics = true;
+              const el = document.getElementById('lyricsIntro');
+              if (el) el.value = xmlLyrics;
+              saveState();
+              updatePreview();
+            }
+          });
         }
       }
     } catch (err) {

@@ -299,10 +299,107 @@ const MusicXMLParser = (() => {
   }
 
   /**
+   * Extract lyrics intro from <lyric> elements in MusicXML.
+   * Joins syllables based on <syllabic> type and returns the first few lines.
+   * @param {Document} doc - Parsed XML document
+   * @param {number} [maxLines=2] - Maximum lines to return
+   * @returns {string} First few lines of lyrics, or '' if none
+   */
+  function parseLyricsIntro(doc, maxLines = 2) {
+    // Find the part that has lyrics (usually vocal part)
+    const partEls = doc.querySelectorAll('score-partwise > part, part');
+    let lyricPart = null;
+    for (const partEl of partEls) {
+      if (partEl.querySelector('lyric')) { lyricPart = partEl; break; }
+    }
+    if (!lyricPart) return '';
+
+    // Collect all syllables from the first lyric line (number containing "verse1" or first number found)
+    const measures = lyricPart.querySelectorAll('measure');
+    const words = []; // collected words/syllables
+    let currentWord = '';
+    let measuresWithLyrics = 0;
+    let linesCollected = 0;
+    const lines = [];
+
+    for (const measure of measures) {
+      const notes = measure.querySelectorAll('note');
+      let measureHasLyric = false;
+
+      for (const note of notes) {
+        // Skip rest notes
+        if (note.querySelector('rest')) continue;
+
+        const lyric = note.querySelector('lyric');
+        if (!lyric) {
+          // Note without lyric in the middle of lyrics — might be a melisma (held syllable)
+          continue;
+        }
+
+        const textEl = lyric.querySelector('text');
+        if (!textEl) continue;
+        const text = textEl.textContent;
+        const syllabicEl = lyric.querySelector('syllabic');
+        const syllabic = syllabicEl ? syllabicEl.textContent.trim() : 'single';
+
+        measureHasLyric = true;
+
+        if (syllabic === 'single') {
+          // Complete word
+          if (currentWord) { words.push(currentWord); currentWord = ''; }
+          words.push(text);
+        } else if (syllabic === 'begin') {
+          if (currentWord) { words.push(currentWord); }
+          currentWord = text;
+        } else if (syllabic === 'middle') {
+          currentWord += text;
+        } else if (syllabic === 'end') {
+          currentWord += text;
+          words.push(currentWord);
+          currentWord = '';
+        }
+      }
+
+      if (measureHasLyric) measuresWithLyrics++;
+
+      // Break into lines roughly every 4 measures with lyrics
+      if (measuresWithLyrics > 0 && measuresWithLyrics % 4 === 0 && words.length > 0) {
+        if (currentWord) { words.push(currentWord); currentWord = ''; }
+        lines.push(words.join(' '));
+        words.length = 0;
+        linesCollected++;
+        if (linesCollected >= maxLines + 3) break; // collect extra lines to account for vocalization filtering
+      }
+    }
+
+    // Flush remaining
+    if (linesCollected < maxLines && words.length > 0) {
+      if (currentWord) words.push(currentWord);
+      lines.push(words.join(' '));
+    }
+
+    // Strip leading vocalizations and filter pure-vocalization lines
+    const vocalizationPattern = /^(woo|la|na|oh|ah|ooh|yeah|hey|da|uh|mm|hmm)$/i;
+    const meaningful = lines.map(line => {
+      const allWords = line.replace(/\s+/g, ' ').trim().split(' ');
+      // Strip leading vocalizations from each line
+      while (allWords.length > 0 && vocalizationPattern.test(allWords[0])) {
+        allWords.shift();
+      }
+      // Remove long-vowel marks (ー) used as melisma placeholders
+      return allWords.filter(w => w !== 'ー' && w !== '-').join(' ');
+    }).filter(line => line.length > 0);
+
+    return meaningful.length > 0
+      ? meaningful.slice(0, maxLines).join('\n')
+      : lines.slice(0, maxLines).join('\n');
+  }
+
+  /**
    * Parse a MusicXML string and extract metadata + chords + score type
    * @param {string} xmlString - Raw XML content
    * @param {string} [fileName] - Original filename (for EPG/EPB detection)
-   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords, scoreType }
+   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords, scoreType, lyricsIntro }
    */
   function parse(xmlString, fileName) {
     const parser = new DOMParser();
@@ -318,6 +415,7 @@ const MusicXMLParser = (() => {
       tempo: parseTempo(doc),
       chords: parseChords(doc),
       scoreType: parseScoreType(doc, fileName || ''),
+      lyricsIntro: parseLyricsIntro(doc),
     };
   }
 

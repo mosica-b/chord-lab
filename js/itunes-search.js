@@ -159,6 +159,7 @@ const ITunesSearch = (() => {
       const attempts = [
         () => fetch(geniusApiUrl),
         () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(geniusApiUrl)}`),
+        () => fetch(`https://corsproxy.io/?url=${encodeURIComponent(geniusApiUrl)}`),
       ];
 
       for (const attempt of attempts) {
