@@ -169,7 +169,7 @@ const Export = (() => {
         lyricsHtml += `<br><span style="color:#999;font-size:11px;">출처: <a href="https://genius.com" target="_blank" style="color:#999;text-decoration:none;">genius.com</a></span>`;
         allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
 
-        allTableRows.push({ label: '음원', valueHtml: `<a href="https://music.youtube.com/search?q=${query}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube Music</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
+        allTableRows.push({ label: '음원', valueHtml: `<a href="https://www.youtube.com/results?search_query=${query}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
       }
 
       allTableRows.forEach((row, i) => {
@@ -605,7 +605,7 @@ const Export = (() => {
         lyricsValue += `<br><font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`;
         extraRows.push({ label: '가사', value: lyricsValue });
 
-        extraRows.push({ label: '음원', value: `<a href="https://music.youtube.com/search?q=${query}">YouTube Music</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
+        extraRows.push({ label: '음원', value: `<a href="https://www.youtube.com/results?search_query=${query}">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
       }
 
       html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0" style="margin:0;">`;
@@ -860,7 +860,7 @@ const Export = (() => {
       text += `\n관련 링크\n`;
       text += `${'─'.repeat(30)}\n`;
       text += `Genius 가사: ${metadata.geniusUrl || `https://genius.com/search?q=${query}`}\n`;
-      text += `YouTube Music: https://music.youtube.com/search?q=${query}\n`;
+      text += `YouTube: https://www.youtube.com/results?search_query=${query}\n`;
       text += `Spotify: https://open.spotify.com/search/${query}\n`;
       text += `Apple Music: ${appleMusicUrl}\n`;
     }
