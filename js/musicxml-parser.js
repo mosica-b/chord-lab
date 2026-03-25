@@ -158,6 +158,7 @@ const MusicXMLParser = (() => {
         tabLines: 0,
         hasLyric: false,
         hasBrace: bracePartIds.has(id),
+        secondStaffEverHidden: false,
       };
 
       // Check first measure for attributes
@@ -184,7 +185,22 @@ const MusicXMLParser = (() => {
           const linesEl = sd.querySelector('staff-lines');
           if (linesEl) {
             const lines = parseInt(linesEl.textContent.trim());
-            if (lines && lines !== 5) info.tabLines = lines;
+            if (lines && lines !== 5 && lines !== 0) info.tabLines = lines;
+          }
+        }
+      }
+
+      // Check if second staff is ever hidden across all measures
+      // (melody scores have staves=2 but hide staff 2 in some measures)
+      if (info.staves >= 2) {
+        const allStaffDetails2 = partEl.querySelectorAll('measure attributes staff-details[number="2"]');
+        for (const sd of allStaffDetails2) {
+          const printObj = sd.getAttribute('print-object');
+          const linesEl = sd.querySelector('staff-lines');
+          const lines = linesEl ? parseInt(linesEl.textContent.trim()) : 5;
+          if (printObj === 'no' || lines === 0) {
+            info.secondStaffEverHidden = true;
+            break;
           }
         }
       }
@@ -223,10 +239,11 @@ const MusicXMLParser = (() => {
       let instrument = p.instrument || '';
 
       // Piano detection: staves >= 2 with brace or multi-stave in same part (no TAB)
+      // Skip if second staff is ever hidden (= melody with occasional extra staff)
       if (!p.hasTab && (p.staves >= 2 || p.hasBrace)) {
         // Check it's not a Staff+Tab combo
         const hasTabClef = p.clefs.includes('TAB');
-        if (!hasTabClef) {
+        if (!hasTabClef && !p.secondStaffEverHidden) {
           return { type: 'Piano', instrument: 'Piano' };
         }
       }
