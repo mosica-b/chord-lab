@@ -112,40 +112,25 @@ const Renderers = (() => {
   function assignOctavesForStaff(noteNames) {
     if (noteNames.length === 0) return [];
 
-    // Sort non-bass notes in ascending pitch relative to the first note (bass).
-    // Prevents octave jumps from slash-chord rotation,
-    // e.g., A9/C# rotation [C#,E,G,B,A] → sorted [C#,E,G,A,B]
-    const sorted = [noteNames[0]];
-    if (noteNames.length > 1) {
-      const bassSemitone = MusicTheory.noteIndex(noteNames[0]);
-      const rest = noteNames.slice(1);
-      rest.sort((a, b) => {
-        const sa = (MusicTheory.noteIndex(a) - bassSemitone + 12) % 12;
-        const sb = (MusicTheory.noteIndex(b) - bassSemitone + 12) % 12;
-        return sa - sb;
-      });
-      sorted.push(...rest);
-    }
-
+    // Keep original order from getChordNotesDisplay (already in thirds stacking: 1,3,5,7,9,11,13).
+    // Assign octaves using letter index (C=0..B=6) to match VexFlow's octave numbering.
+    // Bump octave when letter index wraps (goes lower than previous).
+    const LETTER_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
     const keys = [];
     let currentOctave = 4;
+    let prevLetterIdx = -1;
 
-    for (let i = 0; i < sorted.length; i++) {
-      const noteName = sorted[i];
-      // Convert to VexFlow lowercase format (Bb → bb, C# → c#, F → f)
+    for (let i = 0; i < noteNames.length; i++) {
+      const noteName = noteNames[i];
       const vfNote = noteName.toLowerCase();
+      const letterIdx = LETTER_IDX[noteName[0]];
 
-      if (i > 0) {
-        // Use semitone index for accurate comparison (works with both sharps and flats)
-        const prevSemitone = MusicTheory.noteIndex(sorted[i - 1]);
-        const currSemitone = MusicTheory.noteIndex(noteName);
-        if (currSemitone <= prevSemitone) {
-          currentOctave++;
-        }
+      if (i > 0 && letterIdx <= prevLetterIdx) {
+        currentOctave++;
       }
 
-      // Clamp to reasonable range
-      const octave = Math.min(Math.max(currentOctave, 3), 5);
+      prevLetterIdx = letterIdx;
+      const octave = Math.min(Math.max(currentOctave, 3), 6);
       keys.push(`${vfNote}/${octave}`);
     }
 
