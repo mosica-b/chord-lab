@@ -211,8 +211,10 @@ const SibeliusPDFParser = (() => {
       }
 
       // Tempo: "q = 120" or "♩ = 120" (first occurrence only for meta)
-      if (!meta.tempo) {
-        const tempoMatch = s.match(/[q♩]\s*=\s*(\d+)/);
+      // Use full line text to avoid split digits (e.g. "q = 17" + "4" → "174")
+      if (!meta.tempo && /[q♩]/.test(s)) {
+        const lineText = getLineText(item.y).replace(/(\d)\s+(\d)/g, '$1$2');
+        const tempoMatch = lineText.match(/[q♩]\s*=\s*(\d+)/);
         if (tempoMatch) {
           meta.tempo = '♩=' + tempoMatch[1];
         }
@@ -309,15 +311,28 @@ const SibeliusPDFParser = (() => {
   function extractTempo(allItems, chordFontRefs) {
     const tempoItems = [];
 
-    for (const item of allItems) {
-      if (chordFontRefs.has(item.fontName)) continue;
-      const m = item.str.match(/[q♩]\s*=\s*(\d+)/);
+    // Group non-chord items by page+line (similar Y) to handle split text
+    // e.g. "q = 17" + "4" on same line → "q = 17 4" → cleaned to "q = 174"
+    const nonChordItems = allItems.filter(i => !chordFontRefs.has(i.fontName));
+    const lineGroups = new Map(); // key: "page:roundedY"
+    for (const item of nonChordItems) {
+      const roundedY = Math.round(item.y / 5) * 5;
+      const key = item.page + ':' + roundedY;
+      if (!lineGroups.has(key)) lineGroups.set(key, []);
+      lineGroups.get(key).push(item);
+    }
+
+    for (const [, items] of lineGroups) {
+      items.sort((a, b) => a.x - b.x);
+      // Concatenate line text, collapsing spaces between digits
+      const lineText = items.map(i => i.str).join(' ').replace(/(\d)\s+(\d)/g, '$1$2');
+      const m = lineText.match(/[q♩]\s*=\s*(\d+)/);
       if (m) {
         tempoItems.push({
           bpm: m[1],
-          page: item.page,
-          x: item.x,
-          y: item.y,
+          page: items[0].page,
+          x: items[0].x,
+          y: items[0].y,
         });
       }
     }
