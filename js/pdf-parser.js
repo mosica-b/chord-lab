@@ -213,7 +213,7 @@ const SibeliusPDFParser = (() => {
       // Tempo: "q = 120" or "♩ = 120" (first occurrence only for meta)
       // Use full line text to avoid split digits (e.g. "q = 17" + "4" → "174")
       if (!meta.tempo && /[q♩]/.test(s)) {
-        const lineText = getLineText(item.y).replace(/(\d)\s+(\d)/g, '$1$2');
+        const lineText = getLineText(item.y).replace(/(\d)\s+(?=\d)/g, '$1');
         const tempoMatch = lineText.match(/[q♩]\s*=\s*(\d+)/);
         if (tempoMatch) {
           meta.tempo = '♩=' + tempoMatch[1];
@@ -322,10 +322,12 @@ const SibeliusPDFParser = (() => {
       lineGroups.get(key).push(item);
     }
 
-    for (const [, items] of lineGroups) {
+    for (const [key, items] of lineGroups) {
       items.sort((a, b) => a.x - b.x);
-      // Concatenate line text, collapsing spaces between digits
-      const lineText = items.map(i => i.str).join(' ').replace(/(\d)\s+(\d)/g, '$1$2');
+      // Concatenate line text, collapsing all whitespace between digits
+      // Use lookahead (?=\d) so consecutive splits like "1 7 4" → "174" all merge
+      const rawText = items.map(i => i.str).join(' ');
+      const lineText = rawText.replace(/(\d)\s+(?=\d)/g, '$1');
       const m = lineText.match(/[q♩]\s*=\s*(\d+)/);
       if (m) {
         tempoItems.push({
