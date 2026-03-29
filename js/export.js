@@ -95,16 +95,16 @@ const Export = (() => {
 
     // Helper: make a blockquote editable with visual indicators
     // Applies preset override if loaded
-    /** Strip formatting tags but keep <br> for line breaks */
-    function stripFormatting(html) {
+    /** Sanitize HTML: keep Naver-compatible tags (font, b, i, u, br) and strip the rest */
+    function sanitizeHtml(html) {
       return html
         // Remove key info (legacy presets)
         .replace(/<br>\s*(<span[^>]*>)?\s*\*\s*.*?Key 기준\s*(<\/span>)?/gi, '')
         // Convert block-level tags to <br>
-        .replace(/<\/(div|p)>/gi, '<br>')
-        .replace(/<(div|p)[^>]*>/gi, '')
-        // Strip all tags except <br>
-        .replace(/<(?!\/?br\s*\/?>)[^>]+>/gi, '')
+        .replace(/<\/(div|p|li)>/gi, '<br>')
+        .replace(/<(div|p|ul|ol|li)[^>]*>/gi, '')
+        // Strip tags except Naver-compatible ones (font, b, i, u, br)
+        .replace(/<(?!\/?(?:font|b|i|u|br)\b)[^>]+>/gi, '')
         // Clean up multiple <br>
         .replace(/(<br\s*\/?\s*>){3,}/gi, '<br><br>')
         .replace(/<br>\s*$/, '');
@@ -114,19 +114,23 @@ const Export = (() => {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
       if (_bqOverrides[bqKey]) {
-        el.innerHTML = stripFormatting(_bqOverrides[bqKey]);
+        el.innerHTML = sanitizeHtml(_bqOverrides[bqKey]);
       }
       el.style.cursor = 'text';
       el.style.borderRadius = '4px';
       el.style.padding = '8px 12px';
       el.style.transition = 'border-color 0.2s, box-shadow 0.2s';
       el.style.border = '1px dashed transparent';
-      // Paste as plain text (with line breaks) to prevent formatting issues
+      // Paste: sanitize HTML to keep font/size/bold but strip unwanted tags
       el.addEventListener('paste', (e) => {
         e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-        const html = text.replace(/\n/g, '<br>');
-        document.execCommand('insertHTML', false, html);
+        const clipHtml = (e.clipboardData || window.clipboardData).getData('text/html');
+        const clipText = (e.clipboardData || window.clipboardData).getData('text/plain');
+        if (clipHtml) {
+          document.execCommand('insertHTML', false, sanitizeHtml(clipHtml));
+        } else {
+          document.execCommand('insertHTML', false, clipText.replace(/\n/g, '<br>'));
+        }
       });
       el.addEventListener('mouseenter', () => { if (document.activeElement !== el) el.style.borderColor = '#ccc'; });
       el.addEventListener('mouseleave', () => { if (document.activeElement !== el) el.style.borderColor = 'transparent'; });
