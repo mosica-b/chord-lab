@@ -110,6 +110,70 @@ const Export = (() => {
         .replace(/<br>\s*$/, '');
     }
 
+    /** Build a formatting toolbar for a contenteditable blockquote */
+    function buildToolbar(targetEl) {
+      const bar = document.createElement('div');
+      bar.style.cssText = 'display:none;gap:4px;align-items:center;padding:4px 8px;background:#f5f5f5;border-radius:4px 4px 0 0;border:1px solid #ddd;border-bottom:none;font-size:12px;flex-wrap:wrap;';
+
+      // Font size (Naver font size 1~7)
+      const sizeLabel = document.createElement('span');
+      sizeLabel.textContent = '크기';
+      sizeLabel.style.color = '#666';
+      const sizeSelect = document.createElement('select');
+      sizeSelect.style.cssText = 'padding:2px 4px;border:1px solid #ccc;border-radius:3px;font-size:11px;';
+      [
+        { v: '1', t: '10px' }, { v: '2', t: '13px' }, { v: '3', t: '16px (기본)' },
+        { v: '4', t: '18px' }, { v: '5', t: '24px' }, { v: '6', t: '32px' }, { v: '7', t: '48px' }
+      ].forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.v; opt.textContent = s.t;
+        if (s.v === '3') opt.selected = true;
+        sizeSelect.appendChild(opt);
+      });
+      sizeSelect.addEventListener('change', () => {
+        targetEl.focus();
+        document.execCommand('fontSize', false, sizeSelect.value);
+      });
+
+      // Font family
+      const fontLabel = document.createElement('span');
+      fontLabel.textContent = '폰트';
+      fontLabel.style.cssText = 'color:#666;margin-left:8px;';
+      const fontSelect = document.createElement('select');
+      fontSelect.style.cssText = 'padding:2px 4px;border:1px solid #ccc;border-radius:3px;font-size:11px;';
+      ['기본', '나눔고딕', '나눔명조', '맑은 고딕', '굴림', '돋움', 'Arial', 'Georgia', 'Verdana'].forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f === '기본' ? '' : f;
+        opt.textContent = f;
+        fontSelect.appendChild(opt);
+      });
+      fontSelect.addEventListener('change', () => {
+        targetEl.focus();
+        if (fontSelect.value) {
+          document.execCommand('fontName', false, fontSelect.value);
+        }
+      });
+
+      // Bold / Color
+      const boldBtn = document.createElement('button');
+      boldBtn.textContent = 'B';
+      boldBtn.style.cssText = 'font-weight:bold;padding:2px 8px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;margin-left:8px;';
+      boldBtn.addEventListener('click', (e) => { e.preventDefault(); targetEl.focus(); document.execCommand('bold'); });
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = '#000000';
+      colorInput.style.cssText = 'width:24px;height:24px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;margin-left:4px;';
+      colorInput.addEventListener('input', () => {
+        targetEl.focus();
+        document.execCommand('foreColor', false, colorInput.value);
+      });
+
+      bar.append(sizeLabel, sizeSelect, fontLabel, fontSelect, boldBtn, colorInput);
+      return bar;
+    }
+
+    /** Wrap editable el + toolbar in a container div. Returns the wrapper. */
     function makeEditable(el, bqKey) {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
@@ -117,10 +181,16 @@ const Export = (() => {
         el.innerHTML = sanitizeHtml(_bqOverrides[bqKey]);
       }
       el.style.cursor = 'text';
-      el.style.borderRadius = '4px';
+      el.style.borderRadius = '0 0 4px 4px';
       el.style.padding = '8px 12px';
       el.style.transition = 'border-color 0.2s, box-shadow 0.2s';
       el.style.border = '1px dashed transparent';
+
+      const toolbar = buildToolbar(el);
+      const wrapper = document.createElement('div');
+      wrapper.appendChild(toolbar);
+      wrapper.appendChild(el);
+
       // Paste: sanitize HTML to keep font/size/bold but strip unwanted tags
       el.addEventListener('paste', (e) => {
         e.preventDefault();
@@ -134,8 +204,16 @@ const Export = (() => {
       });
       el.addEventListener('mouseenter', () => { if (document.activeElement !== el) el.style.borderColor = '#ccc'; });
       el.addEventListener('mouseleave', () => { if (document.activeElement !== el) el.style.borderColor = 'transparent'; });
-      el.addEventListener('focus', () => { el.style.borderColor = '#2563eb'; el.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.15)'; });
-      el.addEventListener('blur', () => { el.style.borderColor = 'transparent'; el.style.boxShadow = 'none'; });
+      el.addEventListener('focus', () => {
+        el.style.borderColor = '#2563eb'; el.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.15)';
+        toolbar.style.display = 'flex';
+      });
+      el.addEventListener('blur', (e) => {
+        if (toolbar.contains(e.relatedTarget)) return;
+        el.style.borderColor = 'transparent'; el.style.boxShadow = 'none';
+        toolbar.style.display = 'none';
+      });
+      return wrapper;
     }
 
     // 1. Song Info Header
@@ -145,8 +223,8 @@ const Export = (() => {
     const title = document.createElement('blockquote');
     title.style.margin = '0 0 2px 0';
     title.innerHTML = '더 다채롭고 자세한 곡 정보는<br>아래 내용을 참고해 주세요 :)';
-    makeEditable(title, 'info-title');
-    infoSection.appendChild(title);
+    const titleWrapper = makeEditable(title, 'info-title');
+    infoSection.appendChild(titleWrapper);
 
     const infoRows = [
       { label: '곡명', value: metadata.songName },
@@ -260,7 +338,8 @@ const Export = (() => {
         bq.style.margin = '0 0 2px 0';
         // Use {아티스트} - {곡명} shortcodes, editable as a whole
         bq.innerHTML = `{아티스트} - {곡명}&nbsp;&nbsp;${esc(labelText)}`;
-        if (bqKey) makeEditable(bq, bqKey);
+        let bqContainer = bq;
+        if (bqKey) bqContainer = makeEditable(bq, bqKey);
         // Always append key info after preset override (preset strips contenteditable=false spans)
         if (hasKey) {
           const br = document.createElement('br');
@@ -271,7 +350,7 @@ const Export = (() => {
           keySpan.textContent = `* ${metadata.key} Key 기준`;
           bq.appendChild(keySpan);
         }
-        section.appendChild(bq);
+        section.appendChild(bqContainer);
 
         const table = document.createElement('table');
         const thead = document.createElement('thead');
@@ -426,8 +505,8 @@ const Export = (() => {
       const notationTitle = document.createElement('blockquote');
       notationTitle.style.margin = '0 0 2px 0';
       notationTitle.innerHTML = `다양한 악기로 연주할 수 있게 정리한,<br>{아티스트} - {곡명} 코드 표기`;
-      makeEditable(notationTitle, 'notation');
-      notationSection.appendChild(notationTitle);
+      const notationWrapper = makeEditable(notationTitle, 'notation');
+      notationSection.appendChild(notationWrapper);
 
       const notationTypes = [
         { key: 'staff', label: '오선표기' },
