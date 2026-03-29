@@ -112,15 +112,15 @@ const Renderers = (() => {
   function assignOctavesForStaff(noteNames, chordName) {
     if (noteNames.length === 0) return [];
 
-    // Keep original order from getChordNotesDisplay (already in thirds stacking: 1,3,5,7,9,11,13).
-    // Assign octaves using letter index (C=0..B=6) to match VexFlow's octave numbering.
-    // Bump octave when letter index wraps (goes lower than previous).
+    // Close voicing: stack notes in ascending pitch without large octave jumps.
+    // Only bump octave when the letter truly wraps around (e.g., B→C),
+    // not for small backward steps like G→F# (13th above 7th).
     const LETTER_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 
     // Slash chord: bass note (first) with high letter (A, B) should go an octave lower
     const isSlash = chordName && chordName.includes('/');
     const bassLetterIdx = LETTER_IDX[noteNames[0][0]];
-    const startOctave = (isSlash && bassLetterIdx >= 5) ? 3 : 4; // A=5, B=6
+    const startOctave = (isSlash && bassLetterIdx >= 5) ? 3 : 4;
 
     const keys = [];
     let currentOctave = startOctave;
@@ -132,7 +132,12 @@ const Renderers = (() => {
       const letterIdx = LETTER_IDX[noteName[0]];
 
       if (i > 0 && letterIdx <= prevLetterIdx) {
-        currentOctave++;
+        // Only bump octave for genuine wrap-around (large drop, e.g., B→C, A→C)
+        // Small backward steps (1-2 letters like G→F, A→G) = close voicing, stay same octave
+        const drop = prevLetterIdx - letterIdx;
+        if (drop >= 3) {
+          currentOctave++;
+        }
       }
 
       prevLetterIdx = letterIdx;
