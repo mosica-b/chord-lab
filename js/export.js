@@ -98,7 +98,12 @@ const Export = (() => {
     function makeEditable(el, bqKey) {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
-      if (_bqOverrides[bqKey]) el.innerHTML = _bqOverrides[bqKey];
+      if (_bqOverrides[bqKey]) {
+        // Clean legacy presets that may contain key info text
+        el.innerHTML = _bqOverrides[bqKey]
+          .replace(/<br>\s*\*\s*.*?Key 기준/g, '')
+          .replace(/<br>\s*$/, '');
+      }
       el.style.cursor = 'text';
       el.style.borderRadius = '4px';
       el.style.padding = '8px 12px';
@@ -233,6 +238,7 @@ const Export = (() => {
         // Use {아티스트} - {곡명} shortcodes, editable as a whole
         bq.innerHTML = `{아티스트} - {곡명}&nbsp;&nbsp;${esc(labelText)}`;
         if (bqKey) makeEditable(bq, bqKey);
+        // Always append key info after preset override (preset strips contenteditable=false spans)
         if (hasKey) {
           const br = document.createElement('br');
           bq.appendChild(br);
