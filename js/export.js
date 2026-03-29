@@ -121,11 +121,12 @@ const Export = (() => {
       el.style.padding = '8px 12px';
       el.style.transition = 'border-color 0.2s, box-shadow 0.2s';
       el.style.border = '1px dashed transparent';
-      // Paste as plain text to prevent formatting issues
+      // Paste as plain text (with line breaks) to prevent formatting issues
       el.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-        document.execCommand('insertText', false, text);
+        const html = text.replace(/\n/g, '<br>');
+        document.execCommand('insertHTML', false, html);
       });
       el.addEventListener('mouseenter', () => { if (document.activeElement !== el) el.style.borderColor = '#ccc'; });
       el.addEventListener('mouseleave', () => { if (document.activeElement !== el) el.style.borderColor = 'transparent'; });
