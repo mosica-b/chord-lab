@@ -57,12 +57,21 @@ const Export = (() => {
   /** Load a preset into _bqOverrides (caller must re-render) */
   function loadBqPreset(name) {
     Object.keys(_bqOverrides).forEach(k => delete _bqOverrides[k]);
-    if (name !== '__default__') {
+    if (name === '__default__') {
+      // Check if default preset has been overridden
+      const preset = getBqPresets().find(p => p.name === '__default__');
+      if (preset) Object.assign(_bqOverrides, preset.values);
+    } else {
       const preset = getBqPresets().find(p => p.name === name);
       if (!preset) return false;
       Object.assign(_bqOverrides, preset.values);
     }
     return true;
+  }
+
+  /** Check if the default preset has been overridden */
+  function hasDefaultOverride() {
+    return getBqPresets().some(p => p.name === '__default__');
   }
 
   /** Delete a preset by name */
@@ -1327,5 +1336,6 @@ const Export = (() => {
     saveBqPreset,
     loadBqPreset,
     deleteBqPreset,
+    hasDefaultOverride,
   };
 })();

@@ -874,8 +874,9 @@ const App = (() => {
     }
 
     if (bqSelect) {
-      // Populate on init
+      // Populate on init; load default override if saved
       refreshBqPresetSelect();
+      Export.loadBqPreset('__default__');
 
       bqSelect.addEventListener('change', () => {
         Export.loadBqPreset(bqSelect.value);
@@ -888,9 +889,15 @@ const App = (() => {
         const current = bqSelect ? bqSelect.value : '__default__';
         let name;
         if (current === '__default__') {
-          name = prompt('프리셋 이름을 입력하세요 (최대 10개):');
-          if (!name || !name.trim()) return;
-          name = name.trim();
+          // 기본 프리셋: 덮어쓰기 또는 새 이름으로 저장 선택
+          const choice = prompt(
+            '기본 프리셋에 덮어쓰려면 빈칸으로 확인,\n새 프리셋으로 저장하려면 이름을 입력하세요 (최대 10개):'
+          );
+          if (choice === null) return; // 취소
+          name = choice.trim() || '__default__';
+          if (name === '__default__') {
+            if (!confirm('기본 프리셋을 현재 값으로 덮어쓸까요?')) return;
+          }
         } else {
           if (!confirm(`"${current}" 프리셋을 덮어쓸까요?`)) return;
           name = current;
@@ -910,7 +917,16 @@ const App = (() => {
       bqDeleteBtn.addEventListener('click', () => {
         const current = bqSelect ? bqSelect.value : '__default__';
         if (current === '__default__') {
-          alert('기본 프리셋은 삭제할 수 없습니다.');
+          // 기본 프리셋이 커스텀 저장된 경우 초기화 허용
+          if (!Export.hasDefaultOverride()) {
+            alert('기본 프리셋은 초기 상태입니다.');
+            return;
+          }
+          if (!confirm('기본 프리셋을 초기 상태로 되돌릴까요?')) return;
+          Export.deleteBqPreset('__default__');
+          Export.loadBqPreset('__default__');
+          refreshBqPresetSelect('__default__');
+          updatePreview();
           return;
         }
         if (!confirm(`"${current}" 프리셋을 삭제할까요?`)) return;
