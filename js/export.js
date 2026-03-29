@@ -237,6 +237,7 @@ const Export = (() => {
           const br = document.createElement('br');
           bq.appendChild(br);
           const keySpan = document.createElement('span');
+          keySpan.contentEditable = 'false';
           keySpan.style.cssText = 'color:#999;font-size:11px;';
           keySpan.textContent = `* ${metadata.key} Key 기준`;
           bq.appendChild(keySpan);
