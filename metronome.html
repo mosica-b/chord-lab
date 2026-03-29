@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<title>MOSICA Metronome</title>
+<meta id="themeColorMeta" content="#f5f5f7" name="theme-color"/>
+<script>
+  // 깜빡임 방지: 페이지 로드 전 테마 즉시 적용
+  (function(){
+    var t = localStorage.getItem('metronome-theme');
+    if(t==='dark'){
+      document.documentElement.setAttribute('data-theme','dark');
+      var m=document.querySelector('#themeColorMeta');
+      if(m) m.content='#0b1020';
+    }
+  })();
+</script>
+<style>
+/* ===== Theme Variables ===== */
+:root {
+  --bg: #f5f5f7;
+  --bg-grad1: rgba(200,200,220,.3);
+  --bg-grad2: rgba(180,180,210,.2);
+  --fg: #1d1d1f;
+  --muted: #86868b;
+  --accent: #5856d6;
+  --accent-shadow: rgba(88,86,214,.25);
+  --good: #34c759;
+  --ring: #d2d2d7;
+  --card: #ffffff;
+  --card-grad: #fafafa;
+  --input-bg: #f0f0f5;
+  --hl: #ff9500;
+  --hl-glow: rgba(255,149,0,.8);
+  --hl-down: #30d158;
+  --hl-down-glow: rgba(48,209,88,.8);
+  --confetti-shadow: rgba(0,0,0,.08);
+  --col: 60px; --gap: 14px; --row-gap: 12px; --font: 28px;
+}
+[data-theme="dark"] {
+  --bg: #0b1020;
+  --bg-grad1: #121735;
+  --bg-grad2: #10142b;
+  --fg: #f6f7fb;
+  --muted: #9aa3b2;
+  --accent: #7c5cff;
+  --accent-shadow: rgba(124,92,255,.25);
+  --good: #7dff6a;
+  --ring: #2a3152;
+  --card: #151a2e;
+  --card-grad: #0f1430;
+  --input-bg: #0e1330;
+  --hl: #ffd60a;
+  --hl-glow: rgba(255,214,10,.9);
+  --hl-down: #00ffa6;
+  --hl-down-glow: rgba(0,255,166,.9);
+  --confetti-shadow: rgba(0,0,0,.28);
+}
+
+/* ===== Reset & Base ===== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  -webkit-text-size-adjust:100%;
+  margin:0;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, var(--bg-grad1), transparent),
+    radial-gradient(1000px 600px at 120% 10%, var(--bg-grad2), transparent),
+    var(--bg);
+  color:var(--fg);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,system-ui,sans-serif;
+  transition: background .3s, color .3s;
+}
+
+.page{min-height:100svh;display:flex;align-items:center;justify-content:center;padding:16px}
+.shell{width:100%;max-width:900px}
+.card{background:linear-gradient(180deg,var(--card),var(--card-grad));border:1px solid var(--ring);border-radius:22px;padding:18px;box-shadow:0 18px 50px var(--confetti-shadow);transition:background .3s, border-color .3s}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap}
+h1{font-size:22px;margin:0;font-weight:800;letter-spacing:.2px}
+h2{margin:4px 0 10px;font-size:18px}
+
+/* ===== Theme Toggle ===== */
+.theme-toggle{
+  appearance:none;border:none;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--input-bg);border:1px solid var(--ring);
+  cursor:pointer;font-size:20px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .3s, border-color .3s;
+}
+.theme-toggle:hover{background:var(--accent);color:#fff;border-color:transparent}
+.theme-icon-light,.theme-icon-dark{display:none}
+:root .theme-icon-light{display:inline}
+[data-theme="dark"] .theme-icon-light{display:none}
+[data-theme="dark"] .theme-icon-dark{display:inline}
+
+/* ===== Layout ===== */
+.grid{display:grid;gap:18px;grid-template-columns:1fr}
+@media (min-width:920px){ .grid{grid-template-columns:1.2fr .8fr} }
+.viz{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:8px}
+.bpm{font-size:52px;font-weight:900;text-align:center;margin-top:2px}
+
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+.btn{appearance:none;border:1px solid var(--ring);background:var(--input-bg);color:var(--fg);padding:12px 16px;border-radius:14px;cursor:pointer;font-weight:700;transition:background .2s, border-color .2s, color .2s}
+.btn:hover{opacity:.85}
+.btn.primary{background:var(--accent);border-color:transparent!important;color:#fff;box-shadow:0 10px 20px var(--accent-shadow)}
+
+label{font-size:12px;color:var(--muted)}
+input[type="number"],select{width:100%;padding:12px;border-radius:12px;border:1px solid var(--ring);background:var(--input-bg);color:var(--fg);outline:none;transition:background .3s, border-color .3s, color .3s}
+input[type="range"]{width:100%;accent-color:var(--accent)}
+textarea{transition:background .3s, border-color .3s, color .3s}
+footer{margin-top:14px;color:var(--muted);font-size:12px;text-align:center;word-break:keep-all;overflow-wrap:anywhere}
+footer a{color:var(--accent);text-decoration:none}
+
+/* ===== Beat Numbers ===== */
+.beats{width:100%;padding-inline:12px;box-sizing:border-box;margin:8px 0}
+.beats.grid{display:grid;grid-template-columns:repeat(var(--per-row), var(--col));grid-auto-rows:1fr;column-gap:var(--gap);row-gap:var(--row-gap);justify-content:center;align-content:center}
+.beat{display:flex;align-items:center;justify-content:center;width:var(--col);height:1.2em;font-weight:900;font-size:var(--font);line-height:1;user-select:none;position:relative;color:var(--muted)}
+.beat.active{color:var(--hl);text-shadow:0 0 4px var(--hl-glow),0 0 10px var(--hl-glow),0 0 18px var(--hl-glow)}
+.beat.down{color:var(--good)}
+.beat.down.active{color:var(--hl-down);text-shadow:0 0 4px var(--hl-down-glow),0 0 10px var(--hl-down-glow),0 0 18px var(--hl-down-glow)}
+
+.subdots{display:flex;gap:10px;justify-content:center;align-items:center;min-height:22px;flex-wrap:nowrap;overflow:hidden;padding-inline:8px}
+.subdot{width:12px;height:12px;border-radius:50%;border:1px solid var(--ring);background:var(--input-bg);opacity:.6;transition:opacity .12s ease,background .12s}
+.subdot.on{background:var(--good);opacity:1}
+
+/* ===== 12-Key Cards ===== */
+#keysCard{padding-bottom:16px;position:relative;overflow:hidden}
+#keyCards{gap:10px}
+#keysActions{flex-wrap:wrap;gap:12px}
+#randomResult{font-weight:800;font-size:18px;margin-top:10px;min-height:28px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.key{transition:transform .12s ease,box-shadow .12s ease,background .12s ease}
+.btn.key.rolling{box-shadow:0 0 0 3px var(--accent) inset,0 0 18px var(--accent-shadow);transform:translateY(-2px) scale(1.02)}
+.btn.key.win{animation:key-pop .6s ease}
+@keyframes key-pop{0%{transform:scale(.92)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+#keysCard .btn.key[data-checked="true"]{background:var(--good)!important;color:#000!important;border-color:transparent!important}
+#keysCard .btn.key[data-checked="true"].last{background:var(--accent)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 0 0 3px var(--accent) inset,0 10px 20px var(--accent-shadow)}
+
+/* Confetti */
+.confetti{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:2}
+.confetti i{position:absolute;top:-10px;width:8px;height:14px;background:currentColor;opacity:.9;transform:rotate(0deg)}
+@keyframes fall{to{transform:translateY(120%) rotate(540deg);opacity:.95}}
+
+/* ===== Calendar ===== */
+.cal-head{font-size:12px;color:var(--muted);text-align:center}
+.cal-cell{min-height:70px;border:1px solid var(--ring);border-radius:12px;padding:6px;position:relative;background:var(--input-bg);display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:background .2s, border-color .2s}
+.cal-cell:hover{border-color:var(--accent)}
+.cal-cell.today{outline:2px solid var(--accent)}
+.cal-cell.selected{background:var(--accent);color:#fff}
+.cal-cell.selected .cal-date{color:#fff}
+.cal-date{font-size:12px;color:var(--muted)}
+.cal-dots{display:flex;gap:4px;flex-wrap:wrap}
+.cal-dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.cal-empty{opacity:.45;cursor:default}
+.cal-empty:hover{border-color:var(--ring)}
+.entry-item{padding:8px;border:1px solid var(--ring);border-radius:10px;background:var(--input-bg);margin-bottom:6px;transition:background .3s, border-color .3s}
+.entry-item small{color:var(--muted)}
+.checkbox{display:inline-flex;align-items:center;gap:6px;background:var(--input-bg);border:1px solid var(--ring);padding:6px 10px;border-radius:10px;cursor:pointer;transition:background .3s, border-color .3s}
+.checkbox input{accent-color:var(--accent)}
+
+.kbd{font-size:12px;color:var(--muted)}
+
+/* ===== Responsive ===== */
+@media (max-width:560px){
+  .bpm{font-size:42px}
+  .btn{padding:10px 12px;border-radius:12px}
+  input[type="number"],select,input[type="range"]{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="shell">
+
+<!-- ===== Metronome Card ===== -->
+<div class="card">
+  <header>
+    <h1>Metronome</h1>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="kbd">Space: Start / Stop</div>
+      <button class="theme-toggle" id="themeBtn" title="Toggle Theme">
+        <span class="theme-icon-light">&#9790;</span>
+        <span class="theme-icon-dark">&#9728;</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="viz">
+      <div class="beats grid" id="beats"></div>
+      <div class="subdots" id="subdots"></div>
+      <div class="bpm"><span id="bpmNow">100</span> BPM</div>
+      <div class="row">
+        <button class="btn primary" id="startBtn">Start</button>
+        <button class="btn" id="tapBtn">Tap Tempo</button>
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+    </div>
+    <div class="controls">
+      <div>
+        <label for="bpm">BPM</label>
+        <input id="bpm" inputmode="numeric" max="300" min="30" step="1" type="number" value="100"/>
+      </div>
+      <div>
+        <label for="bpmRange">BPM Slider</label>
+        <input id="bpmRange" max="300" min="30" type="range" value="100"/>
+      </div>
+      <div>
+        <label for="numBeats">Beats (1~15)</label>
+        <select id="numBeats"></select>
+      </div>
+      <div>
+        <label for="unitNote">Note Value</label>
+        <select id="unitNote">
+          <option value="2">Half Note</option>
+          <option selected value="4">Quarter Note</option>
+          <option value="8">Eighth Note</option>
+          <option value="16">Sixteenth Note</option>
+        </select>
+      </div>
+      <div>
+        <label for="divs">Subdivision (1~12)</label>
+        <select id="divs"></select>
+      </div>
+      <div>
+        <label for="vol">Volume</label>
+        <input id="vol" max="1" min="0" step="0.01" type="range" value="0.8"/>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== 12-Key Random Cards ===== -->
+<div class="card" id="keysCard" style="margin-top:16px">
+  <h2>12-Key Random Cards</h2>
+  <div class="row" id="keyCards" style="justify-content:flex-start"></div>
+  <div class="row" id="keysActions" style="margin-top:12px">
+    <button class="btn primary" id="randomKeyBtn">Random Pick</button>
+    <button class="btn" id="resetCheckedBtn">Reset Checked</button>
+  </div>
+  <div style="font-size:12px;color:var(--muted);margin-top:6px">Checked keys will be excluded from random picks. (Black keys show sharp/flat notation)</div>
+  <div id="randomResult"></div>
+</div>
+
+<!-- ===== Practice Calendar ===== -->
+<div class="card" id="practiceCalendar" style="margin-top:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <h2 style="margin:0">Practice Calendar</h2>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" id="prevMonthBtn">&#9664;</button>
+      <div id="monthTitle" style="min-width:140px;text-align:center;font-weight:800"></div>
+      <button class="btn" id="nextMonthBtn">&#9654;</button>
+      <button class="btn" id="exportCsvBtn" title="Export CSV">CSV</button>
+    </div>
+  </div>
+  <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px"></div>
+  <div id="calDetails" style="margin-top:12px">
+    <h3 id="selectedDateTitle" style="margin:6px 0 8px;font-size:16px">Today</h3>
+    <div id="entriesList" style="margin-bottom:8px;color:var(--muted)"></div>
+    <div class="row" style="justify-content:flex-start;gap:10px">
+      <div>
+        <label>Key (multiple)</label>
+        <button class="btn" id="syncKeysFromCardsBtn" style="margin-left:12px;margin-bottom:10px;padding:4px 12px;border-radius:8px;font-weight:bold">Sync 12-Key</button>
+        <div class="row" id="keysChecklist" style="justify-content:flex-start;gap:8px"></div>
+      </div>
+      <div>
+        <label for="calBpmFrom">Tempo (BPM range)</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input id="calBpmFrom" max="300" min="30" step="1" style="width:100px;padding:10px 14px;border-radius:12px" type="number"/>
+          <span style="font-weight:800">&ndash;</span>
+          <input id="calBpmTo" max="300" min="30" step="1" style="width:100px;padding:10px 14px;border-radius:12px" type="number"/>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label for="calNote">What did you practice?</label>
+      <textarea id="calNote" rows="3" style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--ring);background:var(--input-bg);color:var(--fg);resize:vertical"></textarea>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button class="btn primary" id="saveEntryBtn">Save to Date</button>
+      <button class="btn" id="clearDayBtn">Clear Date</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>&copy;2025 <a href="https://www.mosica-b.com" target="_blank">MOSICA</a> All Rights Reserved</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+// ===== Theme Toggle =====
+(function(){
+  const btn = document.getElementById('themeBtn');
+  const meta = document.getElementById('themeColorMeta');
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    meta.content = theme==='dark' ? '#0b1020' : '#f5f5f7';
+    localStorage.setItem('metronome-theme', theme);
+  }
+  btn.addEventListener('click', ()=>{
+    const cur = document.documentElement.getAttribute('data-theme');
+    applyTheme(cur==='dark' ? 'light' : 'dark');
+  });
+})();
+
+// ===== Metronome Core =====
+let audioCtx=null, masterGain, isPlaying=false, nextTickTime=0, tickInMeasure=0, scheduleTimer, resyncTimer;
+const scheduleAhead=0.10;
+const state={ bpm:100, beats:4, unit:4, divs:1, tapTimes:[], gain:0.85 };
+
+const $=id=>document.getElementById(id);
+function initAudio(){
+  if(audioCtx) return;
+  const C=window.AudioContext||window.webkitAudioContext;
+  audioCtx=new C();
+  masterGain=audioCtx.createGain();
+  masterGain.gain.value=state.gain;
+  masterGain.connect(audioCtx.destination);
+}
+
+const spb=()=>(60/state.bpm)*(4/state.unit);
+const spd=()=>spb()/state.divs;
+
+function scheduleClick(time, kind){
+  const osc=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  osc.type='sine';
+  let f=1600;
+  if(kind==='downbeat') f=2000;
+  else if(kind==='sub') f=1200;
+  const now=time, a=0.003, d=0.045;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.8, now+a);
+  g.gain.exponentialRampToValueAtTime(0.0001, now+a+d);
+  osc.frequency.setValueAtTime(f, now);
+  osc.connect(g).connect(masterGain);
+  osc.start(now);
+  osc.stop(now+a+d+0.02);
+}
+
+function effectiveWidth(el){return Math.max(0,Math.round(el.getBoundingClientRect().width))}
+
+function fitBeatsToRow(container, count){
+  const wrapWidth=effectiveWidth(container);
+  const n=Math.max(1,Math.min(15,count));
+  const shouldWrap=n>=10;
+  const safe=12;
+  const inner=Math.max(0,wrapWidth-safe*2);
+  const perRow=shouldWrap?Math.ceil(n/2):n;
+  const gap=(wrapWidth<400)?10:14;
+  let col=(inner-gap*(perRow-1))/perRow;
+  col=Math.max(24,Math.min(100,Math.floor(col)));
+  let font=Math.floor(col*0.48);
+  font=Math.max(16,Math.min(40,font));
+  container.style.setProperty('--col',col+'px');
+  container.style.setProperty('--gap',gap+'px');
+  container.style.setProperty('--font',font+'px');
+  container.style.setProperty('--per-row',perRow);
+  container.style.paddingInline=safe+'px';
+  container.classList.add('grid');
+}
+
+function build(){
+  const beatsWrap=$('beats'), subdots=$('subdots');
+  beatsWrap.innerHTML='';
+  for(let i=0;i<state.beats;i++){
+    const d=document.createElement('div');
+    d.className='beat'+(i===0?' down':'');
+    d.textContent=i+1;
+    beatsWrap.appendChild(d);
+  }
+  subdots.innerHTML='';
+  for(let i=0;i<state.divs;i++){
+    const s=document.createElement('span');
+    s.className='subdot';
+    subdots.appendChild(s);
+  }
+  setActive(0,0);
+  fitBeatsToRow(beatsWrap, state.beats);
+}
+
+function setActive(beatIdx, subIdx){
+  const beatsWrap=$('beats'), subdots=$('subdots');
+  [...beatsWrap.children].forEach((el,i)=>el.classList.toggle('active',i===beatIdx));
+  [...subdots.children].forEach((el,i)=>el.classList.toggle('on',i===subIdx));
+  $('bpmNow').textContent=state.bpm;
+}
+
+function schedule(){
+  while(audioCtx && nextTickTime<audioCtx.currentTime+scheduleAhead){
+    const pos=tickInMeasure%state.divs;
+    const beatIndex=Math.floor(tickInMeasure/state.divs);
+    const kind=(pos===0)?(beatIndex===0?'downbeat':'beat'):'sub';
+    scheduleClick(nextTickTime, kind);
+    requestAnimationFrame(()=>setActive(beatIndex, pos));
+    nextTickTime+=spd();
+    tickInMeasure++;
+    if(tickInMeasure>=state.beats*state.divs) tickInMeasure=0;
+  }
+}
+
+function start(){
+  initAudio();
+  if(!audioCtx) return;
+  if(audioCtx.state!=='running') try{audioCtx.resume()}catch(e){}
+  isPlaying=true;
+  nextTickTime=audioCtx.currentTime+0.05;
+  tickInMeasure=0;
+  scheduleTimer=setInterval(schedule,20);
+  $('startBtn').textContent='Stop';
+}
+function stop(){
+  isPlaying=false;
+  clearInterval(scheduleTimer);
+  $('startBtn').textContent='Start';
+}
+
+function gentleResync(delayMs=60){
+  if(!audioCtx||!isPlaying) return;
+  if(resyncTimer) clearTimeout(resyncTimer);
+  resyncTimer=setTimeout(()=>{nextTickTime=audioCtx.currentTime+0.05;tickInMeasure=0;},delayMs);
+}
+
+function setBpm(n){const v=Math.max(30,Math.min(300,Math.round(Number(n)||state.bpm)));state.bpm=v;syncBpmInputs();gentleResync(60)}
+function setBeats(v){state.beats=Math.max(1,Math.min(15,parseInt(v,10)||4));build();gentleResync(80)}
+function setUnit(v){state.unit=parseInt(v,10)||4;gentleResync(80)}
+function setDivs(v){state.divs=Math.max(1,Math.min(12,parseInt(v,10)||1));build();gentleResync(80)}
+
+function syncBpmInputs(){
+  ['bpm','bpmRange','bpmNow'].forEach(id=>{
+    const el=$(id);
+    if(!el) return;
+    if(id==='bpmNow') el.textContent=state.bpm;
+    else el.value=state.bpm;
+  });
+}
+
+// Controls
+$('startBtn').addEventListener('click',()=>isPlaying?stop():start());
+$('tapBtn').addEventListener('click',()=>{
+  const now=performance.now();
+  const t=state.tapTimes;
+  const last=t[t.length-1];
+  if(!last||now-last>2000){state.tapTimes=[now];return}
+  t.push(now);
+  if(t.length>6)t.shift();
+  const ints=[];
+  for(let i=1;i<t.length;i++) ints.push(t[i]-t[i-1]);
+  const avg=ints.reduce((a,b)=>a+b,0)/ints.length;
+  setBpm(60000/avg);
+});
+$('resetBtn').addEventListener('click',()=>{setBpm(100);setBeats(4);setUnit(4);setDivs(1)});
+
+$('bpm').addEventListener('input',e=>setBpm(e.target.value));
+$('bpmRange').addEventListener('input',e=>setBpm(e.target.value));
+$('numBeats').addEventListener('change',e=>setBeats(e.target.value));
+$('unitNote').addEventListener('change',e=>setUnit(e.target.value));
+$('divs').addEventListener('change',e=>setDivs(e.target.value));
+$('vol').addEventListener('input',e=>{
+  if(!audioCtx) return;
+  masterGain.gain.setValueAtTime(Number(e.target.value),audioCtx.currentTime);
+  state.gain=Number(e.target.value);
+});
+
+// Resize
+let lastW=null;
+const beatsEl=$('beats');
+function recalc(){const w=effectiveWidth(beatsEl);if(lastW===null||Math.abs(w-lastW)>2){lastW=w;fitBeatsToRow(beatsEl,state.beats)}}
+window.addEventListener('resize',()=>recalc(),{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(recalc,150),{passive:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) setTimeout(recalc,100)});
+
+// Init selects
+(function init(){
+  for(let i=1;i<=15;i++){const o=document.createElement('option');o.textContent=String(i);if(i===state.beats) o.selected=true;$('numBeats').appendChild(o)}
+  for(let i=1;i<=12;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);if(i===state.divs) o.selected=true;$('divs').appendChild(o)}
+  syncBpmInputs();build();recalc();
+})();
+
+// Keyboard
+window.addEventListener('keydown',(e)=>{
+  const el=document.activeElement;
+  const typing=el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable);
+  if(typing) return;
+  if(e.code==='Space'){e.preventDefault();isPlaying?stop():start()}
+  if((e.key==='+'||e.key==='=')&&!e.metaKey) setBpm(state.bpm+1);
+  if(e.key==='-'&&!e.metaKey) setBpm(state.bpm-1);
+});
+
+// ===== 12-Key Random Cards =====
+(function(){
+  const keys=["C","C# / Db","D","D# / Eb","E","F","F# / Gb","G","G# / Ab","A","A# / Bb","B"];
+  const LS_KEY='mosica.keyCards.v2';
+  const LS_LAST=LS_KEY+'.last';
+
+  function loadLastIndex(){try{const r=localStorage.getItem(LS_LAST);const n=r===null?null:parseInt(r,10);return Number.isInteger(n)?n:null}catch(e){return null}}
+  function saveLastIndex(n){try{if(n==null)localStorage.removeItem(LS_LAST);else localStorage.setItem(LS_LAST,String(n))}catch(e){}}
+
+  const wrap=$('keyCards');
+  const resultEl=$('randomResult');
+  const resetBtn=$('resetCheckedBtn');
+  const randomBtn=$('randomKeyBtn');
+
+  function load(){
+    try{
+      const s=JSON.parse(localStorage.getItem(LS_KEY)||'[]');
+      try{lastCheckedIndex=loadLastIndex()}catch(e){}
+      return Array.isArray(s)&&s.length===keys.length?s:Array(keys.length).fill(false);
+    }catch(e){try{lastCheckedIndex=loadLastIndex()}catch(_){}return Array(keys.length).fill(false)}
+  }
+  function save(arr){try{localStorage.setItem(LS_KEY,JSON.stringify(arr))}catch(e){}}
+
+  let keyState=load();
+  let lastCheckedIndex=loadLastIndex();
+
+  function render(){
+    wrap.innerHTML='';
+    keys.forEach((label,idx)=>{
+      const b=document.createElement('button');
+      b.className='btn key';
+      b.dataset.idx=String(idx);
+      if(keyState[idx]) b.setAttribute('data-checked','true');
+      if(keyState[idx]&&lastCheckedIndex===idx) b.classList.add('last');
+      b.style.minWidth='72px';
+      b.style.flex='0 0 auto';
+      b.textContent=label;
+      wrap.appendChild(b);
+    });
+    randomBtn.disabled=keyState.every(Boolean);
+  }
+
+  function makeConfetti(){
+    const layer=document.createElement('div');
+    layer.className='confetti';
+    const colors=['#7c5cff','#ff6b6b','#ffd93d','#6bf178','#4dddf7','#f78cff'];
+    for(let i=0;i<28;i++){
+      const p=document.createElement('i');
+      p.style.left=(Math.random()*100)+'%';
+      p.style.color=colors[i%colors.length];
+      p.style.animation=`fall ${(0.9+Math.random()*0.8).toFixed(2)}s linear forwards`;
+      layer.appendChild(p);
+    }
+    $('keysCard').appendChild(layer);
+    setTimeout(()=>layer.remove(),2000);
+  }
+
+  async function pickRandom(){
+    const uncheckedIdx=keyState.map((v,i)=>v?null:i).filter(v=>v!==null);
+    if(uncheckedIdx.length===0){resultEl.textContent='All keys completed!';randomBtn.disabled=true;return}
+    randomBtn.disabled=true;
+    const seq=[...uncheckedIdx];
+    let prevEl=null;
+    for(let i=0;i<seq.length;i++){
+      const idx=seq[i];
+      const el=wrap.querySelector(`button.key[data-idx="${idx}"]`);
+      if(prevEl) prevEl.classList.remove('rolling');
+      if(el){el.classList.add('rolling');prevEl=el}
+      await new Promise(r=>setTimeout(r,35+i*6));
+    }
+    if(prevEl) prevEl.classList.remove('rolling');
+    const finalIdx=uncheckedIdx[Math.floor(Math.random()*uncheckedIdx.length)];
+    keyState[finalIdx]=true;
+    lastCheckedIndex=finalIdx;
+    try{saveLastIndex(finalIdx)}catch(e){}
+    save(keyState);
+    render();
+    const winEl=wrap.querySelector(`button.key[data-idx="${finalIdx}"]`);
+    if(winEl) winEl.classList.add('win');
+    makeConfetti();
+    resultEl.textContent='🎯 '+keys[finalIdx];
+    window.lastPickedLabel=keys[finalIdx];
+    randomBtn.disabled=keyState.every(Boolean);
+    if(randomBtn.disabled) resultEl.textContent='All keys completed!';
+  }
+
+  wrap.addEventListener('click',(e)=>{
+    const btn=e.target.closest('button.key');
+    if(!btn) return;
+    const idx=Number(btn.dataset.idx);
+    keyState[idx]=!keyState[idx];
+    if(keyState[idx]) lastCheckedIndex=idx;
+    else if(lastCheckedIndex===idx) lastCheckedIndex=null;
+    save(keyState);
+    render();
+  });
+
+  resetBtn.addEventListener('click',()=>{
+    keyState=Array(keys.length).fill(false);
+    lastCheckedIndex=null;
+    try{saveLastIndex(null)}catch(e){}
+    save(keyState);
+    resultEl.textContent='';
+    render();
+  });
+
+  randomBtn.addEventListener('click',pickRandom);
+  render();
+})();
+
+// ===== Practice Calendar =====
+(function(){
+  const LS_PRACTICE='mosica.practice.v1';
+  const KEYS=["C","C# / Db","D","D# / Eb","E","F","F# / Gb","G","G# / Ab","A","A# / Bb","B"];
+
+  const calGrid=$('calGrid');
+  const monthTitle=$('monthTitle');
+  const selectedDateTitle=$('selectedDateTitle');
+  const entriesList=$('entriesList');
+  const keysChecklist=$('keysChecklist');
+  const calNote=$('calNote');
+
+  function todayISO(){const d=new Date();d.setHours(0,0,0,0);return d.toISOString().slice(0,10)}
+  function fmtISO(d){const z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`}
+  function loadAll(){try{const r=JSON.parse(localStorage.getItem(LS_PRACTICE)||'{}');return(r&&typeof r==='object')?r:{}}catch(e){return{}}}
+  function saveAll(data){try{localStorage.setItem(LS_PRACTICE,JSON.stringify(data))}catch(e){}}
+
+  let db=loadAll();
+  let current=new Date();current.setDate(1);
+  let selectedISO=todayISO();
+
+  function buildChecklist(){
+    keysChecklist.innerHTML='';
+    KEYS.forEach(k=>{
+      const label=document.createElement('label');
+      label.className='checkbox';
+      const input=document.createElement('input');
+      input.type='checkbox';
+      input.value=k;
+      label.appendChild(input);
+      const txt=document.createElement('span');
+      txt.textContent=k;
+      label.appendChild(txt);
+      keysChecklist.appendChild(label);
+    });
+  }
+
+  function setChecklistByLabels(labels){
+    const set=new Set(labels||[]);
+    keysChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=set.has(cb.value)});
+  }
+
+  function getChecklistLabels(){
+    const arr=[];
+    keysChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{if(cb.checked) arr.push(cb.value)});
+    return arr;
+  }
+
+  function renderMonth(){
+    const year=current.getFullYear();
+    const month=current.getMonth();
+    monthTitle.textContent=`${year}. ${month+1}`;
+    calGrid.innerHTML='';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{
+      const h=document.createElement('div');
+      h.className='cal-head';
+      h.textContent=d;
+      calGrid.appendChild(h);
+    });
+    const first=new Date(year,month,1);
+    const startWeekday=first.getDay();
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    for(let i=0;i<startWeekday;i++){
+      const empty=document.createElement('div');
+      empty.className='cal-cell cal-empty';
+      calGrid.appendChild(empty);
+    }
+    for(let day=1;day<=daysInMonth;day++){
+      const date=new Date(year,month,day);
+      const iso=fmtISO(date);
+      const cell=document.createElement('div');
+      cell.className='cal-cell';
+      if(iso===todayISO()) cell.classList.add('today');
+      if(iso===selectedISO) cell.classList.add('selected');
+      cell.dataset.iso=iso;
+      const head=document.createElement('div');
+      head.className='cal-date';
+      head.textContent=day;
+      cell.appendChild(head);
+      const dotsWrap=document.createElement('div');
+      dotsWrap.className='cal-dots';
+      const entries=db[iso]||[];
+      for(let i=0;i<Math.min(4,entries.length);i++){
+        const dot=document.createElement('span');
+        dot.className='cal-dot';
+        dotsWrap.appendChild(dot);
+      }
+      cell.appendChild(dotsWrap);
+      cell.addEventListener('click',()=>selectDate(iso));
+      calGrid.appendChild(cell);
+    }
+  }
+
+  function selectDate(iso){
+    selectedISO=iso;
+    selectedDateTitle.textContent=`${iso}`;
+    try{
+      const bpmNow=(window.state&&window.state.bpm)?window.state.bpm:'';
+      const fromEl=$('calBpmFrom');
+      const toEl=$('calBpmTo');
+      if(fromEl&&toEl){fromEl.value=bpmNow||'';toEl.value=bpmNow||''}
+    }catch(e){}
+    let keysFromCards=getCheckedKeysFromCards();
+    if(iso===todayISO()&&window.lastPickedLabel&&keysFromCards.indexOf(window.lastPickedLabel)===-1){
+      keysFromCards=keysFromCards.concat([window.lastPickedLabel]);
+    }
+    setChecklistByLabels(keysFromCards);
+    renderMonth();
+    renderEntries();
+  }
+
+  function renderEntries(){
+    const arr=db[selectedISO]||[];
+    if(!arr.length){entriesList.innerHTML='<div>No entries yet.</div>';return}
+    entriesList.innerHTML='';
+    arr.forEach((en,idx)=>{
+      const item=document.createElement('div');
+      item.className='entry-item';
+      const bpmTxt=(en.bpmFrom||en.bpmTo)?((en.bpmFrom&&en.bpmTo&&en.bpmFrom!==en.bpmTo)?`${en.bpmFrom}–${en.bpmTo} BPM`:`${en.bpmFrom||en.bpmTo} BPM`):'-';
+      item.innerHTML=`
+        <div><strong>Key:</strong> ${(en.keys||[]).join(', ')||'-'}</div>
+        <div><strong>Tempo:</strong> ${bpmTxt}</div>
+        <div><strong>Notes:</strong></div>
+        <div>${en.note?escapeHtml(en.note).replace(/\n/g,'<br>'):'-'}</div>
+        <div style="color:var(--muted);font-size:10px;margin-top:4px">${en.time||''}</div>
+      `;
+      const del=document.createElement('button');
+      del.className='btn';
+      del.textContent='Delete';
+      del.style.marginTop='6px';
+      del.style.fontSize='12px';
+      del.style.padding='6px 12px';
+      del.addEventListener('click',()=>{
+        const next=(db[selectedISO]||[]).filter((_,i)=>i!==idx);
+        db[selectedISO]=next;
+        if(!next.length) delete db[selectedISO];
+        saveAll(db);
+        renderMonth();
+        renderEntries();
+      });
+      item.appendChild(del);
+      entriesList.appendChild(item);
+    });
+  }
+
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+  $('saveEntryBtn').addEventListener('click',()=>{
+    const keysSel=getChecklistLabels();
+    const bpmFrom=$('calBpmFrom')?parseInt($('calBpmFrom').value,10)||null:null;
+    const bpmTo=$('calBpmTo')?parseInt($('calBpmTo').value,10)||null:null;
+    const note=calNote.value.trim();
+    const now=new Date();
+    const en={keys:keysSel,bpmFrom,bpmTo,note,time:now.toTimeString().slice(0,5)};
+    const arr=db[selectedISO]||[];
+    arr.push(en);
+    db[selectedISO]=arr;
+    saveAll(db);
+    calNote.value='';
+    renderMonth();
+    renderEntries();
+  });
+
+  $('clearDayBtn').addEventListener('click',()=>{
+    if(!db[selectedISO]) return;
+    delete db[selectedISO];
+    saveAll(db);
+    renderMonth();
+    renderEntries();
+  });
+
+  $('prevMonthBtn').addEventListener('click',()=>{current.setMonth(current.getMonth()-1);renderMonth()});
+  $('nextMonthBtn').addEventListener('click',()=>{current.setMonth(current.getMonth()+1);renderMonth()});
+
+  $('exportCsvBtn').addEventListener('click',()=>{
+    const rows=[['date','time','keys','bpm_from','bpm_to','note']];
+    Object.keys(db).sort().forEach(date=>{
+      (db[date]||[]).forEach(en=>{
+        rows.push([date,en.time||'',(en.keys||[]).join(' '),en.bpmFrom||'',en.bpmTo||'',(en.note||'').replace(/\n/g,' ')]);
+      });
+    });
+    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='practice.csv';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+
+  function collectKeysFromPageOrStorage(){
+    const wrap=$('keyCards');
+    const out=[];
+    if(wrap){
+      wrap.querySelectorAll('button.key').forEach(b=>{
+        if(b.getAttribute('data-checked')==='true') out.push(b.textContent.trim());
+      });
+      if(out.length) return out;
+    }
+    try{
+      let arr=JSON.parse(localStorage.getItem('mosica.keyCards.v2')||'[]');
+      if(Array.isArray(arr)&&arr.length===KEYS.length){
+        for(let i=0;i<arr.length;i++){if(arr[i]) out.push(KEYS[i])}
+        if(out.length) return out;
+      }
+    }catch(e){}
+    return[];
+  }
+
+  const syncBtn=$('syncKeysFromCardsBtn');
+  if(syncBtn){
+    syncBtn.addEventListener('click',()=>{
+      setChecklistByLabels(collectKeysFromPageOrStorage());
+      calNote?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
+  }
+
+  buildChecklist();
+  renderMonth();
+  selectDate(todayISO());
+})();
+
+function getCheckedKeysFromCards(){
+  const KEYS=["C","C# / Db","D","D# / Eb","E","F","F# / Gb","G","G# / Ab","A","A# / Bb","B"];
+  try{
+    const arr=JSON.parse(localStorage.getItem('mosica.keyCards.v2')||'[]');
+    if(!Array.isArray(arr)||arr.length!==KEYS.length) return[];
+    const out=[];
+    for(let i=0;i<KEYS.length;i++){if(arr[i]) out.push(KEYS[i])}
+    return out;
+  }catch(e){return[]}
+}
+</script>
+</body>
+</html>
