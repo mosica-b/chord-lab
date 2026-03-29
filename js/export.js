@@ -499,7 +499,10 @@ const Export = (() => {
       const preview = document.getElementById('blogPreview');
       if (preview) {
         preview.querySelectorAll('[data-bq]').forEach(el => {
-          overrides[el.getAttribute('data-bq')] = resolveShortcodes(el.innerHTML, metadata);
+          const clone = el.cloneNode(true);
+          clone.querySelectorAll('[contenteditable="false"]').forEach(s => s.remove());
+          let html = clone.innerHTML.replace(/<br>\s*$/, '');
+          overrides[el.getAttribute('data-bq')] = resolveShortcodes(html, metadata);
         });
       }
       const html = generateNaverHTML(metadata, chords, capoPosition, overrides);
