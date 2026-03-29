@@ -887,26 +887,29 @@ const App = (() => {
     if (bqSaveBtn) {
       bqSaveBtn.addEventListener('click', () => {
         const current = bqSelect ? bqSelect.value : '__default__';
+        const currentLabel = current === '__default__' ? '기본' : current;
+        const choice = prompt(
+          `"${currentLabel}" 프리셋에 덮어쓰려면 빈칸으로 확인,\n다른 이름으로 저장하려면 이름을 입력하세요 (최대 10개):\n("기본" 입력 시 기본 프리셋에 저장)`
+        );
+        if (choice === null) return;
+        const trimmed = choice.trim();
         let name;
-        if (current === '__default__') {
-          // 기본 프리셋: 덮어쓰기 또는 새 이름으로 저장 선택
-          const choice = prompt(
-            '기본 프리셋에 덮어쓰려면 빈칸으로 확인,\n새 프리셋으로 저장하려면 이름을 입력하세요 (최대 10개):'
-          );
-          if (choice === null) return; // 취소
-          name = choice.trim() || '__default__';
-          if (name === '__default__') {
-            if (!confirm('기본 프리셋을 현재 값으로 덮어쓸까요?')) return;
-          }
+        if (!trimmed) {
+          name = current;
+        } else if (trimmed === '기본') {
+          name = '__default__';
         } else {
-          const choice = prompt(
-            `"${current}" 프리셋에 덮어쓰려면 빈칸으로 확인,\n새 이름으로 저장하려면 이름을 입력하세요:`
-          );
-          if (choice === null) return;
-          name = choice.trim() || current;
-          if (name === current) {
-            if (!confirm(`"${current}" 프리셋을 덮어쓸까요?`)) return;
-          }
+          name = trimmed;
+        }
+        const targetLabel = name === '__default__' ? '기본' : name;
+        // 기존 프리셋 덮어쓰기 시 확인
+        const isExisting = name === current || name === '__default__'
+          ? Export.hasDefaultOverride()
+          : Export.getBqPresets().some(p => p.name === name);
+        if (isExisting && name === current) {
+          if (!confirm(`"${targetLabel}" 프리셋을 덮어쓸까요?`)) return;
+        } else if (isExisting) {
+          if (!confirm(`"${targetLabel}" 프리셋이 이미 있습니다. 덮어쓸까요?`)) return;
         }
         const ok = Export.saveBqPreset(name);
         if (!ok) {
