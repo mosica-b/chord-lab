@@ -57,7 +57,7 @@ const Renderers = (() => {
       }
 
       // Build VexFlow keys with octave assignments
-      const keys = assignOctavesForStaff(chordNotes);
+      const keys = assignOctavesForStaff(chordNotes, chordName);
 
       const staveNote = new VF.StaveNote({
         clef: 'treble',
@@ -109,15 +109,21 @@ const Renderers = (() => {
    * Keeps notes in a reasonable range around C4-B5
    * Handles both sharp and flat note names (e.g., Bb, Eb, C#, F#)
    */
-  function assignOctavesForStaff(noteNames) {
+  function assignOctavesForStaff(noteNames, chordName) {
     if (noteNames.length === 0) return [];
 
     // Keep original order from getChordNotesDisplay (already in thirds stacking: 1,3,5,7,9,11,13).
     // Assign octaves using letter index (C=0..B=6) to match VexFlow's octave numbering.
     // Bump octave when letter index wraps (goes lower than previous).
     const LETTER_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+
+    // Slash chord: bass note (first) with high letter (A, B) should go an octave lower
+    const isSlash = chordName && chordName.includes('/');
+    const bassLetterIdx = LETTER_IDX[noteNames[0][0]];
+    const startOctave = (isSlash && bassLetterIdx >= 5) ? 3 : 4; // A=5, B=6
+
     const keys = [];
-    let currentOctave = 4;
+    let currentOctave = startOctave;
     let prevLetterIdx = -1;
 
     for (let i = 0; i < noteNames.length; i++) {
