@@ -99,9 +99,9 @@ const Export = (() => {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
       if (_bqOverrides[bqKey]) {
-        // Clean legacy presets that may contain key info text
+        // Clean legacy presets that may contain key info text (plain text or wrapped in <span>)
         el.innerHTML = _bqOverrides[bqKey]
-          .replace(/<br>\s*\*\s*.*?Key 기준/g, '')
+          .replace(/<br>\s*(<span[^>]*>)?\s*\*\s*.*?Key 기준\s*(<\/span>)?/gi, '')
           .replace(/<br>\s*$/, '');
       }
       el.style.cursor = 'text';
