@@ -684,9 +684,12 @@ const MusicXMLParser = (() => {
    */
   function parseDegrees(harmony) {
     const degrees = harmony.querySelectorAll('degree');
-    if (degrees.length === 0) return '';
+    if (degrees.length === 0) return { suffix: null, degreeStr: '' };
 
     const parts = [];
+    const subtracted = new Set();
+    const added = [];
+
     for (const deg of degrees) {
       const degValue = deg.querySelector('degree-value');
       if (!degValue) continue;
@@ -697,21 +700,39 @@ const MusicXMLParser = (() => {
       const degType = deg.querySelector('degree-type');
       const type = degType ? degType.textContent.trim() : 'add';
 
-      // Skip subtracted notes (omit3, omit5)
-      if (type === 'subtract') continue;
+      if (type === 'subtract') {
+        subtracted.add(value);
+        continue;
+      }
 
+      added.push({ value, alter, type });
+    }
+
+    // Detect sus4 pattern: add 4 (no alter) + subtract 3
+    // dominant + this pattern = 7sus4, not 7(add4)
+    let suffixOverride = null;
+    const filteredAdded = [];
+    for (const d of added) {
+      if (d.value === '4' && d.alter === '0' && subtracted.has('3')) {
+        suffixOverride = 'sus4';
+      } else if (d.value === '2' && d.alter === '0' && subtracted.has('3')) {
+        suffixOverride = 'sus2';
+      } else {
+        filteredAdded.push(d);
+      }
+    }
+
+    for (const d of filteredAdded) {
       let label = '';
-      if (alter === '1') label = '#' + value;
-      else if (alter === '-1') label = 'b' + value;
-      else if (type === 'add') label = 'add' + value;
-      else label = value; // 'alter' type with no alteration (natural)
-
+      if (d.alter === '1') label = '#' + d.value;
+      else if (d.alter === '-1') label = 'b' + d.value;
+      else if (d.type === 'add') label = 'add' + d.value;
+      else label = d.value;
       parts.push(label);
     }
 
-    if (parts.length === 0) return '';
-    // Combine: B7(#9), Cmaj7(#11,b13)
-    return '(' + parts.join(',') + ')';
+    const degreeStr = parts.length === 0 ? '' : '(' + parts.join(',') + ')';
+    return { suffix: suffixOverride, degreeStr };
   }
 
   function parseChords(doc) {
@@ -744,7 +765,8 @@ const MusicXMLParser = (() => {
       }
 
       // Parse degree modifications (#9, b5, add9, etc.)
-      const degreeStr = parseDegrees(harmony);
+      const { suffix: susOverride, degreeStr } = parseDegrees(harmony);
+      if (susOverride) suffix = suffix + susOverride;
 
       // Parse bass note for slash chords (e.g., G/B)
       let bassStr = '';
