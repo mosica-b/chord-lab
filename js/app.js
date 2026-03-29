@@ -899,8 +899,14 @@ const App = (() => {
             if (!confirm('기본 프리셋을 현재 값으로 덮어쓸까요?')) return;
           }
         } else {
-          if (!confirm(`"${current}" 프리셋을 덮어쓸까요?`)) return;
-          name = current;
+          const choice = prompt(
+            `"${current}" 프리셋에 덮어쓰려면 빈칸으로 확인,\n새 이름으로 저장하려면 이름을 입력하세요:`
+          );
+          if (choice === null) return;
+          name = choice.trim() || current;
+          if (name === current) {
+            if (!confirm(`"${current}" 프리셋을 덮어쓸까요?`)) return;
+          }
         }
         const ok = Export.saveBqPreset(name);
         if (!ok) {
