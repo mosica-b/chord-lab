@@ -724,10 +724,14 @@ const MusicXMLParser = (() => {
 
     for (const d of filteredAdded) {
       let label = '';
-      if (d.alter === '1') label = '#' + d.value;
-      else if (d.alter === '-1') label = 'b' + d.value;
-      else if (d.type === 'add') label = 'add' + d.value;
-      else label = d.value;
+      // Map add4 → add11, add2 → add9 (4th/2nd don't exist as "add" in chord theory)
+      const displayValue = (d.type === 'add' && d.alter === '0' && d.value === '4') ? '11'
+        : (d.type === 'add' && d.alter === '0' && d.value === '2') ? '9'
+        : d.value;
+      if (d.alter === '1') label = '#' + displayValue;
+      else if (d.alter === '-1') label = 'b' + displayValue;
+      else if (d.type === 'add') label = 'add' + displayValue;
+      else label = displayValue;
       parts.push(label);
     }
 
