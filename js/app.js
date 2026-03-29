@@ -863,8 +863,9 @@ const App = (() => {
     function refreshBqPresetSelect(selectValue) {
       if (!bqSelect) return;
       const presets = Export.getBqPresets();
-      bqSelect.innerHTML = '<option value="__default__">기본</option>';
-      presets.forEach(p => {
+      const hasDefaultOverride = presets.some(p => p.name === '__default__');
+      bqSelect.innerHTML = `<option value="__default__">기본${hasDefaultOverride ? ' (수정됨)' : ''}</option>`;
+      presets.filter(p => p.name !== '__default__').forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.name;
         opt.textContent = p.name;
