@@ -95,20 +95,38 @@ const Export = (() => {
 
     // Helper: make a blockquote editable with visual indicators
     // Applies preset override if loaded
+    /** Strip formatting tags but keep <br> for line breaks */
+    function stripFormatting(html) {
+      return html
+        // Remove key info (legacy presets)
+        .replace(/<br>\s*(<span[^>]*>)?\s*\*\s*.*?Key 기준\s*(<\/span>)?/gi, '')
+        // Convert block-level tags to <br>
+        .replace(/<\/(div|p)>/gi, '<br>')
+        .replace(/<(div|p)[^>]*>/gi, '')
+        // Strip all tags except <br>
+        .replace(/<(?!\/?br\s*\/?>)[^>]+>/gi, '')
+        // Clean up multiple <br>
+        .replace(/(<br\s*\/?\s*>){3,}/gi, '<br><br>')
+        .replace(/<br>\s*$/, '');
+    }
+
     function makeEditable(el, bqKey) {
       el.contentEditable = 'true';
       el.setAttribute('data-bq', bqKey);
       if (_bqOverrides[bqKey]) {
-        // Clean legacy presets that may contain key info text (plain text or wrapped in <span>)
-        el.innerHTML = _bqOverrides[bqKey]
-          .replace(/<br>\s*(<span[^>]*>)?\s*\*\s*.*?Key 기준\s*(<\/span>)?/gi, '')
-          .replace(/<br>\s*$/, '');
+        el.innerHTML = stripFormatting(_bqOverrides[bqKey]);
       }
       el.style.cursor = 'text';
       el.style.borderRadius = '4px';
       el.style.padding = '8px 12px';
       el.style.transition = 'border-color 0.2s, box-shadow 0.2s';
       el.style.border = '1px dashed transparent';
+      // Paste as plain text to prevent formatting issues
+      el.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, text);
+      });
       el.addEventListener('mouseenter', () => { if (document.activeElement !== el) el.style.borderColor = '#ccc'; });
       el.addEventListener('mouseleave', () => { if (document.activeElement !== el) el.style.borderColor = 'transparent'; });
       el.addEventListener('focus', () => { el.style.borderColor = '#2563eb'; el.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.15)'; });
