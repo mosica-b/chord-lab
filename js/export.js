@@ -607,7 +607,8 @@ const Export = (() => {
           overrides[el.getAttribute('data-bq')] = resolveShortcodes(html, metadata);
         });
       }
-      const html = generateNaverHTML(metadata, chords, capoPosition, overrides);
+      // NFC normalize to prevent Korean jamo separation on macOS
+      const html = generateNaverHTML(metadata, chords, capoPosition, overrides).normalize('NFC');
 
       // Clipboard API: writes exact HTML without browser re-serialization
       if (navigator.clipboard && window.ClipboardItem) {
@@ -644,11 +645,12 @@ const Export = (() => {
     }
   }
 
-  /** Strip HTML tags for plain text fallback */
+  /** Strip HTML tags for plain text fallback (NFC normalize to prevent Korean jamo separation) */
   function stripHtml(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    const text = tmp.textContent || tmp.innerText || '';
+    return text.normalize('NFC');
   }
 
   /**
