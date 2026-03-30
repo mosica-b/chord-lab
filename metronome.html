@@ -377,12 +377,13 @@ function applyI18n(){
   });
   document.getElementById('langBtn').textContent = currentLang === 'ko' ? 'EN' : '한';
   document.documentElement.lang = currentLang;
-  // update dynamic start/stop button
-  const sb = document.getElementById('startBtn');
-  if(sb && typeof isPlaying !== 'undefined') sb.textContent = isPlaying ? t('stop') : t('start');
-  // re-render calendar if available
-  if(typeof _renderMonth === 'function') _renderMonth();
-  if(typeof _renderEntries === 'function') _renderEntries();
+  // update dynamic parts (may not exist on first call due to let TDZ)
+  try {
+    const sb = document.getElementById('startBtn');
+    if(sb) sb.textContent = isPlaying ? t('stop') : t('start');
+    if(typeof _renderMonth === 'function') _renderMonth();
+    if(typeof _renderEntries === 'function') _renderEntries();
+  } catch(e) {}
 }
 
 document.getElementById('langBtn').addEventListener('click', () => {
