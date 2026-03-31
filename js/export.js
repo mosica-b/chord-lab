@@ -271,21 +271,21 @@ const Export = (() => {
         const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
         const query = encodeURIComponent(q);
         const lyricsQuery = encodeURIComponent(`${q} 가사`);
-        const hasGenius = !!metadata.geniusUrl;
-        const lyricsLink = hasGenius ? metadata.geniusUrl : `https://www.google.com/search?q=${lyricsQuery}`;
-        const lyricsLinkText = hasGenius ? '가사 전체 보기' : '가사 검색하기';
-        const lyricsSource = hasGenius
-          ? `출처: <a href="https://genius.com" target="_blank" style="color:#999;text-decoration:none;">genius.com</a>`
-          : `<a href="https://www.google.com/search?q=${lyricsQuery}" target="_blank" style="color:#999;text-decoration:none;">Google 가사 검색</a>`;
+        const googleLyricsUrl = `https://www.google.com/search?q=${lyricsQuery}`;
         const appleMusicLink = metadata.appleMusicUrl || `https://music.apple.com/search?term=${query}`;
 
         let lyricsHtml = '';
         if (metadata.lyricsIntro) {
+          const fullLink = metadata.geniusUrl || googleLyricsUrl;
+          const fullLinkText = metadata.geniusUrl ? '가사 전체 보기' : '가사 검색하기';
+          const source = metadata.geniusUrl
+            ? `출처: <a href="https://genius.com" target="_blank" style="color:#999;text-decoration:none;">genius.com</a>`
+            : `<a href="${googleLyricsUrl}" target="_blank" style="color:#999;text-decoration:none;">Google 가사 검색</a>`;
           lyricsHtml += `${esc(metadata.lyricsIntro).replace(/\n/g, '<br>')}<br>`;
-          lyricsHtml += `<span style="color:#999;">...</span> ▶ <a href="${lyricsLink}" target="_blank" style="color:#8B2252;text-decoration:none;">${lyricsLinkText}</a> 🌙`;
-          lyricsHtml += `<br><span style="color:#999;font-size:11px;">${lyricsSource}</span>`;
+          lyricsHtml += `<span style="color:#999;">...</span> ▶ <a href="${fullLink}" target="_blank" style="color:#8B2252;text-decoration:none;">${fullLinkText}</a> 🌙`;
+          lyricsHtml += `<br><span style="color:#999;font-size:11px;">${source}</span>`;
         } else {
-          lyricsHtml += `▶ <a href="${lyricsLink}" target="_blank" style="color:#8B2252;text-decoration:none;">${lyricsLinkText}</a> 🌙`;
+          lyricsHtml += `▶ <a href="${googleLyricsUrl}" target="_blank" style="color:#8B2252;text-decoration:none;">가사 검색하기</a> 🌙`;
         }
         allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
 
@@ -720,21 +720,21 @@ const Export = (() => {
       const query = encodeURIComponent(q);
       const lyricsQuery = encodeURIComponent(`${q} 가사`);
       if (metadata.songName || metadata.artist) {
-        const hasGenius = !!metadata.geniusUrl;
-        const geniusLink = hasGenius ? esc(metadata.geniusUrl) : `https://www.google.com/search?q=${lyricsQuery}`;
-        const lyricsLinkText = hasGenius ? '가사 전체 보기' : '가사 검색하기';
-        const lyricsSourceHtml = hasGenius
-          ? `<font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`
-          : `<font color="#999999" size="1"><a href="https://www.google.com/search?q=${lyricsQuery}">Google 가사 검색</a></font>`;
+        const googleLyricsUrl2 = `https://www.google.com/search?q=${lyricsQuery}`;
         const appleMusicLink = metadata.appleMusicUrl ? esc(metadata.appleMusicUrl) : `https://music.apple.com/search?term=${query}`;
 
         let lyricsValue = '';
         if (metadata.lyricsIntro) {
+          const fullLink = metadata.geniusUrl ? esc(metadata.geniusUrl) : googleLyricsUrl2;
+          const fullLinkText = metadata.geniusUrl ? '가사 전체 보기' : '가사 검색하기';
+          const sourceHtml = metadata.geniusUrl
+            ? `<font color="#999999" size="1">출처: <a href="https://genius.com">genius.com</a></font>`
+            : `<font color="#999999" size="1"><a href="${googleLyricsUrl2}">Google 가사 검색</a></font>`;
           lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
-          lyricsValue += `<font color="#999999">&hellip;</font> ▶ <a href="${geniusLink}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252"><b>${lyricsLinkText}</b></font></a> 🌙`;
-          lyricsValue += `<br>${lyricsSourceHtml}`;
+          lyricsValue += `<font color="#999999">&hellip;</font> ▶ <a href="${fullLink}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252"><b>${fullLinkText}</b></font></a> 🌙`;
+          lyricsValue += `<br>${sourceHtml}`;
         } else {
-          lyricsValue += `▶ <a href="${geniusLink}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">${lyricsLinkText}</font></a> 🌙`;
+          lyricsValue += `▶ <a href="${googleLyricsUrl2}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">가사 검색하기</font></a> 🌙`;
         }
         extraRows.push({ label: '가사', value: lyricsValue });
 
