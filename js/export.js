@@ -283,10 +283,10 @@ const Export = (() => {
         if (metadata.lyricsIntro) {
           lyricsHtml += `${esc(metadata.lyricsIntro).replace(/\n/g, '<br>')}<br>`;
           lyricsHtml += `<span style="color:#999;">...</span> ▶ <a href="${lyricsLink}" target="_blank" style="color:#8B2252;text-decoration:none;">${lyricsLinkText}</a> 🌙`;
+          lyricsHtml += `<br><span style="color:#999;font-size:11px;">${lyricsSource}</span>`;
         } else {
           lyricsHtml += `▶ <a href="${lyricsLink}" target="_blank" style="color:#8B2252;text-decoration:none;">${lyricsLinkText}</a> 🌙`;
         }
-        lyricsHtml += `<br><span style="color:#999;font-size:11px;">${lyricsSource}</span>`;
         allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
 
         allTableRows.push({ label: '음원', valueHtml: `<a href="https://www.youtube.com/results?search_query=${query}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
@@ -732,10 +732,10 @@ const Export = (() => {
         if (metadata.lyricsIntro) {
           lyricsValue += esc(metadata.lyricsIntro).replace(/\n/g, '<br>') + '<br>';
           lyricsValue += `<font color="#999999">&hellip;</font> ▶ <a href="${geniusLink}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252"><b>${lyricsLinkText}</b></font></a> 🌙`;
+          lyricsValue += `<br>${lyricsSourceHtml}`;
         } else {
           lyricsValue += `▶ <a href="${geniusLink}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">${lyricsLinkText}</font></a> 🌙`;
         }
-        lyricsValue += `<br>${lyricsSourceHtml}`;
         extraRows.push({ label: '가사', value: lyricsValue });
 
         extraRows.push({ label: '음원', value: `<a href="https://www.youtube.com/results?search_query=${query}">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
