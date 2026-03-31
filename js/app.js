@@ -553,6 +553,16 @@ const App = (() => {
       });
     }
 
+    // Full reset button (same as page refresh)
+    const fullResetBtn = document.getElementById('fullResetBtn');
+    if (fullResetBtn) {
+      fullResetBtn.addEventListener('click', () => {
+        if (!confirm('모든 데이터를 초기화하고 새로고침합니다. 계속하시겠습니까?')) return;
+        localStorage.removeItem('songChordLab');
+        location.reload();
+      });
+    }
+
     // Album search button
     const searchBtn = document.getElementById('searchAlbumBtn');
     if (searchBtn) {
