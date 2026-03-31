@@ -113,7 +113,14 @@ const ITunesSearch = (() => {
    */
   function pickBestHit(hits, songName, artist) {
     const songLower = (songName || '').toLowerCase();
-    const artistLower = (artist || '').toLowerCase();
+    // Build artist name variants for matching
+    const artistNames = new Set();
+    if (artist) artistNames.add(artist.toLowerCase());
+    const korArtist = stripParens(artist);
+    if (korArtist) artistNames.add(korArtist.toLowerCase());
+    const engArtist = extractEnglishName(artist);
+    if (engArtist) artistNames.add(engArtist.toLowerCase());
+
     // Pass 1: title matches song name & not a translation
     for (const hit of hits) {
       if (isTranslationPage(hit)) continue;
@@ -121,11 +128,13 @@ const ITunesSearch = (() => {
         return hit.result.url;
       }
     }
-    // Pass 2: not translation AND (artist matches OR title matches song)
+    // Pass 2: not translation AND artist matches (any variant)
     for (const hit of hits) {
       if (isTranslationPage(hit)) continue;
       const hitArtist = (hit.result.primary_artist?.name || '').toLowerCase();
-      if (artistLower && hitArtist.includes(artistLower)) return hit.result.url;
+      for (const a of artistNames) {
+        if (hitArtist.includes(a) || a.includes(hitArtist)) return hit.result.url;
+      }
     }
     // Pass 3: title matches (even translation, as last resort)
     for (const hit of hits) {
@@ -137,21 +146,40 @@ const ITunesSearch = (() => {
     return null;
   }
 
-  async function searchGeniusLyrics(songName, artist, altSongName) {
+  /**
+   * Strip parenthesized portion from name: "너드커넥션(Nerd Connection)" → "너드커넥션"
+   */
+  function stripParens(name) {
+    if (!name) return null;
+    const stripped = name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    return stripped || null;
+  }
+
+  async function searchGeniusLyrics(songName, artist, altSongName, altArtist) {
     if (!songName) return null;
 
+    // Build diverse artist name variants (Korean-only, English-only, full)
+    const artistVariants = new Set();
+    if (artist) artistVariants.add(artist);
+    const koreanArtist = stripParens(artist);
+    if (koreanArtist && koreanArtist !== artist) artistVariants.add(koreanArtist);
+    const englishArtist = extractEnglishName(artist);
+    if (englishArtist) artistVariants.add(englishArtist);
+    if (altArtist) artistVariants.add(altArtist);
+
     // Build query list: song-first order works better (avoids translation page dominance)
-    const queries = [
-      `${songName} ${artist || ''}`.trim(),
-    ];
+    const seen = new Set();
+    const queries = [];
+    const addQ = (q) => { const t = q.trim(); if (t && !seen.has(t)) { seen.add(t); queries.push(t); } };
+
+    // Primary: song + each artist variant
+    for (const a of artistVariants) addQ(`${songName} ${a}`);
+    // Alt song name + each artist variant
     if (altSongName && altSongName.toLowerCase() !== songName.toLowerCase()) {
-      queries.push(`${altSongName} ${artist || ''}`.trim());
+      for (const a of artistVariants) addQ(`${altSongName} ${a}`);
     }
-    // Also try artist-first as fallback
-    const artistFirst = `${artist || ''} ${songName}`.trim();
-    if (!queries.includes(artistFirst)) {
-      queries.push(artistFirst);
-    }
+    // Artist-first fallbacks
+    for (const a of artistVariants) addQ(`${a} ${songName}`);
 
     for (const query of queries) {
       const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}&access_token=${GENIUS_TOKEN}`;

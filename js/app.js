@@ -129,7 +129,7 @@ const App = (() => {
       // Step 2: Genius search with English trackName as alternate query
       const altSongName = album?.trackNameEN || album?.trackName || null;
       const altArtist = album?.artistNameEN || album?.artistName || null;
-      const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName);
+      const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName, altArtist);
       if (geniusUrl) {
         state.metadata.geniusUrl = geniusUrl;
         changed = true;
@@ -300,7 +300,7 @@ const App = (() => {
         }
         const altName = album?.trackNameEN || album?.trackName || null;
         const altArtistName = album?.artistNameEN || album?.artistName || null;
-        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
+        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName, altArtistName);
         if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
         saveState();
         updatePreview();
@@ -398,7 +398,7 @@ const App = (() => {
         }
         const altName = album?.trackNameEN || album?.trackName || null;
         const altArtistName = album?.artistNameEN || album?.artistName || null;
-        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName);
+        const geniusUrl = await ITunesSearch.searchGeniusLyrics(result.songName, result.artist, altName, altArtistName);
         if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
         saveState();
         updatePreview();
@@ -570,7 +570,7 @@ const App = (() => {
           }
           const altName = album?.trackNameEN || album?.trackName || null;
           const altArtistName2 = album?.artistNameEN || album?.artistName || null;
-          const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altName);
+          const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altName, altArtistName2);
           if (geniusUrl) state.metadata.geniusUrl = geniusUrl;
           saveState();
           updatePreview();
