@@ -12,8 +12,13 @@ const ViewerApp = (() => {
   let defaultType = null;
   let currentType = 'staff';
   let capoPosition = 0;
+  let capoInstrument = 'guitar'; // 'guitar' or 'ukulele' — which instrument the capo belongs to
   let horizontalMode = false;
-  const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
+  // CAPO_TYPES is dynamic based on capoInstrument
+  function getCapoTypes() {
+    if (capoInstrument === 'ukulele') return new Set(['ukulele-tab', 'ukulele-diagram']);
+    return new Set(['guitar-tab', 'guitar-diagram']);
+  }
 
   // Voicing index state: Map<chordName, { guitar: number, ukulele: number }>
   const voicingIndices = new Map();
@@ -60,6 +65,13 @@ const ViewerApp = (() => {
       const validTypes = TABS.map(t => t.id);
       if (validTypes.includes(typeParam)) defaultType = typeParam;
     }
+    // Read capo params from URL
+    const capoParam = parseInt(params.get('capo'), 10);
+    if (capoParam > 0 && capoParam <= 12) capoPosition = capoParam;
+    const cinstParam = params.get('cinst');
+    if (cinstParam === 'ukulele') capoInstrument = 'ukulele';
+    else if (cinstParam === 'guitar') capoInstrument = 'guitar';
+
     currentType = defaultType || 'staff';
 
     if (isAdmin) {
@@ -150,7 +162,7 @@ const ViewerApp = (() => {
         switchAllPanels(currentType);
         syncAllSelectors();
         // Capo types → keep FAB open so user can select capo
-        if (!CAPO_TYPES.has(currentType)) {
+        if (!getCapoTypes().has(currentType)) {
           fabAccordion.classList.add('hidden');
         }
       });
@@ -192,6 +204,12 @@ const ViewerApp = (() => {
 
     // Capo buttons (both top and FAB)
     setupCapoButtons();
+    // Sync capo button state from URL param
+    if (capoPosition > 0) {
+      document.querySelectorAll('.capo-btn').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.capo, 10) === capoPosition);
+      });
+    }
   }
 
   function setupCapoButtons() {
@@ -203,6 +221,7 @@ const ViewerApp = (() => {
           b.classList.toggle('active', parseInt(b.dataset.capo, 10) === capoPosition);
         });
         renderCards();
+        updateURL();
         // Close FAB accordion after capo selection (top accordion stays as-is)
         const fabAccordion = document.getElementById('fabAccordion');
         if (fabAccordion) fabAccordion.classList.add('hidden');
@@ -226,15 +245,18 @@ const ViewerApp = (() => {
         }
       }
     });
-    // Show/hide capo row and card labels
-    const showCapo = CAPO_TYPES.has(typeId);
+    // Show capo row always (capo applies to all types for sounding pitch)
     const capoRow = document.getElementById('capoRow');
     const fabCapoRow = document.getElementById('fabCapoRow');
-    if (capoRow) capoRow.style.display = showCapo ? 'flex' : 'none';
-    if (fabCapoRow) fabCapoRow.style.display = showCapo ? 'flex' : 'none';
+    if (capoRow) capoRow.style.display = 'flex';
+    if (fabCapoRow) fabCapoRow.style.display = 'flex';
+    // Shape labels only for CAPO instrument types (guitar/ukulele diagrams)
+    const isCapoType = getCapoTypes().has(typeId);
     document.querySelectorAll('.capo-shape-label').forEach(label => {
-      label.style.display = (showCapo && capoPosition > 0) ? '' : 'none';
+      label.style.display = (isCapoType && capoPosition > 0) ? '' : 'none';
     });
+    // Update capo banner
+    updateCapoBanner();
     // In horizontal mode, re-render since there are no per-card panels to toggle
     if (horizontalMode) renderCards();
   }
@@ -268,12 +290,12 @@ const ViewerApp = (() => {
       if (fabContainer) fabContainer.style.display = '';
       if (topAccordion) topAccordion.classList.remove('hidden');
       if (customRow) customRow.style.display = '';
-      // Sync capo row visibility with current type
-      const showCapo = CAPO_TYPES.has(currentType);
+      // Capo row always visible
       const capoRow = document.getElementById('capoRow');
       const fabCapoRow = document.getElementById('fabCapoRow');
-      if (capoRow) capoRow.style.display = showCapo ? 'flex' : 'none';
-      if (fabCapoRow) fabCapoRow.style.display = showCapo ? 'flex' : 'none';
+      if (capoRow) capoRow.style.display = 'flex';
+      if (fabCapoRow) fabCapoRow.style.display = 'flex';
+      updateCapoBanner();
     }
   }
 
@@ -470,13 +492,18 @@ const ViewerApp = (() => {
 
   function renderHorizontalView(container) {
     // 다이어그램은 원래 셰이프 유지 (카포 시 실음은 라벨로만 표시)
-    const displayChords = [...chords];
+    const isCapoType = getCapoTypes().has(currentType);
+    const displayChords = (capoPosition > 0 && !isCapoType)
+      ? chords.map(n => MusicTheory.transposeChord(n, capoPosition))
+      : [...chords];
 
     // Capo info bar
-    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+    if (capoPosition > 0) {
       const capoInfo = document.createElement('div');
       capoInfo.className = 'horizontal-capo-info';
-      capoInfo.textContent = `카포 ${capoPosition} 적용 (실음 표시)`;
+      capoInfo.textContent = isCapoType
+        ? `카포 ${capoPosition}프렛 — 다이어그램: 원래 폼, 라벨: 실음`
+        : `카포 ${capoPosition}프렛 — 실음으로 표시`;
       container.appendChild(capoInfo);
     }
 
@@ -522,8 +549,9 @@ const ViewerApp = (() => {
 
     card.querySelectorAll('.notation-panel').forEach(panel => {
       const type = panel.dataset.type;
-      // 다이어그램은 항상 원래 셰이프 유지, 라벨만 실음 표시
-      const useChord = chordName;
+      const isCapoType = getCapoTypes().has(type);
+      // CAPO instrument types: use original chord (shape); others: use transposed (sounding)
+      const useChord = (capoPosition > 0 && !isCapoType) ? transposedName : chordName;
       const singleChord = [useChord];
       switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
@@ -557,7 +585,7 @@ const ViewerApp = (() => {
 
     // Update capo label on card
     const capoLabel = card.querySelector('.capo-shape-label');
-    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+    if (capoPosition > 0 && getCapoTypes().has(currentType)) {
       if (capoLabel) {
         capoLabel.textContent = `${chordName} 폼 + 카포 ${capoPosition} = ${transposedName} 실음`;
         capoLabel.style.display = '';
@@ -614,23 +642,35 @@ const ViewerApp = (() => {
     header.className = 'card-header';
 
     const left = document.createElement('div');
+    const isCapoType = getCapoTypes().has(currentType);
+    const soundName = capoPosition > 0 ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
     const title = document.createElement('h2');
     title.className = 'text-2xl font-bold text-gray-800 mb-1';
-    title.textContent = chordName;
+    if (capoPosition > 0 && !isCapoType) {
+      // Non-capo types: show sounding pitch as main title, original as small subtitle
+      title.textContent = soundName;
+      const origSpan = document.createElement('span');
+      origSpan.className = 'text-sm text-gray-400 ml-2';
+      origSpan.textContent = `(원래: ${chordName})`;
+      title.appendChild(origSpan);
+    } else {
+      title.textContent = chordName;
+    }
     left.appendChild(title);
 
     const notesDiv = document.createElement('div');
     notesDiv.className = 'flex flex-wrap gap-1 items-center';
-    const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
+    // For non-capo types with capo: show sounding notes; for capo types: show original + sounding
+    const displayNotesChord = (capoPosition > 0 && !isCapoType) ? soundName : chordName;
+    const chordNotes = MusicTheory.getChordNotesDisplay(displayNotesChord);
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
       badge.textContent = MusicTheory.formatNoteDisplay(note);
       notesDiv.appendChild(badge);
     });
-    // 카포 적용 시 실음 구성음 표시
-    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
-      const soundName = MusicTheory.transposeChord(chordName, capoPosition);
+    // 카포 적용 시 CAPO_TYPES에서만 원래→실음 구성음 화살표 표시
+    if (capoPosition > 0 && isCapoType) {
       const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
@@ -684,7 +724,7 @@ const ViewerApp = (() => {
     playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
     playBtn.addEventListener('click', async () => {
       const inst = playBtn.dataset.instrument;
-      const soundName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+      const soundName = capoPosition > 0
         ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
       playBtn.classList.add('playing');
       playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
@@ -700,7 +740,7 @@ const ViewerApp = (() => {
     arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
     arpBtn.addEventListener('click', async () => {
       const inst = arpBtn.dataset.instrument;
-      const soundName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+      const soundName = capoPosition > 0
         ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
       arpBtn.classList.add('playing');
       arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
@@ -979,7 +1019,7 @@ const ViewerApp = (() => {
     btn.classList.add('bg-red-500', 'hover:bg-red-600');
 
     const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
-    const customSoundChords = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+    const customSoundChords = capoPosition > 0
       ? customChords.map(n => MusicTheory.transposeChord(n, capoPosition)) : customChords;
     await ChordAudio.playChordSequence(customSoundChords, 2.0, (name, idx) => {
       if (myGen !== customPlayGen) return;
@@ -1024,16 +1064,18 @@ const ViewerApp = (() => {
     }
 
     notesEl.innerHTML = '';
-    MusicTheory.getChordNotesDisplay(chordName).forEach(n => {
+    const modalIsCapoType = getCapoTypes().has(currentType);
+    const modalSoundName = capoPosition > 0 ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
+    const modalDisplayNotes = (capoPosition > 0 && !modalIsCapoType) ? modalSoundName : chordName;
+    MusicTheory.getChordNotesDisplay(modalDisplayNotes).forEach(n => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
       badge.textContent = MusicTheory.formatNoteDisplay(n);
       notesEl.appendChild(badge);
     });
-    // 카포 적용 시 실음 구성음 표시
-    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
-      const soundName = MusicTheory.transposeChord(chordName, capoPosition);
-      const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
+    // 카포 CAPO_TYPES: 원래→실음 화살표 표시
+    if (capoPosition > 0 && modalIsCapoType) {
+      const soundNotes = MusicTheory.getChordNotesDisplay(modalSoundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
       arrow.style.cssText = 'color:#6b7280;font-weight:600;margin:0 4px;';
@@ -1049,10 +1091,8 @@ const ViewerApp = (() => {
 
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
-    const transposedName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
-      ? MusicTheory.transposeChord(chordName, capoPosition)
-      : chordName;
-    const singleChord = [chordName];
+    const useModalChord = (capoPosition > 0 && !modalIsCapoType) ? modalSoundName : chordName;
+    const singleChord = [useModalChord];
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
       case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
@@ -1116,7 +1156,7 @@ const ViewerApp = (() => {
       btn.classList.add('playing');
       btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
 
-      const soundChords = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+      const soundChords = capoPosition > 0
         ? chords.map(n => MusicTheory.transposeChord(n, capoPosition)) : chords;
       await ChordAudio.playChordSequence(soundChords, 2.0, (name, idx) => {
         if (myGen !== playAllGen) return;
@@ -1156,7 +1196,29 @@ const ViewerApp = (() => {
     } else {
       url.searchParams.delete('chords');
     }
+    if (capoPosition > 0) {
+      url.searchParams.set('capo', capoPosition);
+      url.searchParams.set('cinst', capoInstrument);
+    } else {
+      url.searchParams.delete('capo');
+      url.searchParams.delete('cinst');
+    }
     window.history.replaceState({}, '', url);
+  }
+
+  function updateCapoBanner() {
+    const banner = document.getElementById('capoBanner');
+    if (!banner) return;
+    if (capoPosition > 0) {
+      const isCapoType = getCapoTypes().has(currentType);
+      const instName = capoInstrument === 'ukulele' ? '우쿨렐레' : '기타';
+      banner.textContent = isCapoType
+        ? `${instName} 카포 ${capoPosition}프렛 적용 — 다이어그램: 원래 폼, 라벨: 실음`
+        : `${instName} 카포 ${capoPosition}프렛 적용 — 실음으로 표시`;
+      banner.style.display = '';
+    } else {
+      banner.style.display = 'none';
+    }
   }
 
   function esc(str) {

@@ -334,6 +334,8 @@ const Export = (() => {
     ].filter(r => r && (r.value || r.valueHtml));
 
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
+    const cinst = capoPosition > 0 ? ((metadata.scoreType || '').toLowerCase().includes('ukulele') ? 'ukulele' : 'guitar') : '';
+    const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
 
     // Build info table (matching Naver HTML format)
     if (infoRows.length > 0) {
@@ -349,10 +351,10 @@ const Export = (() => {
       if (chords.length > 0) {
         const { basicChords: infoBasic, advancedChords: infoAdvanced } = splitChordsWithTriads(chords, metadata.key);
         const basicLinks = infoBasic.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}${capoParam}`;
           return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
         }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}${capoParam}`;
         let chordsHtml = basicLinks;
         if (infoAdvanced.length > 0) {
           chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;font-size:12px;text-decoration:none;" target="_blank">전체 코드 보기</a> 🎹`;
@@ -486,7 +488,7 @@ const Export = (() => {
               }
             }
             const chordLink = document.createElement('a');
-            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}${capoParam}`;
             chordLink.target = '_blank';
             chordLink.style.color = '#2563eb';
             chordLink.style.textDecoration = 'none';
@@ -616,11 +618,19 @@ const Export = (() => {
       const notationWrapper = makeEditable(notationTitle, 'notation');
       notationSection.appendChild(notationWrapper);
 
-      const notationTypes = [
+      const isUkulele = (metadata.scoreType || '').toLowerCase().includes('ukulele');
+      const notationTypes = isUkulele ? [
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
+        { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'staff', label: '오선표기' },
         { key: 'guitar-tab', label: '기타 타브' },
-        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
         { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'piano', label: '피아노' }
+      ] : [
+        { key: 'guitar-tab', label: '기타 타브' },
+        { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'staff', label: '오선표기' },
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
@@ -648,7 +658,7 @@ const Export = (() => {
 
       const tbody = document.createElement('tbody');
       notationTypes.forEach(({ key, label }) => {
-        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
+        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}${capoParam}`;
         const row = document.createElement('tr');
 
         const tdLabel = document.createElement('td');
@@ -769,6 +779,8 @@ const Export = (() => {
   function generateNaverHTML(metadata, chords, capoPosition, overrides) {
     overrides = overrides || {};
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
+    const cinst = capoPosition > 0 ? ((metadata.scoreType || '').toLowerCase().includes('ukulele') ? 'ukulele' : 'guitar') : '';
+    const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
       '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
@@ -807,10 +819,10 @@ const Export = (() => {
       if (chords.length > 0) {
         const { basicChords: nBasic, advancedChords: nAdvanced } = splitChordsWithTriads(chords, metadata.key);
         const basicLinks = nBasic.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}`;
+          const url = `${viewerBase}?chords=${encodeURIComponent(c)}${capoParam}`;
           return `<a href="${url}"><b>${esc(c)}</b></a>`;
         }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}${capoParam}`;
         let chordsValue = basicLinks;
         if (nAdvanced.length > 0) {
           chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
@@ -876,7 +888,7 @@ const Export = (() => {
         const groups = groupChordsByFamily(chordList);
         groups.forEach((group, gi) => {
           group.chords.forEach(name => {
-            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}`;
+            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}${capoParam}`;
             const parsed = MusicTheory.parseChordName(name);
             let typeName = '';
             if (parsed) {
@@ -977,18 +989,26 @@ const Export = (() => {
       html += `</blockquote>`;
 
       const chordsParam = encodeURIComponent(chords.join(','));
-      const notationItems = [
+      const isUkuleleScore = (metadata.scoreType || '').toLowerCase().includes('ukulele');
+      const notationItems = isUkuleleScore ? [
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
+        { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'staff', label: '오선표기' },
         { key: 'guitar-tab', label: '기타 타브' },
-        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
         { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'piano', label: '피아노' }
+      ] : [
+        { key: 'guitar-tab', label: '기타 타브' },
+        { key: 'guitar-diagram', label: '기타 다이어그램' },
+        { key: 'staff', label: '오선표기' },
+        { key: 'ukulele-tab', label: '우쿨렐레 타브' },
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
       html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
-        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}`;
+        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}${capoParam}`;
         html += `<tr>`;
         html += `<td align="center" bgcolor="#ffffff">${esc(label)}</td>`;
         html += `<td align="center" bgcolor="#ffffff"><a href="${viewerUrl}"><font color="#8B2252">보기 🔍</font></a></td>`;
@@ -1074,6 +1094,8 @@ const Export = (() => {
       }
 
       const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
+      const cinst = capoPosition > 0 ? ((metadata.scoreType || '').toLowerCase().includes('ukulele') ? 'ukulele' : 'guitar') : '';
+      const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
 
       if (basicChords.length > 0) {
         text += `\n주요 코드\n`;
@@ -1087,7 +1109,7 @@ const Export = (() => {
         text += buildPlainTable(advancedChords);
       }
 
-      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}`;
+      const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}${capoParam}`;
       text += `\n▶ 코드 재생/표기 보기: ${allUrl}\n`;
     }
 

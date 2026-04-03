@@ -79,6 +79,19 @@
       animation: badgePulse 0.6s ease-in-out infinite;
       box-shadow: 0 0 8px rgba(59,130,246,0.5);
     }
+    /* Capo banner */
+    #capoBanner {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 12px;
+      display: none;
+    }
     /* Bottom playback modal */
     .playback-modal {
       position: fixed;
@@ -709,6 +722,9 @@
       </div>
     </div>
 
+    <!-- Capo banner -->
+    <div id="capoBanner"></div>
+
     <!-- Chord cards -->
     <div id="chordCards" class="space-y-6"></div>
 
@@ -783,7 +799,7 @@
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=7"></script>
-  <script src="js/viewer-app.js?v=25"></script>
+  <script src="js/viewer-app.js?v=26"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">
