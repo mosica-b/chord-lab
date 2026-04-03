@@ -493,6 +493,14 @@ const Export = (() => {
             chordLink.style.fontWeight = '600';
             chordLink.textContent = `${name} ▶`;
             tdName.appendChild(chordLink);
+            // 카포 적용 시 실음 표시
+            if (capoPosition > 0) {
+              const soundName = MusicTheory.transposeChord(name, capoPosition);
+              const soundSpan = document.createElement('span');
+              soundSpan.style.cssText = 'font-size:11px;color:#92400e;display:block;';
+              soundSpan.textContent = `(실음: ${soundName})`;
+              tdName.appendChild(soundSpan);
+            }
             row.appendChild(tdName);
 
             const tdType = document.createElement('td');
@@ -886,6 +894,10 @@ const Export = (() => {
               if (info) chordCell += `<font color="#888888" size="1">${esc(info.roman)}</font><br>`;
             }
             chordCell += `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
+            if (capoPosition > 0) {
+              const soundName = MusicTheory.transposeChord(name, capoPosition);
+              chordCell += `<br><font color="#92400e" size="1">(실음: ${esc(soundName)})</font>`;
+            }
             t += isCompact
               ? `<td align="center" bgcolor="${rowBg}"><font size="2">${chordCell}</font></td>`
               : `<td align="center" bgcolor="${rowBg}">${chordCell}</td>`;
@@ -1043,7 +1055,12 @@ const Export = (() => {
             if (hasKey) {
               const info = getScaleDegreeInfo(name, metadata.key);
               const roman = info ? `(${info.roman})` : '';
-              t += `${name} ${roman}`.trim().padEnd(16) + `${notesStr}\n`;
+              let chordLabel = `${name} ${roman}`.trim();
+              if (capoPosition > 0) {
+                const soundName = MusicTheory.transposeChord(name, capoPosition);
+                chordLabel += ` → ${soundName}`;
+              }
+              t += chordLabel.padEnd(22) + `${notesStr}\n`;
             } else {
               t += `${name.padEnd(16)}${notesStr}\n`;
             }
