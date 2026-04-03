@@ -4,7 +4,7 @@
  */
 const SongDB = (() => {
   const API_BASE = 'https://mosica.net/chord-lab-api/index.php';
-  const API_KEY = '096d10b7d1134473f2e9634089329a7893f6e06521f0ede251c9ab3f6be6f50b';
+  const API_KEY = 'REMOVED_DB_API_KEY';
 
   let currentPage = 1;
   let currentQuery = '';
