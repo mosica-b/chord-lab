@@ -493,108 +493,52 @@ const ViewerApp = (() => {
   function renderHorizontalView(container) {
     // 다이어그램은 원래 셰이프 유지 (카포 시 실음은 라벨로만 표시)
     const isCapoType = getCapoTypes().has(currentType);
-    const showBoth = capoPosition > 0 && !isCapoType;
+    const displayChords = (capoPosition > 0 && !isCapoType)
+      ? chords.map(n => MusicTheory.transposeChord(n, capoPosition))
+      : [...chords];
 
     // Capo info bar
     if (capoPosition > 0) {
       const capoInfo = document.createElement('div');
       capoInfo.className = 'horizontal-capo-info';
-      const instName = capoInstrument === 'ukulele' ? '우쿨렐레' : '기타';
       capoInfo.textContent = isCapoType
-        ? `${instName} 카포 ${capoPosition}프렛 — 다이어그램: 원래 폼, 라벨: 실음`
-        : `${instName} 카포 ${capoPosition}프렛 — 원래 → 실음 비교 표시`;
+        ? `카포 ${capoPosition}프렛 — 다이어그램: 원래 폼, 라벨: 실음`
+        : `카포 ${capoPosition}프렛 — 실음으로 표시`;
       container.appendChild(capoInfo);
     }
 
-    if (showBoth) {
-      // Non-CAPO types: render both original and sounding for each chord
-      chords.forEach(name => {
-        const transposed = MusicTheory.transposeChord(name, capoPosition);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'capo-compare horizontal-compare';
+    // Single notation panel
+    const panel = document.createElement('div');
+    panel.className = 'horizontal-panel';
+    container.appendChild(panel);
 
-        const origBox = document.createElement('div');
-        origBox.className = 'capo-compare-item';
-        const origLabel = document.createElement('div');
-        origLabel.className = 'capo-compare-label';
-        origLabel.textContent = `원래: ${name}`;
-        origBox.appendChild(origLabel);
-        const origPanel = document.createElement('div');
-        origBox.appendChild(origPanel);
-
-        const arrowDiv = document.createElement('div');
-        arrowDiv.className = 'capo-compare-arrow';
-        arrowDiv.textContent = '→';
-
-        const soundBox = document.createElement('div');
-        soundBox.className = 'capo-compare-item';
-        const soundLabel = document.createElement('div');
-        soundLabel.className = 'capo-compare-label capo-compare-label-sound';
-        soundLabel.textContent = `실음: ${transposed}`;
-        soundBox.appendChild(soundLabel);
-        const soundPanel = document.createElement('div');
-        soundBox.appendChild(soundPanel);
-
-        wrapper.appendChild(origBox);
-        wrapper.appendChild(arrowDiv);
-        wrapper.appendChild(soundBox);
-        container.appendChild(wrapper);
-
-        switch (currentType) {
-          case 'staff':
-            Renderers.renderStaffNotation(origPanel, [name]);
-            Renderers.renderStaffNotation(soundPanel, [transposed]);
-            break;
-          case 'ukulele-tab':
-            Renderers.renderUkuleleTab(origPanel, [name]);
-            Renderers.renderUkuleleTab(soundPanel, [transposed]);
-            break;
-          case 'ukulele-diagram':
-            Renderers.renderUkuleleDiagrams(origPanel, [name]);
-            Renderers.renderUkuleleDiagrams(soundPanel, [transposed]);
-            break;
-          case 'piano':
-            Renderers.renderPianoKeyboards(origPanel, [name]);
-            Renderers.renderPianoKeyboards(soundPanel, [transposed]);
-            break;
-          default: break;
-        }
-      });
-    } else {
-      // CAPO types or no capo: single panel
-      const displayChords = [...chords];
-      const panel = document.createElement('div');
-      panel.className = 'horizontal-panel';
-      container.appendChild(panel);
-
-      switch (currentType) {
-        case 'staff': Renderers.renderStaffNotation(panel, displayChords); break;
-        case 'guitar-tab': {
-          const idxMap = {};
-          displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
-          Renderers.renderGuitarTab(panel, displayChords, idxMap);
-          break;
-        }
-        case 'guitar-diagram': {
-          const idxMap = {};
-          displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
-          Renderers.renderGuitarDiagrams(panel, displayChords, idxMap);
-          break;
-        }
-        case 'ukulele-tab': {
-          const idxMap = {};
-          displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
-          Renderers.renderUkuleleTab(panel, displayChords, idxMap);
-          break;
-        }
-        case 'ukulele-diagram': {
-          const idxMap = {};
-          displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
-          Renderers.renderUkuleleDiagrams(panel, displayChords, idxMap);
-          break;
-        }
-        case 'piano': Renderers.renderPianoKeyboards(panel, displayChords); break;
+    switch (currentType) {
+      case 'staff': Renderers.renderStaffNotation(panel, displayChords); break;
+      case 'guitar-tab': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
+        Renderers.renderGuitarTab(panel, displayChords, idxMap);
+        break;
       }
+      case 'guitar-diagram': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'guitar'); });
+        Renderers.renderGuitarDiagrams(panel, displayChords, idxMap);
+        break;
+      }
+      case 'ukulele-tab': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
+        Renderers.renderUkuleleTab(panel, displayChords, idxMap);
+        break;
+      }
+      case 'ukulele-diagram': {
+        const idxMap = {};
+        displayChords.forEach(n => { idxMap[n] = getVoicingIndex(n, 'ukulele'); });
+        Renderers.renderUkuleleDiagrams(panel, displayChords, idxMap);
+        break;
+      }
+      case 'piano': Renderers.renderPianoKeyboards(panel, displayChords); break;
     }
   }
 
@@ -606,98 +550,36 @@ const ViewerApp = (() => {
     card.querySelectorAll('.notation-panel').forEach(panel => {
       const type = panel.dataset.type;
       const isCapoType = getCapoTypes().has(type);
-      const showBoth = capoPosition > 0 && !isCapoType;
-
-      if (showBoth) {
-        // Non-CAPO types with capo: render BOTH original → sounding
-        const wrapper = document.createElement('div');
-        wrapper.className = 'capo-compare';
-
-        const origBox = document.createElement('div');
-        origBox.className = 'capo-compare-item';
-        const origLabel = document.createElement('div');
-        origLabel.className = 'capo-compare-label';
-        origLabel.textContent = `원래: ${chordName}`;
-        origBox.appendChild(origLabel);
-        const origPanel = document.createElement('div');
-        origBox.appendChild(origPanel);
-
-        const arrowDiv = document.createElement('div');
-        arrowDiv.className = 'capo-compare-arrow';
-        arrowDiv.textContent = '→';
-
-        const soundBox = document.createElement('div');
-        soundBox.className = 'capo-compare-item';
-        const soundLabel = document.createElement('div');
-        soundLabel.className = 'capo-compare-label capo-compare-label-sound';
-        soundLabel.textContent = `실음: ${transposedName}`;
-        soundBox.appendChild(soundLabel);
-        const soundPanel = document.createElement('div');
-        soundBox.appendChild(soundPanel);
-
-        wrapper.appendChild(origBox);
-        wrapper.appendChild(arrowDiv);
-        wrapper.appendChild(soundBox);
-        panel.appendChild(wrapper);
-
-        switch (type) {
-          case 'staff':
-            Renderers.renderStaffNotation(origPanel, [chordName]);
-            Renderers.renderStaffNotation(soundPanel, [transposedName]);
-            break;
-          case 'ukulele-tab': {
-            const origIdx = { [chordName]: getVoicingIndex(chordName, 'ukulele') };
-            Renderers.renderUkuleleTab(origPanel, [chordName], origIdx);
-            const sndIdx = { [transposedName]: getVoicingIndex(transposedName, 'ukulele') };
-            Renderers.renderUkuleleTab(soundPanel, [transposedName], sndIdx);
-            break;
-          }
-          case 'ukulele-diagram': {
-            const origIdx = { [chordName]: getVoicingIndex(chordName, 'ukulele') };
-            Renderers.renderUkuleleDiagrams(origPanel, [chordName], origIdx);
-            const sndIdx = { [transposedName]: getVoicingIndex(transposedName, 'ukulele') };
-            Renderers.renderUkuleleDiagrams(soundPanel, [transposedName], sndIdx);
-            break;
-          }
-          case 'piano':
-            Renderers.renderPianoKeyboards(origPanel, [chordName]);
-            Renderers.renderPianoKeyboards(soundPanel, [transposedName]);
-            break;
-          // guitar types with capo are CAPO_TYPES, won't reach here
-          default: break;
+      // CAPO instrument types: use original chord (shape); others: use transposed (sounding)
+      const useChord = (capoPosition > 0 && !isCapoType) ? transposedName : chordName;
+      const singleChord = [useChord];
+      switch (type) {
+        case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
+        case 'guitar-tab': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
+          Renderers.renderGuitarTab(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName, 'tab');
+          break;
         }
-      } else {
-        // CAPO types or no capo: render single chord
-        const useChord = chordName;
-        const singleChord = [useChord];
-        switch (type) {
-          case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
-          case 'guitar-tab': {
-            const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
-            Renderers.renderGuitarTab(panel, singleChord, idxMap);
-            addVoicingControls(panel, useChord, 'guitar', card, chordName, 'tab');
-            break;
-          }
-          case 'guitar-diagram': {
-            const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
-            Renderers.renderGuitarDiagrams(panel, singleChord, idxMap);
-            addVoicingControls(panel, useChord, 'guitar', card, chordName, 'diagram');
-            break;
-          }
-          case 'ukulele-tab': {
-            const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
-            Renderers.renderUkuleleTab(panel, singleChord, idxMap);
-            addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'tab');
-            break;
-          }
-          case 'ukulele-diagram': {
-            const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
-            Renderers.renderUkuleleDiagrams(panel, singleChord, idxMap);
-            addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'diagram');
-            break;
-          }
-          case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
+        case 'guitar-diagram': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'guitar') };
+          Renderers.renderGuitarDiagrams(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'guitar', card, chordName, 'diagram');
+          break;
         }
+        case 'ukulele-tab': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
+          Renderers.renderUkuleleTab(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'tab');
+          break;
+        }
+        case 'ukulele-diagram': {
+          const idxMap = { [useChord]: getVoicingIndex(useChord, 'ukulele') };
+          Renderers.renderUkuleleDiagrams(panel, singleChord, idxMap);
+          addVoicingControls(panel, useChord, 'ukulele', card, chordName, 'diagram');
+          break;
+        }
+        case 'piano': Renderers.renderPianoKeyboards(panel, singleChord); break;
       }
     });
 
@@ -765,16 +647,12 @@ const ViewerApp = (() => {
     const title = document.createElement('h2');
     title.className = 'text-2xl font-bold text-gray-800 mb-1';
     if (capoPosition > 0 && !isCapoType) {
-      // Non-capo types: show original → sounding pitch
-      title.textContent = chordName;
-      const arrowSpan = document.createElement('span');
-      arrowSpan.className = 'text-lg text-gray-400 mx-2';
-      arrowSpan.textContent = '→';
-      title.appendChild(arrowSpan);
-      const soundSpan = document.createElement('span');
-      soundSpan.style.color = '#92400e';
-      soundSpan.textContent = soundName;
-      title.appendChild(soundSpan);
+      // Non-capo types: show sounding pitch as main title, original as small subtitle
+      title.textContent = soundName;
+      const origSpan = document.createElement('span');
+      origSpan.className = 'text-sm text-gray-400 ml-2';
+      origSpan.textContent = `(원래: ${chordName})`;
+      title.appendChild(origSpan);
     } else {
       title.textContent = chordName;
     }
@@ -782,15 +660,17 @@ const ViewerApp = (() => {
 
     const notesDiv = document.createElement('div');
     notesDiv.className = 'flex flex-wrap gap-1 items-center';
-    const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
+    // For non-capo types with capo: show sounding notes; for capo types: show original + sounding
+    const displayNotesChord = (capoPosition > 0 && !isCapoType) ? soundName : chordName;
+    const chordNotes = MusicTheory.getChordNotesDisplay(displayNotesChord);
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
       badge.textContent = MusicTheory.formatNoteDisplay(note);
       notesDiv.appendChild(badge);
     });
-    // 카포 적용 시 원래→실음 구성음 화살표 표시 (모든 타입)
-    if (capoPosition > 0) {
+    // 카포 적용 시 CAPO_TYPES에서만 원래→실음 구성음 화살표 표시
+    if (capoPosition > 0 && isCapoType) {
       const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
