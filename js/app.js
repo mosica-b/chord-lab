@@ -274,6 +274,12 @@ const App = (() => {
         keySelect.value = result.key;
       }
 
+      // Set capo position
+      if (result.capo > 0) {
+        state.capoPosition = result.capo;
+        document.getElementById('capoPosition').value = result.capo;
+      }
+
       // Add chords
       if (result.chords.length > 0) {
         state.selectedChords = [];
@@ -370,6 +376,12 @@ const App = (() => {
           keySelect.appendChild(opt);
         }
         keySelect.value = result.key;
+      }
+
+      // Set capo position
+      if (result.capo > 0) {
+        state.capoPosition = result.capo;
+        document.getElementById('capoPosition').value = result.capo;
       }
 
       // Add chords

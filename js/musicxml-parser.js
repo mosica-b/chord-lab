@@ -433,6 +433,7 @@ const MusicXMLParser = (() => {
       key: parseKey(doc),
       timeSignature: parseTimeSignature(doc),
       tempo: parseTempo(doc),
+      capo: parseCapo(doc),
       chords: parseChords(doc),
       scoreType: parseScoreType(doc, fileName || ''),
       lyricsIntro: parseLyricsIntro(doc),
@@ -674,6 +675,26 @@ const MusicXMLParser = (() => {
       return tempos.join(' → ');
     }
     return '';
+  }
+
+  /**
+   * Parse capo position from <words> or <credit-words> text.
+   * Matches patterns like: "Capo - 8th", "Capo 3", "capo: 5", "카포 2프렛", "Capo 2nd fret"
+   */
+  function parseCapo(doc) {
+    const candidates = [
+      ...doc.querySelectorAll('words'),
+      ...doc.querySelectorAll('credit-words'),
+    ];
+    for (const el of candidates) {
+      const text = el.textContent.trim();
+      const m = text.match(/capo\s*[-:.]?\s*(\d+)/i) || text.match(/카포\s*[-:.]?\s*(\d+)/i);
+      if (m) {
+        const fret = parseInt(m[1], 10);
+        if (fret >= 1 && fret <= 12) return fret;
+      }
+    }
+    return 0;
   }
 
   /**
