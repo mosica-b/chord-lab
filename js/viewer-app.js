@@ -620,7 +620,7 @@ const ViewerApp = (() => {
     left.appendChild(title);
 
     const notesDiv = document.createElement('div');
-    notesDiv.className = 'flex flex-wrap gap-1';
+    notesDiv.className = 'flex flex-wrap gap-1 items-center';
     const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
@@ -628,6 +628,22 @@ const ViewerApp = (() => {
       badge.textContent = MusicTheory.formatNoteDisplay(note);
       notesDiv.appendChild(badge);
     });
+    // 카포 적용 시 실음 구성음 표시
+    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+      const soundName = MusicTheory.transposeChord(chordName, capoPosition);
+      const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
+      const arrow = document.createElement('span');
+      arrow.textContent = '→';
+      arrow.style.cssText = 'color:#6b7280;font-weight:600;margin:0 2px;';
+      notesDiv.appendChild(arrow);
+      soundNotes.forEach(note => {
+        const badge = document.createElement('span');
+        badge.className = 'chord-notes-badge';
+        badge.style.cssText = 'background:#fef3c7;color:#92400e;';
+        badge.textContent = MusicTheory.formatNoteDisplay(note);
+        notesDiv.appendChild(badge);
+      });
+    }
 
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
@@ -1014,6 +1030,22 @@ const ViewerApp = (() => {
       badge.textContent = MusicTheory.formatNoteDisplay(n);
       notesEl.appendChild(badge);
     });
+    // 카포 적용 시 실음 구성음 표시
+    if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
+      const soundName = MusicTheory.transposeChord(chordName, capoPosition);
+      const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
+      const arrow = document.createElement('span');
+      arrow.textContent = '→';
+      arrow.style.cssText = 'color:#6b7280;font-weight:600;margin:0 4px;';
+      notesEl.appendChild(arrow);
+      soundNotes.forEach(n => {
+        const badge = document.createElement('span');
+        badge.className = 'chord-notes-badge';
+        badge.style.cssText = 'background:#fef3c7;color:#92400e;';
+        badge.textContent = MusicTheory.formatNoteDisplay(n);
+        notesEl.appendChild(badge);
+      });
+    }
 
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
