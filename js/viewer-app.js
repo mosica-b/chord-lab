@@ -12,7 +12,6 @@ const ViewerApp = (() => {
   let defaultType = null;
   let currentType = 'staff';
   let capoPosition = 0;
-  let capoDirection = 'down'; // 'down' = 실음→셰이프 (기존), 'up' = 카포→실음
   let horizontalMode = false;
   const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
 
@@ -207,16 +206,6 @@ const ViewerApp = (() => {
         // Close FAB accordion after capo selection (top accordion stays as-is)
         const fabAccordion = document.getElementById('fabAccordion');
         if (fabAccordion) fabAccordion.classList.add('hidden');
-      });
-    });
-    // Direction toggle buttons
-    document.querySelectorAll('.capo-dir-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        capoDirection = btn.dataset.dir;
-        document.querySelectorAll('.capo-dir-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.dir === capoDirection);
-        });
-        renderCards();
       });
     });
   }
@@ -480,23 +469,14 @@ const ViewerApp = (() => {
   }
 
   function renderHorizontalView(container) {
-    // Build chord list with capo transposition applied
-    // Mode up: 다이어그램은 원래 셰이프 유지 (변환 안 함)
-    // Mode down: 다이어그램을 변환된 셰이프로 표시
-    const displayChords = chords.map(name => {
-      if (capoPosition > 0 && CAPO_TYPES.has(currentType) && capoDirection === 'down') {
-        return MusicTheory.transposeChord(name, -capoPosition);
-      }
-      return name;
-    });
+    // 다이어그램은 원래 셰이프 유지 (카포 시 실음은 라벨로만 표시)
+    const displayChords = [...chords];
 
     // Capo info bar
     if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
       const capoInfo = document.createElement('div');
       capoInfo.className = 'horizontal-capo-info';
-      capoInfo.textContent = capoDirection === 'up'
-        ? `카포 ${capoPosition} → 실음 표시`
-        : `카포 ${capoPosition} → 셰이프 표시`;
+      capoInfo.textContent = `카포 ${capoPosition} 적용 (실음 표시)`;
       container.appendChild(capoInfo);
     }
 
@@ -537,15 +517,13 @@ const ViewerApp = (() => {
 
   function renderCardNotations(card, chordName) {
     const transposedName = capoPosition > 0
-      ? MusicTheory.transposeChord(chordName, capoDirection === 'up' ? capoPosition : -capoPosition)
+      ? MusicTheory.transposeChord(chordName, capoPosition)
       : chordName;
 
     card.querySelectorAll('.notation-panel').forEach(panel => {
       const type = panel.dataset.type;
-      // Mode up: 다이어그램은 원래 셰이프 유지, 라벨만 실음 표시
-      // Mode down: 다이어그램을 변환된 셰이프로 표시
-      const useChord = CAPO_TYPES.has(type) && capoPosition > 0 && capoDirection === 'down'
-        ? transposedName : chordName;
+      // 다이어그램은 항상 원래 셰이프 유지, 라벨만 실음 표시
+      const useChord = chordName;
       const singleChord = [useChord];
       switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
@@ -581,9 +559,7 @@ const ViewerApp = (() => {
     const capoLabel = card.querySelector('.capo-shape-label');
     if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
       if (capoLabel) {
-        capoLabel.textContent = capoDirection === 'up'
-          ? `${chordName} 폼 + 카포 ${capoPosition} = ${transposedName} 실음`
-          : `카포 ${capoPosition} → ${transposedName} 폼`;
+        capoLabel.textContent = `${chordName} 폼 + 카포 ${capoPosition} = ${transposedName} 실음`;
         capoLabel.style.display = '';
       }
     } else {
@@ -1036,12 +1012,9 @@ const ViewerApp = (() => {
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
     const transposedName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
-      ? MusicTheory.transposeChord(chordName, capoDirection === 'up' ? capoPosition : -capoPosition)
+      ? MusicTheory.transposeChord(chordName, capoPosition)
       : chordName;
-    // Mode up: 다이어그램은 원래 셰이프, Mode down: 변환된 셰이프
-    const useChordPopover = (capoPosition > 0 && CAPO_TYPES.has(currentType) && capoDirection === 'down')
-      ? transposedName : chordName;
-    const singleChord = [useChordPopover];
+    const singleChord = [chordName];
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
       case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;

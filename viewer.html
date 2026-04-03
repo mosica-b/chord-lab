@@ -527,26 +527,6 @@
       color: white;
       border-color: #2563eb;
     }
-    .capo-dir-btn {
-      min-width: 36px;
-      height: 30px;
-      padding: 0 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      background: white;
-      font-size: 11px;
-      font-weight: 600;
-      color: #374151;
-      cursor: pointer;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-    .capo-dir-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
-    .capo-dir-btn.active {
-      background: #f59e0b;
-      color: white;
-      border-color: #f59e0b;
-    }
 
     /* Capo label on cards */
     .capo-shape-label {
@@ -725,10 +705,6 @@
             <button class="capo-btn" data-capo="11">11</button>
             <button class="capo-btn" data-capo="12">12</button>
           </div>
-          <div class="capo-buttons" style="margin-left:auto;">
-            <button class="capo-dir-btn active" data-dir="down">▼ 실음→셰이프</button>
-            <button class="capo-dir-btn" data-dir="up">▲ 카포→실음</button>
-          </div>
         </div>
       </div>
     </div>
@@ -796,10 +772,6 @@
         <button class="capo-btn" data-capo="11">11</button>
         <button class="capo-btn" data-capo="12">12</button>
       </div>
-      <div class="capo-buttons" style="margin-left:auto;">
-        <button class="capo-dir-btn active" data-dir="down">▼ 실음→셰이프</button>
-        <button class="capo-dir-btn" data-dir="up">▲ 카포→실음</button>
-      </div>
     </div>
   </div>
 
@@ -811,7 +783,7 @@
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=7"></script>
-  <script src="js/viewer-app.js?v=22"></script>
+  <script src="js/viewer-app.js?v=23"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">
