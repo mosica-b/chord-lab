@@ -14,6 +14,7 @@ const App = (() => {
       tempo: '',
       timeSignature: '',
       key: '',
+      originalKey: '',
       scoreType: '',
     },
     selectedChords: [],
@@ -59,7 +60,7 @@ const App = (() => {
   let _autoLyrics = false; // true when lyricsIntro was auto-populated
 
   function setupMetadataListeners() {
-    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'scoreType'];
+    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType'];
 
     fields.forEach(id => {
       const el = document.getElementById(id);
@@ -87,6 +88,9 @@ const App = (() => {
             _autoLyrics = false;
           }
           state.metadata.geniusUrl = '';
+          state.metadata.originalKey = '';
+          const okEl = document.getElementById('originalKey');
+          if (okEl) okEl.value = '';
           autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
         }
       });
@@ -149,6 +153,18 @@ const App = (() => {
             _autoLyrics = true;
             const el = document.getElementById('lyricsIntro');
             if (el) el.value = intro;
+            saveState();
+            updatePreview();
+          }
+        }).catch(() => {});
+      }
+      // Step 4: Auto-fetch original key via GetSongBPM (non-blocking)
+      if (!state.metadata.originalKey) {
+        ITunesSearch.searchSongBPM(songName, artist).then(key => {
+          if (key && !state.metadata.originalKey) {
+            state.metadata.originalKey = key;
+            const el = document.getElementById('originalKey');
+            if (el) el.value = key;
             saveState();
             updatePreview();
           }
@@ -543,14 +559,14 @@ const App = (() => {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         // Clear metadata
-        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', scoreType: '', geniusUrl: '', appleMusicUrl: '' };
+        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', originalKey: '', scoreType: '', geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
 
         // Clear form fields
-        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'scoreType', 'capoPosition'].forEach(id => {
+        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType', 'capoPosition'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = id === 'capoPosition' ? '0' : '';
         });
@@ -1169,6 +1185,8 @@ const App = (() => {
         keySelect.appendChild(opt);
       }
       keySelect.value = keyVal;
+      const okEl = document.getElementById('originalKey');
+      if (okEl) okEl.value = state.metadata.originalKey || '';
       document.getElementById('capoPosition').value = state.capoPosition;
 
       // Restore auto-lyrics flag
@@ -1214,6 +1232,8 @@ const App = (() => {
       keySelect.appendChild(opt);
     }
     keySelect.value = keyVal;
+    const okEl2 = document.getElementById('originalKey');
+    if (okEl2) okEl2.value = state.metadata.originalKey || '';
     document.getElementById('capoPosition').value = state.capoPosition;
     const scoreTypeEl = document.getElementById('scoreType');
     if (scoreTypeEl) scoreTypeEl.value = state.metadata.scoreType || '';

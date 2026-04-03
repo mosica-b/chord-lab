@@ -9,6 +9,95 @@ const Export = (() => {
   const _bqOverrides = {};
   const BQ_STORAGE_KEY = 'songChordLab_bqPresets';
 
+  /**
+   * Format a raw key string into "X Maj" or "X min" label.
+   * Handles: "D"→"D Maj", "Am"→"A min", "D (Maj)"→"D Maj", "Am (Min)"→"A min"
+   */
+  function formatKeyLabel(key) {
+    if (!key) return '';
+    // Strip existing (Maj)/(Min) labels and brackets
+    let k = key.replace(/\s*\(Maj\)|\s*\(Min\)/gi, '').replace(/\s*\[.*?\]/g, '').trim();
+    // Handle modulation arrows — format each part
+    if (k.includes('→')) {
+      return k.split('→').map(p => formatKeyLabel(p.trim())).join(' → ');
+    }
+    if (k.endsWith('m') && k.length > 1 && k[k.length - 2] !== '#') {
+      return k.slice(0, -1) + ' min';
+    }
+    return k + ' Maj';
+  }
+
+  /**
+   * Compute the sounding key from play key + capo fret.
+   * e.g., "D" + 8 → "Bb", "Am" + 8 → "Fm"
+   */
+  function computeCapoKey(playKey, capoFret) {
+    if (!playKey || !capoFret) return '';
+    // Strip (Maj)/(Min) labels for clean transposition
+    let k = playKey.replace(/\s*\(Maj\)|\s*\(Min\)/gi, '').replace(/\s*\[.*?\]/g, '').trim();
+    // For modulation keys, use first key
+    if (k.includes('→')) k = k.split('→')[0].trim();
+    const transposed = MusicTheory.transposeChord(k, capoFret);
+    return transposed;
+  }
+
+  /**
+   * Build formatted key display string based on score type.
+   * Melody: existing format. Piano/Guitar: Play/Original key format.
+   */
+  function formatKeyDisplay(metadata, capoPosition) {
+    const playKey = metadata.key;
+    const originalKey = metadata.originalKey;
+    const scoreType = (metadata.scoreType || '').toLowerCase();
+    const isMelody = scoreType.includes('melody') || scoreType.includes('vocal');
+
+    if (!playKey) return originalKey ? `Original Key: ${formatKeyLabel(originalKey)}` : '';
+
+    // Melody: keep as-is (existing behavior)
+    if (isMelody && !scoreType.includes('piano') && !scoreType.includes('guitar') && !scoreType.includes('tab')) {
+      let display = playKey;
+      if (originalKey && originalKey !== playKey) display += ` / Original Key: ${formatKeyLabel(originalKey)}`;
+      return display;
+    }
+
+    const playLabel = formatKeyLabel(playKey);
+    const origLabel = originalKey ? formatKeyLabel(originalKey) : '';
+
+    const hasCapo = capoPosition > 0;
+
+    if (hasCapo) {
+      const capoResult = computeCapoKey(playKey, capoPosition);
+      const capoLabel = formatKeyLabel(capoResult);
+      let display = `Play: ${playLabel} (Capo ${capoPosition} = ${capoLabel})`;
+      if (origLabel) display += ` / Original Key: ${origLabel}`;
+      return display;
+    } else {
+      let display = `Play: ${playLabel}`;
+      if (origLabel) display += ` / Original Key: ${origLabel}`;
+      return display;
+    }
+  }
+
+  /**
+   * Extract BPM number from tempo string.
+   * "♩=120"→120, "120"→120, "♩=80 → ♩=120"→120 (last number)
+   */
+  function extractBPM(tempoStr) {
+    if (!tempoStr) return null;
+    const matches = tempoStr.match(/(\d+)/g);
+    if (!matches) return null;
+    return parseInt(matches[matches.length - 1]);
+  }
+
+  /**
+   * Build metronome link URL from tempo string.
+   */
+  function metronomeLinkUrl(tempoStr) {
+    const bpm = extractBPM(tempoStr);
+    if (!bpm) return null;
+    return `https://martin-stone.github.io/linkable-metronome/?bpm=${bpm}`;
+  }
+
   /** Replace {아티스트}, {곡명} shortcodes with actual values */
   function resolveShortcodes(html, metadata) {
     return html
@@ -226,17 +315,18 @@ const Export = (() => {
     const titleWrapper = makeEditable(title, 'info-title');
     infoSection.appendChild(titleWrapper);
 
+    const tempoLink = metronomeLinkUrl(metadata.tempo);
     const infoRows = [
       { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
       { label: '작사', value: metadata.lyricist },
-      { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      metadata.tempo ? { label: '템포', valueHtml: tempoLink ? `<a href="${tempoLink}" target="_blank" style="color:#2563eb;text-decoration:none;">${esc(metadata.tempo)} BPM ▶메트로놈</a>` : `${esc(metadata.tempo)} BPM` } : null,
       { label: '박자', value: metadata.timeSignature },
-      { label: '키', value: metadata.key },
+      { label: '키', value: formatKeyDisplay(metadata, capoPosition) },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
-    ].filter(r => r.value);
+    ].filter(r => r && (r.value || r.valueHtml));
 
     const viewerBase = 'https://mosica-b.github.io/chord-lab/viewer.html';
 
@@ -683,17 +773,18 @@ const Export = (() => {
     html += `</blockquote>`;
 
     // Song info table (outside blockquote)
+    const naverTempoLink = metronomeLinkUrl(metadata.tempo);
     const infoRows = [
       { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
       { label: '작사', value: metadata.lyricist },
-      { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      metadata.tempo ? { label: '템포', value: naverTempoLink ? `<a href="${naverTempoLink}"><font color="#2563eb">${esc(metadata.tempo)} BPM ▶메트로놈</font></a>` : `${esc(metadata.tempo)} BPM` } : null,
       { label: '박자', value: metadata.timeSignature },
-      { label: '키', value: metadata.key },
+      { label: '키', value: formatKeyDisplay(metadata, capoPosition) },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
-    ].filter(r => r.value);
+    ].filter(r => r && r.value);
 
     if (infoRows.length > 0 || chords.length > 0) {
       // Build extra rows for the info table
@@ -904,14 +995,15 @@ const Export = (() => {
       text += `${'─'.repeat(30)}\n\n`;
     }
 
+    const plainTempoLink = metronomeLinkUrl(metadata.tempo);
     const infoRows = [
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
       { label: '작사', value: metadata.lyricist },
-      { label: '템포', value: metadata.tempo ? `${metadata.tempo} BPM` : '' },
+      { label: '템포', value: metadata.tempo ? (plainTempoLink ? `${metadata.tempo} BPM (메트로놈: ${plainTempoLink})` : `${metadata.tempo} BPM`) : '' },
       { label: '박자', value: metadata.timeSignature },
-      { label: '키', value: metadata.key },
+      { label: '키', value: formatKeyDisplay(metadata, capoPosition) },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
     ].filter(r => r.value);
 
