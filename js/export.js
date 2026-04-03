@@ -1073,6 +1073,8 @@ const Export = (() => {
   function isTriadChord(name) {
     const parsed = MusicTheory.parseChordName(name);
     if (!parsed) return false;
+    // Degree modifications like (add9), (#9) make it non-basic
+    if (parsed.degreeMods) return false;
     const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[(parsed.suffix || '').toLowerCase()] || 'major';
     const intervals = MusicTheory.CHORD_INTERVALS[intervalKey];
     return intervals && intervals.length <= 3;
@@ -1098,6 +1100,21 @@ const Export = (() => {
       'aug7': 'aug',
       '7sus4': 'sus4',
     };
+    // For chords with degree mods like (add9), derive triad from base suffix
+    if (parsed.degreeMods) {
+      const baseTriadMap = {
+        'major': '', 'minor': 'm', 'dim': 'dim', 'aug': 'aug', 'sus4': 'sus4', 'sus2': 'sus2',
+      };
+      const triadSuffix = baseTriadMap[intervalKey];
+      if (triadSuffix === undefined) {
+        // Extended suffix with degreeMods — use triadMap if available
+        if (!(intervalKey in triadMap)) return null;
+        const bass = parsed.bassNote ? `/${parsed.bassNote}` : '';
+        return parsed.root + triadMap[intervalKey] + bass;
+      }
+      const bass = parsed.bassNote ? `/${parsed.bassNote}` : '';
+      return parsed.root + triadSuffix + bass;
+    }
     if (!(intervalKey in triadMap)) return null;
     const triadSuffix = triadMap[intervalKey];
     const bass = parsed.bassNote ? `/${parsed.bassNote}` : '';
