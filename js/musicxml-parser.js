@@ -574,6 +574,15 @@ const MusicXMLParser = (() => {
       return { key: playKey, originalKey: origKey };
     }
 
+    // TAB scores: skip <fifths> key signature (not meaningful for tab notation)
+    const hasTab = !!doc.querySelector('clef sign');
+    const tabClef = doc.querySelectorAll('clef sign');
+    let isTabScore = false;
+    for (const cs of tabClef) {
+      if (cs.textContent.trim() === 'TAB') { isTabScore = true; break; }
+    }
+    if (isTabScore) return { key: '', originalKey: '' };
+
     // Fallback: collect key changes from <key> elements across measures
     const measures = doc.querySelectorAll('part:first-of-type measure');
     const keySequence = [];
