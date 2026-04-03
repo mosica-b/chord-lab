@@ -493,17 +493,16 @@ const ViewerApp = (() => {
   function renderHorizontalView(container) {
     // 다이어그램은 원래 셰이프 유지 (카포 시 실음은 라벨로만 표시)
     const isCapoType = getCapoTypes().has(currentType);
-    const displayChords = (capoPosition > 0 && !isCapoType)
-      ? chords.map(n => MusicTheory.transposeChord(n, capoPosition))
-      : [...chords];
+    const displayChords = [...chords];
 
     // Capo info bar
     if (capoPosition > 0) {
+      const instName = capoInstrument === 'ukulele' ? '우쿨렐레' : '기타';
       const capoInfo = document.createElement('div');
       capoInfo.className = 'horizontal-capo-info';
       capoInfo.textContent = isCapoType
-        ? `카포 ${capoPosition}프렛 — 다이어그램: 원래 폼, 라벨: 실음`
-        : `카포 ${capoPosition}프렛 — 실음으로 표시`;
+        ? `${instName} 카포 ${capoPosition}프렛 — 다이어그램: 원래 폼, 라벨: 실음`
+        : `${instName} 카포 ${capoPosition}프렛 적용 — 코드명(Capo ${capoPosition}=실음) 표기`;
       container.appendChild(capoInfo);
     }
 
@@ -549,9 +548,8 @@ const ViewerApp = (() => {
 
     card.querySelectorAll('.notation-panel').forEach(panel => {
       const type = panel.dataset.type;
-      const isCapoType = getCapoTypes().has(type);
-      // CAPO instrument types: use original chord (shape); others: use transposed (sounding)
-      const useChord = (capoPosition > 0 && !isCapoType) ? transposedName : chordName;
+      // 항상 원래 코드로 렌더링 (제목에서 Capo=실음 표기)
+      const useChord = chordName;
       const singleChord = [useChord];
       switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
@@ -647,12 +645,13 @@ const ViewerApp = (() => {
     const title = document.createElement('h2');
     title.className = 'text-2xl font-bold text-gray-800 mb-1';
     if (capoPosition > 0 && !isCapoType) {
-      // Non-capo types: show sounding pitch as main title, original as small subtitle
-      title.textContent = soundName;
-      const origSpan = document.createElement('span');
-      origSpan.className = 'text-sm text-gray-400 ml-2';
-      origSpan.textContent = `(원래: ${chordName})`;
-      title.appendChild(origSpan);
+      // Non-capo types: Dm(Capo 8=Bbm) format
+      title.textContent = chordName;
+      const capoSpan = document.createElement('span');
+      capoSpan.className = 'text-sm ml-2';
+      capoSpan.style.color = '#92400e';
+      capoSpan.textContent = `(Capo ${capoPosition}=${soundName})`;
+      title.appendChild(capoSpan);
     } else {
       title.textContent = chordName;
     }
@@ -660,17 +659,15 @@ const ViewerApp = (() => {
 
     const notesDiv = document.createElement('div');
     notesDiv.className = 'flex flex-wrap gap-1 items-center';
-    // For non-capo types with capo: show sounding notes; for capo types: show original + sounding
-    const displayNotesChord = (capoPosition > 0 && !isCapoType) ? soundName : chordName;
-    const chordNotes = MusicTheory.getChordNotesDisplay(displayNotesChord);
+    const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
       badge.textContent = MusicTheory.formatNoteDisplay(note);
       notesDiv.appendChild(badge);
     });
-    // 카포 적용 시 CAPO_TYPES에서만 원래→실음 구성음 화살표 표시
-    if (capoPosition > 0 && isCapoType) {
+    // 카포 적용 시 원래→실음 구성음 화살표 표시 (모든 타입)
+    if (capoPosition > 0) {
       const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
@@ -1073,8 +1070,8 @@ const ViewerApp = (() => {
       badge.textContent = MusicTheory.formatNoteDisplay(n);
       notesEl.appendChild(badge);
     });
-    // 카포 CAPO_TYPES: 원래→실음 화살표 표시
-    if (capoPosition > 0 && modalIsCapoType) {
+    // 카포 적용 시 원래→실음 구성음 화살표 표시
+    if (capoPosition > 0) {
       const soundNotes = MusicTheory.getChordNotesDisplay(modalSoundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
@@ -1091,8 +1088,7 @@ const ViewerApp = (() => {
 
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
-    const useModalChord = (capoPosition > 0 && !modalIsCapoType) ? modalSoundName : chordName;
-    const singleChord = [useModalChord];
+    const singleChord = [chordName];
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
       case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
