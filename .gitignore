@@ -2,3 +2,4 @@
 *.png
 !favicon*.png
 .claude/
+synology/
