@@ -95,7 +95,7 @@ const Export = (() => {
   function metronomeLinkUrl(tempoStr) {
     const bpm = extractBPM(tempoStr);
     if (!bpm) return null;
-    return `https://martin-stone.github.io/linkable-metronome/?bpm=${bpm}`;
+    return `https://mosica-b.github.io/chord-lab/metronome.html?bpm=${bpm}`;
   }
 
   /** Replace {아티스트}, {곡명} shortcodes with actual values */
