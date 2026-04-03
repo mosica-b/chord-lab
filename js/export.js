@@ -447,7 +447,7 @@ const Export = (() => {
           const keySpan = document.createElement('span');
           keySpan.contentEditable = 'false';
           keySpan.style.cssText = 'color:#999;font-size:11px;';
-          keySpan.textContent = `* ${metadata.key} Key 기준`;
+          keySpan.textContent = `* ${formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key'} 기준`;
           bq.appendChild(keySpan);
         }
         section.appendChild(bqContainer);
@@ -914,7 +914,7 @@ const Export = (() => {
       if (basicChords.length > 0) {
         const primaryContent = overrides['primary-chords'] || `${naverSongLabel}&nbsp;&nbsp;주요 코드`;
         html += `<blockquote style="margin:0;">${primaryContent}`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key')} 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
       }
@@ -923,7 +923,7 @@ const Export = (() => {
       if (advancedChords.length > 0) {
         const advancedContent = overrides['advanced-chords'] || `${naverSongLabel}&nbsp;&nbsp;심화 코드`;
         html += `<blockquote style="margin:0;">${advancedContent}`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(metadata.key)} Key 기준</font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key')} 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
       }
@@ -1051,7 +1051,7 @@ const Export = (() => {
           if (gi < groups.length - 1) t += '\n';
         });
         if (hasKey) {
-          t += `* ${primaryKey(metadata.key)} Key 기준\n`;
+          t += `* ${formatKeyDisplay(metadata, capoPosition) || primaryKey(metadata.key) + ' Key'} 기준\n`;
         }
         return t;
       }
