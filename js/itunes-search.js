@@ -296,48 +296,5 @@ const ITunesSearch = (() => {
     return null;
   }
 
-  /**
-   * Search GetSongBPM API for original key
-   * Returns key string (e.g., "Em", "Ab") or null
-   */
-  const GETSONGBPM_KEY = 'YOUR_API_KEY_HERE';
-
-  async function searchSongBPM(songName, artist) {
-    if (!songName || GETSONGBPM_KEY === 'YOUR_API_KEY_HERE') return null;
-    const query = `${artist || ''} ${songName}`.trim();
-    const searchUrl = `https://api.getsong.co/search/?api_key=${GETSONGBPM_KEY}&type=song&lookup=${encodeURIComponent(query)}`;
-
-    const attempts = [
-      () => fetch(searchUrl, { signal: AbortSignal.timeout(5000) }),
-      () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(searchUrl)}`, { signal: AbortSignal.timeout(5000) }),
-      () => fetch(`https://corsproxy.io/?url=${encodeURIComponent(searchUrl)}`, { signal: AbortSignal.timeout(5000) }),
-    ];
-
-    for (const attempt of attempts) {
-      try {
-        const res = await attempt();
-        if (!res.ok) continue;
-        const data = await res.json();
-        // API returns { search: [ { song_title, artist: { name }, tempo, key_of, ... } ] }
-        const results = data?.search;
-        if (!Array.isArray(results) || results.length === 0) return null;
-
-        // Find best match
-        const queryLower = songName.toLowerCase();
-        const artistLower = (artist || '').toLowerCase();
-        const match = results.find(r =>
-          (r.song_title || '').toLowerCase().includes(queryLower) ||
-          queryLower.includes((r.song_title || '').toLowerCase())
-        ) || results[0];
-
-        return match.key_of || null;
-      } catch (e) {
-        // Try next proxy
-      }
-    }
-    console.warn('GetSongBPM search failed for:', songName);
-    return null;
-  }
-
-  return { searchAlbum, searchGeniusLyrics, fetchLyricsIntro, searchSongBPM };
+  return { searchAlbum, searchGeniusLyrics, fetchLyricsIntro };
 })();

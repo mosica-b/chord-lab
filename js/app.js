@@ -158,18 +158,6 @@ const App = (() => {
           }
         }).catch(() => {});
       }
-      // Step 4: Auto-fetch original key via GetSongBPM (non-blocking)
-      if (!state.metadata.originalKey) {
-        ITunesSearch.searchSongBPM(songName, artist).then(key => {
-          if (key && !state.metadata.originalKey) {
-            state.metadata.originalKey = key;
-            const el = document.getElementById('originalKey');
-            if (el) el.value = key;
-            saveState();
-            updatePreview();
-          }
-        }).catch(() => {});
-      }
     } catch (e) {
       console.warn('Auto API search failed:', e);
     }
