@@ -281,6 +281,21 @@ const App = (() => {
         state.metadata.originalKey = result.originalKey;
         const okEl = document.getElementById('originalKey');
         if (okEl) okEl.value = result.originalKey;
+        // TAB/피아노: Original key만 있고 Play key 없으면 둘 다 같은 값으로 채움
+        if (!result.key) {
+          const st = (state.metadata.scoreType || result.scoreType || '').toLowerCase();
+          if (st.includes('tab') || st.includes('piano') || st.includes('guitar')) {
+            state.metadata.key = result.originalKey;
+            const keySelect = document.getElementById('songKey');
+            if (!keySelect.querySelector(`option[value="${result.originalKey}"]`)) {
+              const opt = document.createElement('option');
+              opt.value = result.originalKey;
+              opt.textContent = result.originalKey;
+              keySelect.appendChild(opt);
+            }
+            keySelect.value = result.originalKey;
+          }
+        }
       }
 
       // Set capo position
@@ -390,6 +405,21 @@ const App = (() => {
         state.metadata.originalKey = result.originalKey;
         const okEl = document.getElementById('originalKey');
         if (okEl) okEl.value = result.originalKey;
+        // TAB/피아노: Original key만 있고 Play key 없으면 둘 다 같은 값으로 채움
+        if (!result.key) {
+          const st = (state.metadata.scoreType || result.scoreType || '').toLowerCase();
+          if (st.includes('tab') || st.includes('piano') || st.includes('guitar')) {
+            state.metadata.key = result.originalKey;
+            const keySelect = document.getElementById('songKey');
+            if (!keySelect.querySelector(`option[value="${result.originalKey}"]`)) {
+              const opt = document.createElement('option');
+              opt.value = result.originalKey;
+              opt.textContent = result.originalKey;
+              keySelect.appendChild(opt);
+            }
+            keySelect.value = result.originalKey;
+          }
+        }
       }
 
       // Set capo position
