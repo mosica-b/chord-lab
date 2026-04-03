@@ -289,6 +289,11 @@ const App = (() => {
         }
         keySelect.value = result.key;
       }
+      if (result.originalKey) {
+        state.metadata.originalKey = result.originalKey;
+        const okEl = document.getElementById('originalKey');
+        if (okEl) okEl.value = result.originalKey;
+      }
 
       // Set capo position
       if (result.capo > 0) {
@@ -392,6 +397,11 @@ const App = (() => {
           keySelect.appendChild(opt);
         }
         keySelect.value = result.key;
+      }
+      if (result.originalKey) {
+        state.metadata.originalKey = result.originalKey;
+        const okEl = document.getElementById('originalKey');
+        if (okEl) okEl.value = result.originalKey;
       }
 
       // Set capo position

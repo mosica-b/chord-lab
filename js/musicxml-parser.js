@@ -428,12 +428,15 @@ const MusicXMLParser = (() => {
     const artist = parseCreatorField(doc, 'Artist');
     const composer = parseCreatorField(doc, 'Composed by');
 
+    const keyInfo = parseKey(doc);
+
     return {
       songName: parseSongName(doc),
       artist: artist || composer,
       composer: composer,
       lyricist: parseCreatorField(doc, 'Lyrics by'),
-      key: parseKey(doc),
+      key: keyInfo.key,
+      originalKey: keyInfo.originalKey,
       timeSignature: parseTimeSignature(doc),
       tempo: parseTempo(doc),
       capo: parseCapo(doc),
@@ -496,8 +499,8 @@ const MusicXMLParser = (() => {
    * Returns { key, tag } object or null
    */
   function parseKeyFromWords(text) {
-    // Match patterns: "Original Bm key", "More D key", "Origin F#m Key", etc.
-    const m = text.match(/(Original|Origin|More)\s+([A-G][#b]?m?)\s*[Kk]ey/i);
+    // Match patterns: "Original Bm key", "More D key", "Easy Am key", "Origin F#m Key", etc.
+    const m = text.match(/(Original|Origin|More|Easy)\s+([A-G][#b]?m?)\s*[Kk]ey/i);
     if (!m) return null;
     const prefix = m[1];
     const tag = /^(Original|Origin)$/i.test(prefix) ? 'Original' : null;
@@ -539,11 +542,36 @@ const MusicXMLParser = (() => {
       : (FIFTHS_TO_MAJOR[fifthsVal] || '');
   }
 
+  /**
+   * Parse key info from MusicXML.
+   * Returns { key, originalKey } where:
+   * - key = play key (from "More/Easy" annotation, or fifths, or null)
+   * - originalKey = original key (from "Original" annotation, or null)
+   *
+   * Rules:
+   * - "Original Bm key" only → originalKey = "Bm", key = ""
+   * - "More D key" only → key = "D", originalKey = ""
+   * - Both annotations → key from More, originalKey from Original
+   * - No annotations → key from <fifths>, originalKey = ""
+   */
   function parseKey(doc) {
-    // First, check <words> annotations for explicit key info
+    // Check <words> annotations for explicit key info
     const annotatedKeys = parseKeysFromWords(doc);
+
     if (annotatedKeys.length > 0) {
-      return annotatedKeys.map(k => labelKey(k.key, k.tag)).join(' → ');
+      let playKey = '';
+      let origKey = '';
+
+      for (const k of annotatedKeys) {
+        if (k.tag === 'Original') {
+          origKey = k.key;
+        } else {
+          // "More", "Easy", or untagged annotation → play key
+          playKey = playKey ? playKey + ' → ' + k.key : k.key;
+        }
+      }
+
+      return { key: playKey, originalKey: origKey };
     }
 
     // Fallback: collect key changes from <key> elements across measures
@@ -563,29 +591,27 @@ const MusicXMLParser = (() => {
           ? (FIFTHS_TO_MINOR[fifthsVal] || '')
           : (FIFTHS_TO_MAJOR[fifthsVal] || '');
         if (keyName && keyName !== lastKey) {
-          keySequence.push(labelKey(keyName));
+          keySequence.push(keyName);
           lastKey = keyName;
         }
       }
     }
 
     if (keySequence.length === 0) {
-      // Fallback: try first <key> anywhere
       const keyEl = doc.querySelector('key');
-      if (!keyEl) return '';
+      if (!keyEl) return { key: '', originalKey: '' };
       const fifths = keyEl.querySelector('fifths');
-      if (!fifths) return '';
+      if (!fifths) return { key: '', originalKey: '' };
       const fifthsVal = fifths.textContent.trim();
       const mode = keyEl.querySelector('mode');
       const modeVal = mode ? mode.textContent.trim() : 'major';
       const keyName = modeVal === 'minor'
         ? (FIFTHS_TO_MINOR[fifthsVal] || '')
         : (FIFTHS_TO_MAJOR[fifthsVal] || '');
-      return labelKey(keyName);
+      return { key: keyName, originalKey: '' };
     }
 
-    // Single key or modulation sequence
-    return keySequence.join(' → ');
+    return { key: keySequence.join(' → '), originalKey: '' };
   }
 
   function parseTimeSignature(doc) {
