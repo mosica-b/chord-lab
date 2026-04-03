@@ -668,9 +668,11 @@ const ViewerApp = (() => {
     playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
     playBtn.addEventListener('click', async () => {
       const inst = playBtn.dataset.instrument;
+      const soundName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+        ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
       playBtn.classList.add('playing');
       playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
-      await ChordAudio.playChord(chordName, 2.0, inst);
+      await ChordAudio.playChord(soundName, 2.0, inst);
       playBtn.classList.remove('playing');
       playBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg> 재생`;
     });
@@ -682,9 +684,11 @@ const ViewerApp = (() => {
     arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
     arpBtn.addEventListener('click', async () => {
       const inst = arpBtn.dataset.instrument;
+      const soundName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+        ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
       arpBtn.classList.add('playing');
       arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 재생 중`;
-      await ChordAudio.playChordArpeggio(chordName, 0.18, 1.2, inst);
+      await ChordAudio.playChordArpeggio(soundName, 0.18, 1.2, inst);
       arpBtn.classList.remove('playing');
       arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
     });
@@ -959,7 +963,9 @@ const ViewerApp = (() => {
     btn.classList.add('bg-red-500', 'hover:bg-red-600');
 
     const currentTab = TABS.find(t => t.id === currentType) || TABS[0];
-    await ChordAudio.playChordSequence(customChords, 2.0, (name, idx) => {
+    const customSoundChords = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+      ? customChords.map(n => MusicTheory.transposeChord(n, capoPosition)) : customChords;
+    await ChordAudio.playChordSequence(customSoundChords, 2.0, (name, idx) => {
       if (myGen !== customPlayGen) return;
       const chips = document.querySelectorAll('#customComboZone .custom-combo-chip');
       chips.forEach(c => c.classList.remove('playing'));
@@ -1078,7 +1084,9 @@ const ViewerApp = (() => {
       btn.classList.add('playing');
       btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg> 정지';
 
-      await ChordAudio.playChordSequence(chords, 2.0, (name, idx) => {
+      const soundChords = (capoPosition > 0 && CAPO_TYPES.has(currentType))
+        ? chords.map(n => MusicTheory.transposeChord(n, capoPosition)) : chords;
+      await ChordAudio.playChordSequence(soundChords, 2.0, (name, idx) => {
         if (myGen !== playAllGen) return;
         highlightBadge(idx);
         showPlaybackModal(name);
