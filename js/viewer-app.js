@@ -481,9 +481,11 @@ const ViewerApp = (() => {
 
   function renderHorizontalView(container) {
     // Build chord list with capo transposition applied
+    // Mode up: 다이어그램은 원래 셰이프 유지 (변환 안 함)
+    // Mode down: 다이어그램을 변환된 셰이프로 표시
     const displayChords = chords.map(name => {
-      if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
-        return MusicTheory.transposeChord(name, capoDirection === 'up' ? capoPosition : -capoPosition);
+      if (capoPosition > 0 && CAPO_TYPES.has(currentType) && capoDirection === 'down') {
+        return MusicTheory.transposeChord(name, -capoPosition);
       }
       return name;
     });
@@ -540,7 +542,10 @@ const ViewerApp = (() => {
 
     card.querySelectorAll('.notation-panel').forEach(panel => {
       const type = panel.dataset.type;
-      const useChord = CAPO_TYPES.has(type) && capoPosition > 0 ? transposedName : chordName;
+      // Mode up: 다이어그램은 원래 셰이프 유지, 라벨만 실음 표시
+      // Mode down: 다이어그램을 변환된 셰이프로 표시
+      const useChord = CAPO_TYPES.has(type) && capoPosition > 0 && capoDirection === 'down'
+        ? transposedName : chordName;
       const singleChord = [useChord];
       switch (type) {
         case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
@@ -1033,7 +1038,10 @@ const ViewerApp = (() => {
     const transposedName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
       ? MusicTheory.transposeChord(chordName, capoDirection === 'up' ? capoPosition : -capoPosition)
       : chordName;
-    const singleChord = [transposedName];
+    // Mode up: 다이어그램은 원래 셰이프, Mode down: 변환된 셰이프
+    const useChordPopover = (capoPosition > 0 && CAPO_TYPES.has(currentType) && capoDirection === 'down')
+      ? transposedName : chordName;
+    const singleChord = [useChordPopover];
     switch (currentType) {
       case 'staff': Renderers.renderStaffNotation(panel, singleChord); break;
       case 'guitar-tab': Renderers.renderGuitarTab(panel, singleChord); break;
