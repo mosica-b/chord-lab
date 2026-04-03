@@ -1041,7 +1041,7 @@ const App = (() => {
     section.classList.remove('hidden');
     container.innerHTML = '';
 
-    const capoTable = MusicTheory.generateCapoTable(state.selectedChords, state.metadata.key);
+    const capoTable = MusicTheory.generateCapoTable(state.selectedChords);
 
     const table = document.createElement('table');
     table.className = 'w-full text-sm border-collapse';

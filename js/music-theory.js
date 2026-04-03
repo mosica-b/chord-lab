@@ -489,14 +489,20 @@ const MusicTheory = (() => {
    * chords: array of chord names
    * Returns: array of { capo, chords: [] } for capo positions 0-12
    */
-  function generateCapoTable(chords, key) {
+  function generateCapoTable(chords) {
+    // Derive playing key reference from first chord's root
+    // (metadata.key may be sounding key, which would give wrong results if re-transposed)
+    const firstParsed = chords.length > 0 ? parseChordName(chords[0]) : null;
+    const refRootIdx = firstParsed ? noteIndex(firstParsed.root) : -1;
+    const refIsMinor = firstParsed && (firstParsed.suffix === 'm' || firstParsed.suffix === 'minor');
+
     const table = [];
     for (let capo = 0; capo <= 12; capo++) {
-      // Determine sharp/flat preference from transposed key
       let useFlats;
-      if (key) {
-        const transposedKey = transposeChord(key, capo);
-        useFlats = keyPrefersFlats(transposedKey);
+      if (refRootIdx >= 0) {
+        const transposedIdx = (refRootIdx + capo) % 12;
+        const majorIdx = refIsMinor ? (transposedIdx + 3) % 12 : transposedIdx;
+        useFlats = FLAT_KEY_INDICES.has(majorIdx);
       }
       table.push({
         capo,
