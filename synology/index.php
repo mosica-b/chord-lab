@@ -136,6 +136,7 @@ $db->exec("CREATE TABLE IF NOT EXISTS songs (
     tempo TEXT DEFAULT '',
     time_signature TEXT DEFAULT '',
     key_signature TEXT DEFAULT '',
+    original_key TEXT DEFAULT '',
     lyrics_intro TEXT DEFAULT '',
     genius_url TEXT DEFAULT '',
     apple_music_url TEXT DEFAULT '',
@@ -196,6 +197,11 @@ if (!in_array('score_type', $cols)) {
         $db->exec("ROLLBACK");
         throw $e;
     }
+}
+
+/* ── Migration: add original_key column ── */
+if (!in_array('original_key', $cols)) {
+    $db->exec("ALTER TABLE songs ADD COLUMN original_key TEXT DEFAULT ''");
 }
 
 /* ── FTS5 Full-Text Search (trigram: substring matching with index) ── */
@@ -367,11 +373,11 @@ switch ($action) {
         $stmt = $db->prepare(
             "INSERT INTO songs
                 (song_name, artist, album_name, composer, lyricist, tempo,
-                 time_signature, key_signature, lyrics_intro, genius_url,
+                 time_signature, key_signature, original_key, lyrics_intro, genius_url,
                  apple_music_url, selected_chords, capo_position, score_type)
              VALUES
                 (:song_name, :artist, :album_name, :composer, :lyricist, :tempo,
-                 :time_signature, :key_signature, :lyrics_intro, :genius_url,
+                 :time_signature, :key_signature, :original_key, :lyrics_intro, :genius_url,
                  :apple_music_url, :selected_chords, :capo_position, :score_type)
              ON CONFLICT(song_name, artist, score_type) DO UPDATE SET
                 album_name = excluded.album_name,
@@ -380,6 +386,7 @@ switch ($action) {
                 tempo = excluded.tempo,
                 time_signature = excluded.time_signature,
                 key_signature = excluded.key_signature,
+                original_key = excluded.original_key,
                 lyrics_intro = excluded.lyrics_intro,
                 genius_url = excluded.genius_url,
                 apple_music_url = excluded.apple_music_url,
@@ -398,6 +405,7 @@ switch ($action) {
             ':tempo'           => $body['tempo'] ?? '',
             ':time_signature'  => $body['time_signature'] ?? '',
             ':key_signature'   => $body['key_signature'] ?? '',
+            ':original_key'    => $body['original_key'] ?? '',
             ':lyrics_intro'    => $body['lyrics_intro'] ?? '',
             ':genius_url'      => $body['genius_url'] ?? '',
             ':apple_music_url' => $body['apple_music_url'] ?? '',
@@ -441,10 +449,10 @@ switch ($action) {
                     song_name = :song_name, artist = :artist, album_name = :album_name,
                     composer = :composer, lyricist = :lyricist, tempo = :tempo,
                     time_signature = :time_signature, key_signature = :key_signature,
-                    lyrics_intro = :lyrics_intro, genius_url = :genius_url,
-                    apple_music_url = :apple_music_url, selected_chords = :selected_chords,
-                    capo_position = :capo_position, score_type = :score_type,
-                    updated_at = datetime('now')
+                    original_key = :original_key, lyrics_intro = :lyrics_intro,
+                    genius_url = :genius_url, apple_music_url = :apple_music_url,
+                    selected_chords = :selected_chords, capo_position = :capo_position,
+                    score_type = :score_type, updated_at = datetime('now')
                  WHERE id = :id"
             );
             $stmt->execute([
@@ -457,6 +465,7 @@ switch ($action) {
                 ':tempo'           => $body['tempo'] ?? '',
                 ':time_signature'  => $body['time_signature'] ?? '',
                 ':key_signature'   => $body['key_signature'] ?? '',
+                ':original_key'    => $body['original_key'] ?? '',
                 ':lyrics_intro'    => $body['lyrics_intro'] ?? '',
                 ':genius_url'      => $body['genius_url'] ?? '',
                 ':apple_music_url' => $body['apple_music_url'] ?? '',
