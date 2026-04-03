@@ -90,12 +90,17 @@ const Export = (() => {
   }
 
   /**
-   * Build metronome link URL from tempo string.
+   * Build metronome link URL from tempo string and optional time signature.
    */
-  function metronomeLinkUrl(tempoStr) {
+  function metronomeLinkUrl(tempoStr, timeSig) {
     const bpm = extractBPM(tempoStr);
     if (!bpm) return null;
-    return `https://mosica-b.github.io/chord-lab/metronome.html?bpm=${bpm}`;
+    let url = `https://mosica-b.github.io/chord-lab/metronome.html?bpm=${bpm}`;
+    if (timeSig) {
+      const m = timeSig.match(/^(\d+)\s*\/\s*\d+$/);
+      if (m) url += `&beats=${m[1]}`;
+    }
+    return url;
   }
 
   /** Replace {아티스트}, {곡명} shortcodes with actual values */
@@ -315,7 +320,7 @@ const Export = (() => {
     const titleWrapper = makeEditable(title, 'info-title');
     infoSection.appendChild(titleWrapper);
 
-    const tempoLink = metronomeLinkUrl(metadata.tempo);
+    const tempoLink = metronomeLinkUrl(metadata.tempo, metadata.timeSignature);
     const infoRows = [
       { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
@@ -773,7 +778,7 @@ const Export = (() => {
     html += `</blockquote>`;
 
     // Song info table (outside blockquote)
-    const naverTempoLink = metronomeLinkUrl(metadata.tempo);
+    const naverTempoLink = metronomeLinkUrl(metadata.tempo, metadata.timeSignature);
     const infoRows = [
       { label: '곡명', value: metadata.songName },
       { label: '아티스트', value: metadata.artist },
@@ -995,7 +1000,7 @@ const Export = (() => {
       text += `${'─'.repeat(30)}\n\n`;
     }
 
-    const plainTempoLink = metronomeLinkUrl(metadata.tempo);
+    const plainTempoLink = metronomeLinkUrl(metadata.tempo, metadata.timeSignature);
     const infoRows = [
       { label: '아티스트', value: metadata.artist },
       { label: '앨범', value: metadata.albumName },

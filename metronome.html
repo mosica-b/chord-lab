@@ -563,8 +563,13 @@ window.addEventListener('resize',()=>recalc(),{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(recalc,150),{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) setTimeout(recalc,100)});
 
-// Init selects
+// Init from URL params & selects
 (function init(){
+  const params=new URLSearchParams(location.search);
+  const pBpm=parseInt(params.get('bpm'),10);
+  const pBeats=parseInt(params.get('beats'),10);
+  if(pBpm>=30&&pBpm<=300) state.bpm=pBpm;
+  if(pBeats>=1&&pBeats<=15) state.beats=pBeats;
   for(let i=1;i<=15;i++){const o=document.createElement('option');o.textContent=String(i);if(i===state.beats) o.selected=true;$('numBeats').appendChild(o)}
   for(let i=1;i<=12;i++){const o=document.createElement('option');o.value=String(i);o.textContent=String(i);if(i===state.divs) o.selected=true;$('divs').appendChild(o)}
   syncBpmInputs();build();recalc();
