@@ -4,12 +4,32 @@
  */
 const MusicTheory = (() => {
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const FLAT_NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
   // Enharmonic mappings for display
   const ENHARMONIC = {
     'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb',
     'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
   };
+
+  // Flat keys on the circle of fifths (major key root indices)
+  // F(5), Bb(10), Eb(3), Ab(8), Db(1)
+  const FLAT_KEY_INDICES = new Set([1, 3, 5, 8, 10]);
+
+  /**
+   * Determine if a key prefers flat notation based on circle of fifths.
+   * For minor keys, uses relative major (root + 3 semitones).
+   */
+  function keyPrefersFlats(keyName) {
+    if (!keyName) return false;
+    const parsed = parseChordName(keyName);
+    if (!parsed) return false;
+    const rootIdx = noteIndex(parsed.root);
+    if (rootIdx < 0) return false;
+    const isMinor = (parsed.suffix || '').toLowerCase() === 'm' || (parsed.suffix || '').toLowerCase() === 'minor';
+    const majorIdx = isMinor ? (rootIdx + 3) % 12 : rootIdx;
+    return FLAT_KEY_INDICES.has(majorIdx);
+  }
 
   // Letter names and their natural semitone values (for theory-correct spelling)
   const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -419,7 +439,7 @@ const MusicTheory = (() => {
   /**
    * Transpose a chord name by a number of semitones
    */
-  function transposeChord(chordName, semitones) {
+  function transposeChord(chordName, semitones, useFlats) {
     const parsed = parseChordName(chordName);
     if (!parsed) return chordName;
 
@@ -427,13 +447,15 @@ const MusicTheory = (() => {
     if (rootIdx < 0) return chordName;
 
     const newIdx = ((rootIdx + semitones) % 12 + 12) % 12;
-    let newRoot = NOTE_NAMES[newIdx];
+    let newRoot;
 
-    // Prefer flat notation (Bb, Eb, Ab, Db, Gb) unless original used sharps
-    if (ENHARMONIC[newRoot]) {
-      if (parsed.root.includes('#')) {
-        // Keep sharp if original was sharp
-      } else {
+    if (useFlats !== undefined) {
+      // Explicit sharp/flat preference from key context
+      newRoot = useFlats ? FLAT_NOTE_NAMES[newIdx] : NOTE_NAMES[newIdx];
+    } else {
+      // Auto-detect: prefer flat unless original used sharps
+      newRoot = NOTE_NAMES[newIdx];
+      if (ENHARMONIC[newRoot] && !parsed.root.includes('#')) {
         newRoot = ENHARMONIC[newRoot];
       }
     }
@@ -441,16 +463,17 @@ const MusicTheory = (() => {
     const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
     let result = newRoot + suffix + (parsed.degreeMods || '');
 
-    // Transpose bass note for slash chords (e.g., D#7/G → E7/G#)
+    // Transpose bass note for slash chords
     if (parsed.bassNote) {
       const bassIdx = noteIndex(parsed.bassNote);
       if (bassIdx >= 0) {
         const newBassIdx = ((bassIdx + semitones) % 12 + 12) % 12;
-        let newBass = NOTE_NAMES[newBassIdx];
-        if (ENHARMONIC[newBass]) {
-          if (parsed.bassNote.includes('#')) {
-            // Keep sharp
-          } else {
+        let newBass;
+        if (useFlats !== undefined) {
+          newBass = useFlats ? FLAT_NOTE_NAMES[newBassIdx] : NOTE_NAMES[newBassIdx];
+        } else {
+          newBass = NOTE_NAMES[newBassIdx];
+          if (ENHARMONIC[newBass] && !parsed.bassNote.includes('#')) {
             newBass = ENHARMONIC[newBass];
           }
         }
@@ -466,12 +489,18 @@ const MusicTheory = (() => {
    * chords: array of chord names
    * Returns: array of { capo, chords: [] } for capo positions 0-12
    */
-  function generateCapoTable(chords) {
+  function generateCapoTable(chords, key) {
     const table = [];
     for (let capo = 0; capo <= 12; capo++) {
+      // Determine sharp/flat preference from transposed key
+      let useFlats;
+      if (key) {
+        const transposedKey = transposeChord(key, capo);
+        useFlats = keyPrefersFlats(transposedKey);
+      }
       table.push({
         capo,
-        chords: chords.map(chord => transposeChord(chord, capo))
+        chords: chords.map(chord => transposeChord(chord, capo, useFlats))
       });
     }
     return table;
@@ -535,6 +564,7 @@ const MusicTheory = (() => {
     fretToNote,
     fretsToVexFlowKeys,
     transposeChord,
+    keyPrefersFlats,
     generateCapoTable,
     getAvailableSuffixes,
     getCommonChords,

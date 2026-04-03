@@ -481,7 +481,7 @@ const Export = (() => {
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, metadata.key);
       [0, capoPosition].forEach(pos => {
         const entry = capoTable[pos];
         const row = document.createElement('tr');
@@ -842,7 +842,7 @@ const Export = (() => {
       });
       html += `</tr>`;
 
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, metadata.key);
       [0, capoPosition].forEach(pos => {
         const entry = capoTable[pos];
         const isCurrent = pos === capoPosition;
@@ -980,7 +980,7 @@ const Export = (() => {
     if (capoPosition > 0 && chords.length > 0) {
       text += `\n카포 변환표\n`;
       text += `${'─'.repeat(30)}\n`;
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, metadata.key);
       text += `원래 코드    ${capoTable[0].chords.join('  ')}\n`;
       text += `카포 ${capoPosition}프렛    ${capoTable[capoPosition].chords.join('  ')}\n`;
     }
