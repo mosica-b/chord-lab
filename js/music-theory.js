@@ -429,9 +429,13 @@ const MusicTheory = (() => {
     const newIdx = ((rootIdx + semitones) % 12 + 12) % 12;
     let newRoot = NOTE_NAMES[newIdx];
 
-    // Keep flat notation if original used flats
-    if (parsed.root.includes('b') && ENHARMONIC[newRoot]) {
-      newRoot = ENHARMONIC[newRoot];
+    // Prefer flat notation (Bb, Eb, Ab, Db, Gb) unless original used sharps
+    if (ENHARMONIC[newRoot]) {
+      if (parsed.root.includes('#')) {
+        // Keep sharp if original was sharp
+      } else {
+        newRoot = ENHARMONIC[newRoot];
+      }
     }
 
     const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
@@ -443,9 +447,12 @@ const MusicTheory = (() => {
       if (bassIdx >= 0) {
         const newBassIdx = ((bassIdx + semitones) % 12 + 12) % 12;
         let newBass = NOTE_NAMES[newBassIdx];
-        // Keep flat notation if original bass used flats
-        if (parsed.bassNote.includes('b') && ENHARMONIC[newBass]) {
-          newBass = ENHARMONIC[newBass];
+        if (ENHARMONIC[newBass]) {
+          if (parsed.bassNote.includes('#')) {
+            // Keep sharp
+          } else {
+            newBass = ENHARMONIC[newBass];
+          }
         }
         result += '/' + newBass;
       }
