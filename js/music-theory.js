@@ -464,7 +464,7 @@ const MusicTheory = (() => {
     for (let capo = 0; capo <= 12; capo++) {
       table.push({
         capo,
-        chords: chords.map(chord => transposeChord(chord, -capo))
+        chords: chords.map(chord => transposeChord(chord, capo))
       });
     }
     return table;
