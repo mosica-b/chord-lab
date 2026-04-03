@@ -527,6 +527,26 @@
       color: white;
       border-color: #2563eb;
     }
+    .capo-dir-btn {
+      min-width: 36px;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      font-size: 11px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .capo-dir-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+    .capo-dir-btn.active {
+      background: #f59e0b;
+      color: white;
+      border-color: #f59e0b;
+    }
 
     /* Capo label on cards */
     .capo-shape-label {
@@ -688,7 +708,7 @@
         <button class="top-accordion-row" data-type="ukulele-tab"><span class="row-icon">🪕</span>우쿨렐레 타브<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="ukulele-diagram"><span class="row-icon">🪕</span>우쿨렐레 다이어그램<span class="row-check">✓</span></button>
         <button class="top-accordion-row" data-type="piano"><span class="row-icon">🎹</span>피아노<span class="row-check">✓</span></button>
-        <div id="capoRow" class="capo-row">
+        <div id="capoRow" class="capo-row" style="flex-wrap:wrap;">
           <span class="capo-label">카포</span>
           <div class="capo-buttons">
             <button class="capo-btn active" data-capo="0">없음</button>
@@ -699,6 +719,15 @@
             <button class="capo-btn" data-capo="5">5</button>
             <button class="capo-btn" data-capo="6">6</button>
             <button class="capo-btn" data-capo="7">7</button>
+            <button class="capo-btn" data-capo="8">8</button>
+            <button class="capo-btn" data-capo="9">9</button>
+            <button class="capo-btn" data-capo="10">10</button>
+            <button class="capo-btn" data-capo="11">11</button>
+            <button class="capo-btn" data-capo="12">12</button>
+          </div>
+          <div class="capo-buttons" style="margin-left:auto;">
+            <button class="capo-dir-btn active" data-dir="down">▼ 실음→셰이프</button>
+            <button class="capo-dir-btn" data-dir="up">▲ 카포→실음</button>
           </div>
         </div>
       </div>
@@ -750,7 +779,7 @@
     <button class="fab-accordion-item" data-type="ukulele-tab">🪕 우쿨렐레 타브</button>
     <button class="fab-accordion-item" data-type="ukulele-diagram">🪕 우쿨렐레 다이어그램</button>
     <button class="fab-accordion-item" data-type="piano">🎹 피아노</button>
-    <div id="fabCapoRow" class="capo-row" style="border-top:1px solid #e5e7eb;">
+    <div id="fabCapoRow" class="capo-row" style="border-top:1px solid #e5e7eb;flex-wrap:wrap;">
       <span class="capo-label">카포</span>
       <div class="capo-buttons">
         <button class="capo-btn active" data-capo="0">없음</button>
@@ -761,6 +790,15 @@
         <button class="capo-btn" data-capo="5">5</button>
         <button class="capo-btn" data-capo="6">6</button>
         <button class="capo-btn" data-capo="7">7</button>
+        <button class="capo-btn" data-capo="8">8</button>
+        <button class="capo-btn" data-capo="9">9</button>
+        <button class="capo-btn" data-capo="10">10</button>
+        <button class="capo-btn" data-capo="11">11</button>
+        <button class="capo-btn" data-capo="12">12</button>
+      </div>
+      <div class="capo-buttons" style="margin-left:auto;">
+        <button class="capo-dir-btn active" data-dir="down">▼ 실음→셰이프</button>
+        <button class="capo-dir-btn" data-dir="up">▲ 카포→실음</button>
       </div>
     </div>
   </div>
@@ -773,7 +811,7 @@
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=7"></script>
-  <script src="js/viewer-app.js?v=20"></script>
+  <script src="js/viewer-app.js?v=21"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">

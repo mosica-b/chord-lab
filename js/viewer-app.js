@@ -12,6 +12,7 @@ const ViewerApp = (() => {
   let defaultType = null;
   let currentType = 'staff';
   let capoPosition = 0;
+  let capoDirection = 'down'; // 'down' = 실음→셰이프 (기존), 'up' = 카포→실음
   let horizontalMode = false;
   const CAPO_TYPES = new Set(['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram']);
 
@@ -206,6 +207,16 @@ const ViewerApp = (() => {
         // Close FAB accordion after capo selection (top accordion stays as-is)
         const fabAccordion = document.getElementById('fabAccordion');
         if (fabAccordion) fabAccordion.classList.add('hidden');
+      });
+    });
+    // Direction toggle buttons
+    document.querySelectorAll('.capo-dir-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        capoDirection = btn.dataset.dir;
+        document.querySelectorAll('.capo-dir-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.dir === capoDirection);
+        });
+        renderCards();
       });
     });
   }
@@ -472,7 +483,7 @@ const ViewerApp = (() => {
     // Build chord list with capo transposition applied
     const displayChords = chords.map(name => {
       if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
-        return MusicTheory.transposeChord(name, -capoPosition);
+        return MusicTheory.transposeChord(name, capoDirection === 'up' ? capoPosition : -capoPosition);
       }
       return name;
     });
@@ -481,7 +492,9 @@ const ViewerApp = (() => {
     if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
       const capoInfo = document.createElement('div');
       capoInfo.className = 'horizontal-capo-info';
-      capoInfo.textContent = `카포 ${capoPosition} 적용`;
+      capoInfo.textContent = capoDirection === 'up'
+        ? `카포 ${capoPosition} → 실음 표시`
+        : `카포 ${capoPosition} → 셰이프 표시`;
       container.appendChild(capoInfo);
     }
 
@@ -522,7 +535,7 @@ const ViewerApp = (() => {
 
   function renderCardNotations(card, chordName) {
     const transposedName = capoPosition > 0
-      ? MusicTheory.transposeChord(chordName, -capoPosition)
+      ? MusicTheory.transposeChord(chordName, capoDirection === 'up' ? capoPosition : -capoPosition)
       : chordName;
 
     card.querySelectorAll('.notation-panel').forEach(panel => {
@@ -563,7 +576,9 @@ const ViewerApp = (() => {
     const capoLabel = card.querySelector('.capo-shape-label');
     if (capoPosition > 0 && CAPO_TYPES.has(currentType)) {
       if (capoLabel) {
-        capoLabel.textContent = `카포 ${capoPosition} → ${transposedName} 폼`;
+        capoLabel.textContent = capoDirection === 'up'
+          ? `${chordName} 폼 + 카포 ${capoPosition} = ${transposedName} 실음`
+          : `카포 ${capoPosition} → ${transposedName} 폼`;
         capoLabel.style.display = '';
       }
     } else {
@@ -1016,7 +1031,7 @@ const ViewerApp = (() => {
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
     const transposedName = (capoPosition > 0 && CAPO_TYPES.has(currentType))
-      ? MusicTheory.transposeChord(chordName, -capoPosition)
+      ? MusicTheory.transposeChord(chordName, capoDirection === 'up' ? capoPosition : -capoPosition)
       : chordName;
     const singleChord = [transposedName];
     switch (currentType) {
