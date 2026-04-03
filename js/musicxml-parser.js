@@ -425,10 +425,13 @@ const MusicXMLParser = (() => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlString, 'text/xml');
 
+    const artist = parseCreatorField(doc, 'Artist');
+    const composer = parseCreatorField(doc, 'Composed by');
+
     return {
       songName: parseSongName(doc),
-      artist: parseCreatorField(doc, 'Artist'),
-      composer: parseCreatorField(doc, 'Composed by'),
+      artist: artist || composer,
+      composer: composer,
       lyricist: parseCreatorField(doc, 'Lyrics by'),
       key: parseKey(doc),
       timeSignature: parseTimeSignature(doc),
