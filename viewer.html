@@ -92,6 +92,48 @@
       margin-bottom: 12px;
       display: none;
     }
+    /* Capo compare layout (original → sounding) */
+    .capo-compare {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .capo-compare-item {
+      flex: 1;
+      min-width: 120px;
+      max-width: 320px;
+    }
+    .capo-compare-arrow {
+      font-size: 28px;
+      font-weight: 700;
+      color: #92400e;
+      flex-shrink: 0;
+      align-self: center;
+      padding-top: 20px;
+    }
+    .capo-compare-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .capo-compare-label-sound {
+      color: #92400e;
+    }
+    .horizontal-compare {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: #fefce8;
+    }
+    @media (max-width: 480px) {
+      .capo-compare-item { max-width: none; }
+      .capo-compare-arrow { font-size: 22px; padding-top: 10px; }
+    }
     /* Bottom playback modal */
     .playback-modal {
       position: fixed;
@@ -799,7 +841,7 @@
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=7"></script>
-  <script src="js/viewer-app.js?v=26"></script>
+  <script src="js/viewer-app.js?v=27"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">
