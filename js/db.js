@@ -85,6 +85,7 @@ const SongDB = (() => {
       genius_url: state.metadata.geniusUrl || '',
       apple_music_url: state.metadata.appleMusicUrl || '',
       score_type: state.metadata.scoreType || '',
+      original_key: state.metadata.originalKey || '',
       selected_chords: state.selectedChords,
       capo_position: state.capoPosition,
     };
@@ -148,6 +149,7 @@ const SongDB = (() => {
         geniusUrl: s.genius_url || '',
         appleMusicUrl: s.apple_music_url || '',
         scoreType: s.score_type || '',
+        originalKey: s.original_key || '',
       },
       selectedChords: s.selected_chords || [],
       capoPosition: s.capo_position || 0,
