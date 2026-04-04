@@ -167,23 +167,18 @@
     .notation-panel.active { display: block; }
     .chord-notes-row {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       align-items: center;
       gap: 3px;
-      width: 100%;
     }
     .chord-notes-badge {
-      flex: 1 1 0;
-      min-width: 0;
-      padding: 2px 4px;
+      display: inline-block;
+      padding: 2px 8px;
       background: #f3f4f6;
       border-radius: 12px;
       font-size: 13px;
       color: #374151;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: center;
     }
     .chord-notes-badge.highlighted {
       background: #dbeafe;
@@ -191,10 +186,14 @@
       font-weight: 500;
     }
     .chord-notes-arrow {
-      flex-shrink: 0;
       color: #6b7280;
       font-weight: 600;
       font-size: 13px;
+    }
+    @media (max-width: 480px) {
+      .chord-notes-row { gap: 2px; }
+      .chord-notes-badge { padding: 1px 5px; font-size: 11px; }
+      .chord-notes-arrow { font-size: 11px; }
     }
     .add-chord-form {
       display: flex;

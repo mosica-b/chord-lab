@@ -362,19 +362,9 @@ const MusicXMLParser = (() => {
         measureHasLyric = true;
 
         if (syllabic === 'single') {
-          // Korean single syllables: concatenate without space
-          // Use melisma markers (ー, -) as word boundaries
-          const isKorean = /[\uAC00-\uD7AF]/.test(text);
-          const isMelisma = text === 'ー' || text === '-';
-          if (isMelisma) {
-            // Melisma = natural word break for Korean
-            if (currentWord) { words.push(currentWord); currentWord = ''; }
-          } else if (isKorean) {
-            currentWord += text;
-          } else {
-            if (currentWord) { words.push(currentWord); currentWord = ''; }
-            words.push(text);
-          }
+          // Complete word
+          if (currentWord) { words.push(currentWord); currentWord = ''; }
+          words.push(text);
         } else if (syllabic === 'begin') {
           if (currentWord) { words.push(currentWord); }
           currentWord = text;
