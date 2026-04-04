@@ -245,11 +245,12 @@ const ViewerApp = (() => {
         }
       }
     });
-    // Show capo row always (capo applies to all types for sounding pitch)
+    // Show capo row only for guitar/ukulele types
+    const isStringInst = ['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram'].includes(typeId);
     const capoRow = document.getElementById('capoRow');
     const fabCapoRow = document.getElementById('fabCapoRow');
-    if (capoRow) capoRow.style.display = 'flex';
-    if (fabCapoRow) fabCapoRow.style.display = 'flex';
+    if (capoRow) capoRow.style.display = isStringInst ? 'flex' : 'none';
+    if (fabCapoRow) fabCapoRow.style.display = isStringInst ? 'flex' : 'none';
     // Shape labels only for CAPO instrument types (guitar/ukulele diagrams)
     const isCapoType = getCapoTypes().has(typeId);
     document.querySelectorAll('.capo-shape-label').forEach(label => {
@@ -290,11 +291,12 @@ const ViewerApp = (() => {
       if (fabContainer) fabContainer.style.display = '';
       if (topAccordion) topAccordion.classList.remove('hidden');
       if (customRow) customRow.style.display = '';
-      // Capo row always visible
+      // Capo row only for guitar/ukulele types
+      const isStringInst = ['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram'].includes(currentType);
       const capoRow = document.getElementById('capoRow');
       const fabCapoRow = document.getElementById('fabCapoRow');
-      if (capoRow) capoRow.style.display = 'flex';
-      if (fabCapoRow) fabCapoRow.style.display = 'flex';
+      if (capoRow) capoRow.style.display = isStringInst ? 'flex' : 'none';
+      if (fabCapoRow) fabCapoRow.style.display = isStringInst ? 'flex' : 'none';
       updateCapoBanner();
     }
   }
