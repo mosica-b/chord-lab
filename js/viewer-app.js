@@ -161,8 +161,9 @@ const ViewerApp = (() => {
         currentType = item.dataset.type;
         switchAllPanels(currentType);
         syncAllSelectors();
-        // Capo types → keep FAB open so user can select capo
-        if (!getCapoTypes().has(currentType)) {
+        // 기타/우쿨렐레 타입 → 카포 선택할 수 있도록 FAB 열어둠
+        const stringTypes = ['guitar-tab', 'guitar-diagram', 'ukulele-tab', 'ukulele-diagram'];
+        if (!stringTypes.includes(currentType)) {
           fabAccordion.classList.add('hidden');
         }
       });
