@@ -673,12 +673,13 @@ const ViewerApp = (() => {
       const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
-      arrow.style.cssText = 'color:#6b7280;font-weight:600;margin:0 2px;';
+      arrow.className = 'chord-notes-arrow';
       notesDiv.appendChild(arrow);
       soundNotes.forEach(note => {
         const badge = document.createElement('span');
         badge.className = 'chord-notes-badge';
-        badge.style.cssText = 'background:#fef3c7;color:#92400e;';
+        badge.style.background = '#fef3c7';
+        badge.style.color = '#92400e';
         badge.textContent = MusicTheory.formatNoteDisplay(note);
         notesDiv.appendChild(badge);
       });
@@ -1077,12 +1078,13 @@ const ViewerApp = (() => {
       const soundNotes = MusicTheory.getChordNotesDisplay(modalSoundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
-      arrow.style.cssText = 'color:#6b7280;font-weight:600;margin:0 4px;';
+      arrow.className = 'chord-notes-arrow';
       notesEl.appendChild(arrow);
       soundNotes.forEach(n => {
         const badge = document.createElement('span');
         badge.className = 'chord-notes-badge';
-        badge.style.cssText = 'background:#fef3c7;color:#92400e;';
+        badge.style.background = '#fef3c7';
+        badge.style.color = '#92400e';
         badge.textContent = MusicTheory.formatNoteDisplay(n);
         notesEl.appendChild(badge);
       });
