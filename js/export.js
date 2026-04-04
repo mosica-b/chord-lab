@@ -354,7 +354,12 @@ const Export = (() => {
         const { basicChords: infoBasic, advancedChords: infoAdvanced } = splitChordsWithTriads(chords, metadata.key);
         const basicLinks = infoBasic.map(c => {
           const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoParam}`;
-          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${esc(c)}</a>`;
+          let label = esc(c);
+          if (capoPosition > 0) {
+            const sound = MusicTheory.transposeChord(c, capoPosition);
+            label += `<span style="color:#92400e;font-size:11px;font-weight:400;">(${esc(sound)})</span>`;
+          }
+          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${label}</a>`;
         }).join(', ');
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}&type=${defaultType}${capoParam}`;
         let chordsHtml = basicLinks;
@@ -824,7 +829,12 @@ const Export = (() => {
         const { basicChords: nBasic, advancedChords: nAdvanced } = splitChordsWithTriads(chords, metadata.key);
         const basicLinks = nBasic.map(c => {
           const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoParam}`;
-          return `<a href="${url}"><b>${esc(c)}</b></a>`;
+          let label = `<b>${esc(c)}</b>`;
+          if (capoPosition > 0) {
+            const sound = MusicTheory.transposeChord(c, capoPosition);
+            label += `<font color="#92400e" size="1">(${esc(sound)})</font>`;
+          }
+          return `<a href="${url}">${label}</a>`;
         }).join(', ');
         const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}&type=${defaultType}${capoParam}`;
         let chordsValue = basicLinks;
