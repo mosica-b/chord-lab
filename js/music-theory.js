@@ -245,6 +245,56 @@ const MusicTheory = (() => {
     return notes;
   }
 
+  /**
+   * Get chord notes WITH interval info (for piano: determines octave offset)
+   * Returns array of { note, octaveOffset } where octaveOffset=1 for 9th+
+   */
+  function getChordNotesWithOctave(chordName) {
+    const parsed = parseChordName(chordName);
+    if (!parsed) return [];
+
+    const rootIdx = noteIndex(parsed.root);
+    if (rootIdx < 0) return [];
+
+    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
+    const intervals = CHORD_INTERVALS[intervalKey];
+    if (!intervals) return [];
+
+    let finalIntervals = intervals;
+    if (parsed.degreeMods) {
+      finalIntervals = [...intervals];
+      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
+      for (const mod of mods) {
+        const baseSemitone = DEGREE_SEMITONES[mod.degree];
+        if (baseSemitone !== undefined && mod.alter) {
+          const idx = finalIntervals.indexOf(baseSemitone);
+          if (idx >= 0) { finalIntervals[idx] = mod.semitone; continue; }
+        }
+        const mod12 = ((mod.semitone % 12) + 12) % 12;
+        if (!finalIntervals.some(i => ((i % 12) + 12) % 12 === mod12)) {
+          finalIntervals.push(mod.semitone);
+        }
+      }
+    }
+
+    let result = finalIntervals.map(interval => ({
+      note: NOTE_NAMES[(rootIdx + interval) % 12],
+      octaveOffset: Math.floor(interval / 12),
+    }));
+
+    if (parsed.bassNote) {
+      const bass = normalizeNote(parsed.bassNote);
+      const bassIdx = result.findIndex(r => r.note === bass);
+      if (bassIdx > 0) {
+        result = [...result.slice(bassIdx), ...result.slice(0, bassIdx)];
+      } else if (bassIdx < 0) {
+        result = [{ note: bass, octaveOffset: 0 }, ...result];
+      }
+    }
+
+    return result;
+  }
+
   // Semitone → degree label mapping
   const SEMITONE_TO_DEGREE = {
     0: '1', 1: '♭2', 2: '2', 3: '♭3', 4: '3', 5: '4',
@@ -564,6 +614,7 @@ const MusicTheory = (() => {
     noteIndex,
     parseChordName,
     getChordNotes,
+    getChordNotesWithOctave,
     getChordNotesDisplay,
     getChordDegreeLabels,
     formatNoteDisplay,

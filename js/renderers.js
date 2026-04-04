@@ -624,8 +624,8 @@ const Renderers = (() => {
       const svgContainer = document.createElement('div');
       item.appendChild(svgContainer);
 
-      const chordNotes = MusicTheory.getChordNotes(name);
-      drawPianoKeyboard(svgContainer, chordNotes, name);
+      const chordNotesOct = MusicTheory.getChordNotesWithOctave(name);
+      drawPianoKeyboard(svgContainer, chordNotesOct, name);
 
       grid.appendChild(item);
     });
@@ -671,53 +671,61 @@ const Renderers = (() => {
 
     const keyboardY = labelHeight;
 
-    // Normalize highlight notes and sort non-bass notes in ascending pitch
-    // to prevent octave jumps from slash chord rotation (e.g., A9/C# [C#,E,G,B,A] → [C#,E,G,A,B])
-    const normalizedRaw = highlightNotes.map(n => MusicTheory.normalizeNote(n));
-    const normalizedHighlight = normalizedRaw.length > 1
-      ? [normalizedRaw[0], ...normalizedRaw.slice(1).sort((a, b) => {
-          const noteOrder_ = MusicTheory.NOTE_NAMES;
-          const bassSt = noteOrder_.indexOf(normalizedRaw[0]);
-          const sa = (noteOrder_.indexOf(a) - bassSt + 12) % 12;
-          const sb = (noteOrder_.indexOf(b) - bassSt + 12) % 12;
-          return sa - sb;
-        })]
-      : [...normalizedRaw];
+    // Support both formats: array of strings OR array of { note, octaveOffset }
+    const hasOctaveInfo = highlightNotes.length > 0 && typeof highlightNotes[0] === 'object';
 
-    // Determine which octave to highlight: pick the range starting from root note
-    // Highlight notes in ascending order starting from root
+    // Normalize and sort notes with octave offset info
     const noteOrder = MusicTheory.NOTE_NAMES;
-    const rootIdx = normalizedHighlight.length > 0 ? noteOrder.indexOf(normalizedHighlight[0]) : 0;
-
-    // Build highlight set with octave position (0=first, 1=second, 2=third)
-    // Pick the starting octave that visually centers the chord on the keyboard
-    const highlightPositions = new Set();
-    if (normalizedHighlight.length > 0) {
-      // Visual position of each note in white-key units (within one octave)
-      const noteVisPos = { C: 0, 'C#': 0.5, D: 1, 'D#': 1.5, E: 2, F: 3, 'F#': 3.5, G: 4, 'G#': 4.5, A: 5, 'A#': 5.5, B: 6 };
-      const totalKbWidth = 21; // 3 octaves + final C → white key indices 0..21
-
-      // First pass: calculate relative octave offsets (starting from 0)
-      const relOctaves = [];
-      let relOct = 0;
-      let prevScanIdx = -1;
-      normalizedHighlight.forEach((note, i) => {
-        const idx = noteOrder.indexOf(note);
-        if (i > 0 && idx <= prevScanIdx) relOct++;
-        relOctaves.push(relOct);
-        prevScanIdx = idx;
+    let notesWithOctOffset;
+    if (hasOctaveInfo) {
+      // Already has octave info from getChordNotesWithOctave
+      const first = highlightNotes[0];
+      const rest = highlightNotes.slice(1);
+      // Sort non-bass notes by pitch (semitone from root + octave offset)
+      const rootSt = noteOrder.indexOf(MusicTheory.normalizeNote(first.note));
+      const sorted = rest.sort((a, b) => {
+        const sa = ((noteOrder.indexOf(MusicTheory.normalizeNote(a.note)) - rootSt + 12) % 12) + a.octaveOffset * 12;
+        const sb = ((noteOrder.indexOf(MusicTheory.normalizeNote(b.note)) - rootSt + 12) % 12) + b.octaveOffset * 12;
+        return sa - sb;
       });
-      const span = relOct;
+      notesWithOctOffset = [first, ...sorted];
+    } else {
+      // Legacy: plain note strings, compute octave from pitch order
+      const normalizedRaw = highlightNotes.map(n => MusicTheory.normalizeNote(n));
+      const sorted = normalizedRaw.length > 1
+        ? [normalizedRaw[0], ...normalizedRaw.slice(1).sort((a, b) => {
+            const bassSt = noteOrder.indexOf(normalizedRaw[0]);
+            return ((noteOrder.indexOf(a) - bassSt + 12) % 12) - ((noteOrder.indexOf(b) - bassSt + 12) % 12);
+          })]
+        : [...normalizedRaw];
+      let relOct = 0, prevIdx = -1;
+      notesWithOctOffset = sorted.map((note, i) => {
+        const idx = noteOrder.indexOf(note);
+        if (i > 0 && idx <= prevIdx) relOct++;
+        prevIdx = idx;
+        return { note, octaveOffset: relOct };
+      });
+    }
 
-      // Try each possible starting octave, pick the one that balances
-      // left gap (first note ↔ keyboard start) and right gap (last note ↔ keyboard end)
+    // Build highlight set with octave position
+    const highlightPositions = new Set();
+    if (notesWithOctOffset.length > 0) {
+      const noteVisPos = { C: 0, 'C#': 0.5, D: 1, 'D#': 1.5, E: 2, F: 3, 'F#': 3.5, G: 4, 'G#': 4.5, A: 5, 'A#': 5.5, B: 6 };
+      const totalKbWidth = 21;
+
+      // Calculate max octave span
+      const span = notesWithOctOffset[notesWithOctOffset.length - 1].octaveOffset;
+
+      // Find best starting octave for centering
       const maxStart = Math.max(0, 2 - span);
       let bestStart = 0;
       let bestImbalance = Infinity;
       for (let s = 0; s <= maxStart; s++) {
-        const firstPos = (noteVisPos[normalizedHighlight[0]] || 0) + s * 7;
-        const lastNote = normalizedHighlight[normalizedHighlight.length - 1];
-        const lastPos = (noteVisPos[lastNote] || 0) + (s + relOctaves[relOctaves.length - 1]) * 7;
+        const norm0 = MusicTheory.normalizeNote(notesWithOctOffset[0].note);
+        const firstPos = (noteVisPos[norm0] || 0) + s * 7;
+        const lastEntry = notesWithOctOffset[notesWithOctOffset.length - 1];
+        const normLast = MusicTheory.normalizeNote(lastEntry.note);
+        const lastPos = (noteVisPos[normLast] || 0) + (s + lastEntry.octaveOffset) * 7;
         const imbalance = Math.abs(firstPos - (totalKbWidth - lastPos));
         if (imbalance <= bestImbalance) {
           bestImbalance = imbalance;
@@ -725,15 +733,11 @@ const Renderers = (() => {
         }
       }
 
-      // Second pass: assign octaves using the best starting position
-      let prevIdx = -1;
-      let octave = bestStart;
-      normalizedHighlight.forEach((note, i) => {
-        const idx = noteOrder.indexOf(note);
-        if (i > 0 && idx <= prevIdx) octave++;
-        if (octave > 3) octave = 3;
-        highlightPositions.add(`${note}-${octave}`);
-        prevIdx = idx;
+      // Assign octaves
+      notesWithOctOffset.forEach(entry => {
+        const norm = MusicTheory.normalizeNote(entry.note);
+        const oct = Math.min(bestStart + entry.octaveOffset, 3);
+        highlightPositions.add(`${norm}-${oct}`);
       });
     }
 
