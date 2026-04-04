@@ -457,11 +457,17 @@ const MusicXMLParser = (() => {
       const text = creator.textContent;
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-      // Try exact line-based matching first (standard format)
-      for (const line of lines) {
-        if (line.startsWith(prefix)) {
-          let value = line.substring(prefix.length).trim();
-          return value;
+      // Try line-based matching, collecting continuation lines until next known prefix
+      const knownPrefixes = ['Composed by', 'Lyrics by', 'Artist'];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith(prefix)) {
+          let value = lines[i].substring(prefix.length).trim();
+          // Collect continuation lines (lines that don't start with a known prefix)
+          for (let j = i + 1; j < lines.length; j++) {
+            if (knownPrefixes.some(p => lines[j].startsWith(p))) break;
+            value += ' ' + lines[j];
+          }
+          return value.replace(/\s+/g, ' ').replace(/,\s*$/, '').trim();
         }
       }
 
