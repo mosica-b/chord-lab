@@ -678,17 +678,22 @@ const Renderers = (() => {
     const noteOrder = MusicTheory.NOTE_NAMES;
     let notesWithOctOffset;
     if (hasOctaveInfo) {
-      // Already has octave info from getChordNotesWithOctave
+      // Has octave info from getChordNotesWithOctave
       const first = highlightNotes[0];
       const rest = highlightNotes.slice(1);
-      // Sort non-bass notes by pitch (semitone from root + octave offset)
       const rootSt = noteOrder.indexOf(MusicTheory.normalizeNote(first.note));
+      // Sort by interval (semitones from root)
       const sorted = rest.sort((a, b) => {
-        const sa = ((noteOrder.indexOf(MusicTheory.normalizeNote(a.note)) - rootSt + 12) % 12) + a.octaveOffset * 12;
-        const sb = ((noteOrder.indexOf(MusicTheory.normalizeNote(b.note)) - rootSt + 12) % 12) + b.octaveOffset * 12;
-        return sa - sb;
+        const intA = ((noteOrder.indexOf(MusicTheory.normalizeNote(a.note)) - rootSt + 12) % 12) + a.octaveOffset * 12;
+        const intB = ((noteOrder.indexOf(MusicTheory.normalizeNote(b.note)) - rootSt + 12) % 12) + b.octaveOffset * 12;
+        return intA - intB;
       });
-      notesWithOctOffset = [first, ...sorted];
+      // Compute keyboard octave from root position + interval
+      notesWithOctOffset = [first, ...sorted].map(entry => {
+        const norm = MusicTheory.normalizeNote(entry.note);
+        const interval = ((noteOrder.indexOf(norm) - rootSt + 12) % 12) + entry.octaveOffset * 12;
+        return { note: norm, octaveOffset: Math.floor((rootSt + interval) / 12) };
+      });
     } else {
       // Legacy: plain note strings, compute octave from pitch order
       const normalizedRaw = highlightNotes.map(n => MusicTheory.normalizeNote(n));
