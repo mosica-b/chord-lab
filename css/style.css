@@ -128,6 +128,11 @@
 
 .piano-chord {
   text-align: center;
+  max-width: 100%;
+}
+.piano-chord svg {
+  max-width: 100%;
+  height: auto;
 }
 
 .piano-chord .chord-label {
