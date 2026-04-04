@@ -167,9 +167,14 @@
     .notation-panel.active { display: block; }
     .chord-notes-row {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 3px;
+      transform-origin: left center;
+    }
+    .chord-notes-row-wrap {
+      overflow: hidden;
+      width: 100%;
     }
     .chord-notes-badge {
       display: inline-block;
@@ -179,6 +184,7 @@
       font-size: 13px;
       color: #374151;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .chord-notes-badge.highlighted {
       background: #dbeafe;
@@ -758,7 +764,7 @@
         <span class="playback-modal-title" id="playbackModalTitle"></span>
         <span class="playback-modal-type" id="playbackModalType"></span>
       </div>
-      <div class="playback-modal-notes chord-notes-row" id="playbackModalNotes"></div>
+      <div class="playback-modal-notes chord-notes-row-wrap" id="playbackModalNotes"></div>
     </div>
     <div class="playback-modal-content" id="playbackModalContent"></div>
   </div>
@@ -815,7 +821,7 @@
   <script src="js/renderers.js?v=6"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=7"></script>
-  <script src="js/viewer-app.js?v=29"></script>
+  <script src="js/viewer-app.js?v=30"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">

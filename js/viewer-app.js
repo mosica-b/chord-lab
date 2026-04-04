@@ -490,6 +490,8 @@ const ViewerApp = (() => {
     cardPairs.forEach(({ card, name }) => {
       renderCardNotations(card, name);
     });
+    // 카드가 DOM에 추가된 후 구성음 배지 자동 스케일링
+    requestAnimationFrame(() => fitNotesRows(container));
   }
 
   function renderHorizontalView(container) {
@@ -633,6 +635,21 @@ const ViewerApp = (() => {
     panel.appendChild(controls);
   }
 
+  function fitNotesRows(container) {
+    const wraps = container.querySelectorAll('.chord-notes-row-wrap');
+    wraps.forEach(wrap => {
+      const row = wrap.querySelector('.chord-notes-row');
+      if (!row) return;
+      row.style.transform = '';
+      const wrapW = wrap.clientWidth;
+      const rowW = row.scrollWidth;
+      if (rowW > wrapW && wrapW > 0) {
+        const scale = wrapW / rowW;
+        row.style.transform = 'scaleX(' + scale + ')';
+      }
+    });
+  }
+
   function createChordCard(chordName) {
     const card = document.createElement('div');
     card.className = 'chord-card';
@@ -659,6 +676,8 @@ const ViewerApp = (() => {
     }
     left.appendChild(title);
 
+    const notesWrap = document.createElement('div');
+    notesWrap.className = 'chord-notes-row-wrap';
     const notesDiv = document.createElement('div');
     notesDiv.className = 'chord-notes-row';
     const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
@@ -684,6 +703,7 @@ const ViewerApp = (() => {
         notesDiv.appendChild(badge);
       });
     }
+    notesWrap.appendChild(notesDiv);
 
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
@@ -704,7 +724,7 @@ const ViewerApp = (() => {
         title.appendChild(typeSpan);
       }
     }
-    left.appendChild(notesDiv);
+    left.appendChild(notesWrap);
 
     // Capo shape label
     const capoLabel = document.createElement('div');
@@ -1064,6 +1084,8 @@ const ViewerApp = (() => {
     }
 
     notesEl.innerHTML = '';
+    const modalNotesRow = document.createElement('div');
+    modalNotesRow.className = 'chord-notes-row';
     const modalIsCapoType = getCapoTypes().has(currentType);
     const modalSoundName = capoPosition > 0 ? MusicTheory.transposeChord(chordName, capoPosition) : chordName;
     const modalDisplayNotes = (capoPosition > 0 && !modalIsCapoType) ? modalSoundName : chordName;
@@ -1071,7 +1093,7 @@ const ViewerApp = (() => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
       badge.textContent = MusicTheory.formatNoteDisplay(n);
-      notesEl.appendChild(badge);
+      modalNotesRow.appendChild(badge);
     });
     // 카포 적용 시 원래→실음 구성음 화살표 표시
     if (capoPosition > 0) {
@@ -1079,16 +1101,18 @@ const ViewerApp = (() => {
       const arrow = document.createElement('span');
       arrow.textContent = '→';
       arrow.className = 'chord-notes-arrow';
-      notesEl.appendChild(arrow);
+      modalNotesRow.appendChild(arrow);
       soundNotes.forEach(n => {
         const badge = document.createElement('span');
         badge.className = 'chord-notes-badge';
         badge.style.background = '#fef3c7';
         badge.style.color = '#92400e';
         badge.textContent = MusicTheory.formatNoteDisplay(n);
-        notesEl.appendChild(badge);
+        modalNotesRow.appendChild(badge);
       });
     }
+    notesEl.appendChild(modalNotesRow);
+    requestAnimationFrame(() => fitNotesRows(notesEl));
 
     contentEl.innerHTML = '';
     const panel = document.createElement('div');
@@ -1226,6 +1250,18 @@ const ViewerApp = (() => {
     div.textContent = str;
     return div.innerHTML;
   }
+
+  // Resize: refit notes rows
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      document.querySelectorAll('.chord-notes-row').forEach(row => {
+        row.style.transform = '';
+      });
+      requestAnimationFrame(() => fitNotesRows(document.body));
+    }, 150);
+  });
 
   // Init
   if (document.readyState === 'loading') {
