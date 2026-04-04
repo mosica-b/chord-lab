@@ -660,7 +660,7 @@ const ViewerApp = (() => {
     left.appendChild(title);
 
     const notesDiv = document.createElement('div');
-    notesDiv.className = 'flex flex-wrap gap-1 items-center';
+    notesDiv.className = 'chord-notes-row';
     const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
