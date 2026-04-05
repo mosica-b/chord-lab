@@ -219,6 +219,17 @@ const ChordDB = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
 
+    // If degreeMods exist (e.g., "(add9)", "(#9)"), try full suffix first
+    if (parsed.degreeMods) {
+      const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
+      if (fullSuffix) {
+        const fullKey = buildJGuitarKey(parsed.root, fullSuffix, parsed.bassNote);
+        if (jguitarData[fullKey]) return jguitarData[fullKey];
+      }
+      // Don't fall back to base suffix — would return wrong chord (e.g., G instead of Gadd9)
+      return null;
+    }
+
     const normalName = buildJGuitarKey(parsed.root, parsed.suffix, parsed.bassNote);
 
     if (jguitarData[normalName]) {
@@ -249,6 +260,16 @@ const ChordDB = (() => {
 
     const parsed = MusicTheory.parseChordName(chordName);
     if (!parsed) return null;
+
+    // If degreeMods exist (e.g., "(add9)", "(#9)"), try full suffix first
+    if (parsed.degreeMods) {
+      const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
+      if (fullSuffix) {
+        const fullKey = buildJGuitarKey(parsed.root, fullSuffix, parsed.bassNote);
+        if (jguitarUkuleleData[fullKey]) return jguitarUkuleleData[fullKey];
+      }
+      return null;
+    }
 
     const normalName = buildJGuitarKey(parsed.root, parsed.suffix, parsed.bassNote);
     if (jguitarUkuleleData[normalName]) {
@@ -393,7 +414,11 @@ const ChordDB = (() => {
    */
   function buildFullSuffix(suffix, degreeMods) {
     if (!degreeMods) return null;
-    return suffix + degreeMods.replace(/[(),]/g, '');
+    const modContent = degreeMods.replace(/[(),]/g, '');
+    // When suffix is 'major' (default for empty base like "G"), the degreeMods
+    // IS the actual suffix (e.g., "G(add9)" → "add9", not "majoradd9")
+    if (suffix === 'major') return modContent;
+    return suffix + modContent;
   }
 
   function lookupPositions(dbData, root, suffix, instrument) {
