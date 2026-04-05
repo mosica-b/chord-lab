@@ -814,11 +814,11 @@ const Export = (() => {
       { label: '앨범', value: metadata.albumName },
       { label: '작곡', value: metadata.composer },
       { label: '작사', value: metadata.lyricist },
-      metadata.tempo ? { label: '템포', value: naverTempoLink ? `<a href="${naverTempoLink}"><font color="#2563eb">${esc(metadata.tempo)} BPM ▶메트로놈</font></a>` : `${esc(metadata.tempo)} BPM` } : null,
+      metadata.tempo ? { label: '템포', value: `${metadata.tempo} BPM`, valueHtml: naverTempoLink ? `<a href="${naverTempoLink}"><font color="#2563eb">${esc(metadata.tempo)} BPM ▶메트로놈</font></a>` : null } : null,
       { label: '박자', value: metadata.timeSignature },
       { label: '키', value: formatKeyDisplay(metadata, capoPosition) },
       { label: '카포', value: capoPosition > 0 ? `${capoPosition}프렛` : '' },
-    ].filter(r => r && r.value);
+    ].filter(r => r && (r.value || r.valueHtml));
 
     if (infoRows.length > 0 || chords.length > 0) {
       // Build extra rows for the info table
@@ -872,7 +872,7 @@ const Export = (() => {
       }
 
       html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0" style="margin:0;">`;
-      const allRows = [...infoRows.map(r => ({ label: r.label, value: esc(r.value) })), ...extraRows];
+      const allRows = [...infoRows.map(r => ({ label: r.label, value: r.valueHtml || esc(r.value) })), ...extraRows];
       allRows.forEach(({ label, value }, i) => {
         const rowBg = i % 2 === 1 ? '#f8f9fa' : '#ffffff';
         html += `<tr><td width="80" align="center" bgcolor="#eef2f7"><b>${esc(label)}</b></td><td align="center" bgcolor="${rowBg}">${value}</td></tr>`;
