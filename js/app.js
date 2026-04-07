@@ -77,10 +77,11 @@ const App = (() => {
           _autoLyrics = false;
         }
 
-        // Auto-search APIs when songName or artist changes
+        // Auto-search APIs when songName or artist changes.
+        // Do NOT clear existing key/originalKey/lyricsIntro/geniusUrl here —
+        // XML-loaded metadata must survive title/artist edits.
         if (id === 'songName' || id === 'artist') {
           clearTimeout(autoSearchTimer);
-          state.metadata.geniusUrl = '';
           autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
         }
       });
@@ -114,7 +115,7 @@ const App = (() => {
           document.getElementById('albumName').value = album.albumName;
           changed = true;
         }
-        if (album.trackViewUrl) {
+        if (album.trackViewUrl && !state.metadata.appleMusicUrl) {
           state.metadata.appleMusicUrl = album.trackViewUrl;
           changed = true;
         }
@@ -123,10 +124,12 @@ const App = (() => {
       // Step 2: Genius search with English trackName as alternate query
       const altSongName = album?.trackNameEN || album?.trackName || null;
       const altArtist = album?.artistNameEN || album?.artistName || null;
-      const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName, altArtist);
-      if (geniusUrl) {
-        state.metadata.geniusUrl = geniusUrl;
-        changed = true;
+      if (!state.metadata.geniusUrl) {
+        const geniusUrl = await ITunesSearch.searchGeniusLyrics(songName, artist, altSongName, altArtist);
+        if (geniusUrl) {
+          state.metadata.geniusUrl = geniusUrl;
+          changed = true;
+        }
       }
 
       if (changed) {
@@ -134,9 +137,10 @@ const App = (() => {
         updatePreview();
       }
 
-      // Step 3: Auto-fetch lyrics intro via LRCLIB (non-blocking)
-      // Skip if user has manually typed lyrics
-      if (!state.metadata.lyricsIntro || _autoLyrics) {
+      // Step 3: Auto-fetch lyrics intro via LRCLIB (non-blocking).
+      // Only fetch when lyricsIntro is truly empty — never overwrite existing
+      // lyrics (from XML, prior fetch, or user input).
+      if (!state.metadata.lyricsIntro) {
         ITunesSearch.fetchLyricsIntro(songName, artist, altSongName, 2, altArtist).then(intro => {
           if (intro) {
             state.metadata.lyricsIntro = intro;
