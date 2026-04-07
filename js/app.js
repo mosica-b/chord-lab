@@ -80,13 +80,6 @@ const App = (() => {
         // Auto-search APIs when songName or artist changes
         if (id === 'songName' || id === 'artist') {
           clearTimeout(autoSearchTimer);
-          // Clear previous auto-fetched data for the old song
-          if (_autoLyrics) {
-            state.metadata.lyricsIntro = '';
-            const lyricsEl = document.getElementById('lyricsIntro');
-            if (lyricsEl) lyricsEl.value = '';
-            _autoLyrics = false;
-          }
           state.metadata.geniusUrl = '';
           autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
         }
