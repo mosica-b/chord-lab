@@ -88,9 +88,6 @@ const App = (() => {
             _autoLyrics = false;
           }
           state.metadata.geniusUrl = '';
-          state.metadata.originalKey = '';
-          const okEl = document.getElementById('originalKey');
-          if (okEl) okEl.value = '';
           autoSearchTimer = setTimeout(() => autoSearchAPIs(), 1500);
         }
       });
