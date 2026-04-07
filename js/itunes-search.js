@@ -48,18 +48,43 @@ const ITunesSearch = (() => {
   async function searchAlbum(songName, artist) {
     if (!songName && !artist) return null;
 
-    const query = `${artist || ''} ${songName || ''}`.trim();
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=5&country=kr`;
+    // Build song name variants so "HIROIN(Heroine)" is searched as two names,
+    // not as one literal phrase that iTunes can't match.
+    const songVariants = [];
+    const seenSong = new Set();
+    const addSong = (s) => {
+      const t = (s || '').trim();
+      if (t && !seenSong.has(t.toLowerCase())) { seenSong.add(t.toLowerCase()); songVariants.push(t); }
+    };
+    const stripped = stripParens(songName);
+    const paren = extractEnglishName(songName);
+    addSong(stripped);                         // "HIROIN"
+    if (paren && paren !== stripped) addSong(paren); // "Heroine"
+    addSong(songName);                         // original as final fallback
+
+    let data = null;
+    let usedSong = songName || '';
+    for (const s of songVariants) {
+      const query = `${artist || ''} ${s}`.trim();
+      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=5&country=kr`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const d = await res.json();
+        if (d.results && d.results.length > 0) {
+          data = d;
+          usedSong = s;
+          break;
+        }
+      } catch (e) {
+        // try next variant
+      }
+    }
+    if (!data) return null;
 
     try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-
-      const data = await res.json();
-      if (!data.results || data.results.length === 0) return null;
-
-      // Try to find best match by song name
-      const songLower = (songName || '').toLowerCase();
+      // Try to find best match by song name (use the variant that got results)
+      const songLower = usedSong.toLowerCase();
       let best = data.results[0];
 
       for (const r of data.results) {

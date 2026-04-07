@@ -88,7 +88,7 @@ const Auth = (() => {
   /* ── Fetch encrypted bundle ── */
   async function fetchBundle() {
     if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=28');
+    const res = await fetch('js/app.encrypted?v=29');
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
     encryptedBundle = await res.json();
     return encryptedBundle;
