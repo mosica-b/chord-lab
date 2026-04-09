@@ -396,10 +396,13 @@ const Export = (() => {
     const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
     const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isBassScore = _stLower.includes('bass');
-    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
-      && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele') && !_isBassScore;
+    const _isPianoScore = _stLower.includes('piano');
     const _isTabScore = _stLower.includes('tab');
-    const defaultType = (_isMelodyOnly || _isBassScore)
+    const _isGuitarStaffOnly = _stLower.includes('guitar') && _stLower.includes('staff') && !_isTabScore;
+    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
+      && !_isPianoScore && !_stLower.includes('guitar') && !_isTabScore && !_stLower.includes('ukulele') && !_isBassScore;
+    const _useStaff = _isMelodyOnly || _isBassScore || _isPianoScore || _isGuitarStaffOnly;
+    const defaultType = _useStaff
       ? 'staff'
       : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
 
@@ -919,10 +922,13 @@ const Export = (() => {
     const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
     const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isBassScore = _stLower.includes('bass');
-    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
-      && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele') && !_isBassScore;
+    const _isPianoScore = _stLower.includes('piano');
     const _isTabScore = _stLower.includes('tab');
-    const defaultType = (_isMelodyOnly || _isBassScore)
+    const _isGuitarStaffOnly = _stLower.includes('guitar') && _stLower.includes('staff') && !_isTabScore;
+    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
+      && !_isPianoScore && !_stLower.includes('guitar') && !_isTabScore && !_stLower.includes('ukulele') && !_isBassScore;
+    const _useStaff = _isMelodyOnly || _isBassScore || _isPianoScore || _isGuitarStaffOnly;
+    const defaultType = _useStaff
       ? 'staff'
       : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
     const typeNames = {
@@ -1312,10 +1318,13 @@ const Export = (() => {
       const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
       const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isBassScore = _stLower.includes('bass');
-    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
-      && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele') && !_isBassScore;
+    const _isPianoScore = _stLower.includes('piano');
     const _isTabScore = _stLower.includes('tab');
-    const defaultType = (_isMelodyOnly || _isBassScore)
+    const _isGuitarStaffOnly = _stLower.includes('guitar') && _stLower.includes('staff') && !_isTabScore;
+    const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
+      && !_isPianoScore && !_stLower.includes('guitar') && !_isTabScore && !_stLower.includes('ukulele') && !_isBassScore;
+    const _useStaff = _isMelodyOnly || _isBassScore || _isPianoScore || _isGuitarStaffOnly;
+    const defaultType = _useStaff
       ? 'staff'
       : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
 
