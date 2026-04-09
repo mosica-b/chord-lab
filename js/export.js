@@ -29,6 +29,62 @@ const Export = (() => {
   }
 
   /**
+   * Parse a key string and return its root chroma (0..11) or null.
+   * Handles labels like "D (Maj)", "Am [abc]", "G → A".
+   */
+  function keyRootSemitone(key) {
+    if (!key) return null;
+    let k = String(key).replace(/\s*\(Maj\)|\s*\(Min\)/gi, '').replace(/\s*\[.*?\]/g, '').trim();
+    if (k.includes('→')) k = k.split('→')[0].trim();
+    const m = k.match(/^([A-G])([#b]?)/);
+    if (!m) return null;
+    const L = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    let s = L[m[1]];
+    if (m[2] === '#') s += 1;
+    else if (m[2] === 'b') s -= 1;
+    return (s + 120) % 12;
+  }
+
+  /**
+   * Strip (Maj)/(Min)/brackets/arrows from a key string, preserving minor 'm'.
+   */
+  function stripKeyLabel(key) {
+    if (!key) return '';
+    let k = String(key).replace(/\s*\(Maj\)|\s*\(Min\)/gi, '').replace(/\s*\[.*?\]/g, '').trim();
+    if (k.includes('→')) k = k.split('→')[0].trim();
+    return k;
+  }
+
+  /**
+   * Determine whether Play key and Original key refer to different tonal centers.
+   */
+  function hasDualKeyVersion(metadata) {
+    if (!metadata || !metadata.key || !metadata.originalKey) return false;
+    const a = stripKeyLabel(metadata.key);
+    const b = stripKeyLabel(metadata.originalKey);
+    if (!a || !b || a === b) return false;
+    const ra = keyRootSemitone(a);
+    const rb = keyRootSemitone(b);
+    if (ra == null || rb == null) return false;
+    // Minor-ness: treat 'm' suffix (not 'maj') as minor indicator
+    const aMin = /m$/i.test(a) && !/maj$/i.test(a);
+    const bMin = /m$/i.test(b) && !/maj$/i.test(b);
+    return (ra !== rb) || (aMin !== bMin);
+  }
+
+  /**
+   * Transpose a list of chord names from Play key to Original key.
+   */
+  function transposeChordsToOriginal(chords, metadata) {
+    if (!hasDualKeyVersion(metadata)) return null;
+    const playRoot = keyRootSemitone(metadata.key);
+    const origRoot = keyRootSemitone(metadata.originalKey);
+    if (playRoot == null || origRoot == null) return null;
+    const diff = (origRoot - playRoot + 120) % 12;
+    return chords.map(c => MusicTheory.transposeChord(c, diff));
+  }
+
+  /**
    * Compute the sounding key from play key + capo fret.
    * e.g., "D" + 8 → "Bb", "Am" + 8 → "Fm"
    */
@@ -352,23 +408,36 @@ const Export = (() => {
 
       // 사용 코드 row (after 키/카포) — includes derived triads from advanced chords
       if (chords.length > 0) {
-        const { basicChords: infoBasic, advancedChords: infoAdvanced } = splitChordsWithTriads(chords, metadata.key);
-        const basicLinks = infoBasic.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoParam}`;
-          let label = esc(c);
-          if (capoPosition > 0) {
-            const sound = MusicTheory.transposeChord(c, capoPosition);
-            label += `<span style="color:#92400e;font-size:11px;font-weight:400;">(${esc(sound)})</span>`;
+        const origChords = transposeChordsToOriginal(chords, metadata);
+        function buildUsedChordsHtml(srcChords, keyForSplit, capoApplies) {
+          const { basicChords: infoBasic, advancedChords: infoAdvanced } = splitChordsWithTriads(srcChords, keyForSplit);
+          const basicLinks = infoBasic.map(c => {
+            const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoApplies ? capoParam : ''}`;
+            let label = esc(c);
+            if (capoApplies && capoPosition > 0) {
+              const sound = MusicTheory.transposeChord(c, capoPosition);
+              label += `<span style="color:#92400e;font-size:11px;font-weight:400;">(${esc(sound)})</span>`;
+            }
+            return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${label}</a>`;
+          }).join(', ');
+          const allUrl = `${viewerBase}?chords=${encodeURIComponent(srcChords.join(','))}&type=${defaultType}${capoApplies ? capoParam : ''}`;
+          let html = basicLinks;
+          if (infoAdvanced.length > 0) {
+            html += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;font-size:12px;text-decoration:none;" target="_blank">전체 코드 보기</a> 🎹`;
           }
-          return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${label}</a>`;
-        }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}&type=${defaultType}${capoParam}`;
-        let chordsHtml = basicLinks;
-        if (infoAdvanced.length > 0) {
-          chordsHtml += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252;font-size:12px;text-decoration:none;" target="_blank">전체 코드 보기</a> 🎹`;
+          return html;
         }
-        chordsHtml += `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>`;
-        allTableRows.push({ label: '사용 코드', valueHtml: chordsHtml });
+        const playHtml = buildUsedChordsHtml(chords, metadata.key, true);
+        if (origChords) {
+          const origHtml = buildUsedChordsHtml(origChords, stripKeyLabel(metadata.originalKey), false);
+          const combined =
+            `<span style="color:#666;font-size:11px;">[Play Key: ${esc(formatKeyLabel(metadata.key))}]</span><br>${playHtml}` +
+            `<br><span style="color:#666;font-size:11px;margin-top:4px;display:inline-block;">[Original Key: ${esc(formatKeyLabel(metadata.originalKey))}]</span><br>${origHtml}` +
+            `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>`;
+          allTableRows.push({ label: '사용 코드', valueHtml: combined });
+        } else {
+          allTableRows.push({ label: '사용 코드', valueHtml: playHtml + `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>` });
+        }
       }
 
       // 가사 row (lyrics intro + full lyrics link)
@@ -441,7 +510,13 @@ const Export = (() => {
       const hasKey = !!metadata.key;
       // Helper: build a chord table section (3-column: 코드, 타입, 구성음)
       // Roman numeral shown as small text above chord name
-      function buildChordTable(songLabel, labelText, chordList, isCompact, bqKey) {
+      function buildChordTable(songLabel, labelText, chordList, isCompact, bqKey, opts) {
+        opts = opts || {};
+        const keyForContext = opts.keyOverride || metadata.key;
+        const capoApplies = opts.capoApplies !== false;
+        const capoForTable = capoApplies ? capoPosition : 0;
+        const capoParamForTable = capoApplies ? capoParam : '';
+        const keyLabelText = opts.keyLabelText || (formatKeyDisplay(metadata, capoPosition) || (metadata.key + ' Key'));
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
         const bq = document.createElement('blockquote');
@@ -457,7 +532,7 @@ const Export = (() => {
           const keySpan = document.createElement('span');
           keySpan.contentEditable = 'false';
           keySpan.style.cssText = 'color:#999;font-size:11px;';
-          keySpan.textContent = `* ${formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key'} 기준`;
+          keySpan.textContent = `* ${keyLabelText} 기준`;
           bq.appendChild(keySpan);
         }
         section.appendChild(bqContainer);
@@ -485,7 +560,7 @@ const Export = (() => {
             const tdName = document.createElement('td');
             tdName.style.fontSize = fs;
             if (hasKey) {
-              const info = getScaleDegreeInfo(name, metadata.key);
+              const info = getScaleDegreeInfo(name, keyForContext);
               if (info) {
                 const romanSpan = document.createElement('span');
                 romanSpan.style.fontSize = isCompact ? '10px' : '11px';
@@ -496,7 +571,7 @@ const Export = (() => {
               }
             }
             const chordLink = document.createElement('a');
-            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}&type=${defaultType}${capoParam}`;
+            chordLink.href = `${viewerBase}?chords=${encodeURIComponent(name)}&type=${defaultType}${capoParamForTable}`;
             chordLink.target = '_blank';
             chordLink.style.color = '#2563eb';
             chordLink.style.textDecoration = 'none';
@@ -504,8 +579,8 @@ const Export = (() => {
             chordLink.textContent = `${name} ▶`;
             tdName.appendChild(chordLink);
             // 카포 적용 시 실음 표시
-            if (capoPosition > 0) {
-              const soundName = MusicTheory.transposeChord(name, capoPosition);
+            if (capoForTable > 0) {
+              const soundName = MusicTheory.transposeChord(name, capoForTable);
               const soundSpan = document.createElement('span');
               soundSpan.style.cssText = 'font-size:11px;color:#92400e;display:block;';
               soundSpan.textContent = `(실음: ${soundName})`;
@@ -559,13 +634,44 @@ const Export = (() => {
       }
 
       const songLabel = [metadata.artist, metadata.songName].filter(Boolean).join(' - ');
+      const origChords = transposeChordsToOriginal(chords, metadata);
+      let origBasic = null, origAdvanced = null;
+      if (origChords) {
+        const origSplit = splitChordsWithTriads(origChords, stripKeyLabel(metadata.originalKey));
+        origBasic = origSplit.basicChords;
+        origAdvanced = origSplit.advancedChords;
+      }
+      const playKeyLabel = `Play Key: ${formatKeyLabel(metadata.key)}`;
+      const origKeyLabelText = metadata.originalKey ? `Original Key: ${formatKeyLabel(metadata.originalKey)}` : '';
       if (basicChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(songLabel, '주요 코드', basicChords, false, 'primary-chords'));
+        preview.appendChild(buildChordTable(
+          songLabel,
+          origChords ? '주요 코드 (Play Key)' : '주요 코드',
+          basicChords, false, 'primary-chords',
+          origChords ? { keyOverride: metadata.key, capoApplies: true, keyLabelText: playKeyLabel } : null
+        ));
+        if (origChords && origBasic.length > 0) {
+          preview.appendChild(buildChordTable(
+            songLabel, '주요 코드 (Original Key)', origBasic, false, null,
+            { keyOverride: stripKeyLabel(metadata.originalKey), capoApplies: false, keyLabelText: origKeyLabelText }
+          ));
+        }
       }
       if (advancedChords.length > 0) {
         preview.appendChild(document.createElement('hr'));
-        preview.appendChild(buildChordTable(songLabel, '심화 코드', advancedChords, true, 'advanced-chords'));
+        preview.appendChild(buildChordTable(
+          songLabel,
+          origChords ? '심화 코드 (Play Key)' : '심화 코드',
+          advancedChords, true, 'advanced-chords',
+          origChords ? { keyOverride: metadata.key, capoApplies: true, keyLabelText: playKeyLabel } : null
+        ));
+        if (origChords && origAdvanced && origAdvanced.length > 0) {
+          preview.appendChild(buildChordTable(
+            songLabel, '심화 코드 (Original Key)', origAdvanced, true, null,
+            { keyOverride: stripKeyLabel(metadata.originalKey), capoApplies: false, keyLabelText: origKeyLabelText }
+          ));
+        }
         preview.appendChild(document.createElement('hr'));
       }
     }
@@ -827,20 +933,34 @@ const Export = (() => {
 
       // 사용 코드 row — includes derived triads from advanced chords
       if (chords.length > 0) {
-        const { basicChords: nBasic, advancedChords: nAdvanced } = splitChordsWithTriads(chords, metadata.key);
-        const basicLinks = nBasic.map(c => {
-          const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoParam}`;
-          let label = `<b>${esc(c)}</b>`;
-          if (capoPosition > 0) {
-            const sound = MusicTheory.transposeChord(c, capoPosition);
-            label += `<font color="#92400e" size="1">(${esc(sound)})</font>`;
+        const origChordsN = transposeChordsToOriginal(chords, metadata);
+        function naverUsedChords(srcChords, keyForSplit, capoApplies) {
+          const { basicChords: nBasic, advancedChords: nAdvanced } = splitChordsWithTriads(srcChords, keyForSplit);
+          const basicLinks = nBasic.map(c => {
+            const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoApplies ? capoParam : ''}`;
+            let label = `<b>${esc(c)}</b>`;
+            if (capoApplies && capoPosition > 0) {
+              const sound = MusicTheory.transposeChord(c, capoPosition);
+              label += `<font color="#92400e" size="1">(${esc(sound)})</font>`;
+            }
+            return `<a href="${url}">${label}</a>`;
+          }).join(', ');
+          const allUrl = `${viewerBase}?chords=${encodeURIComponent(srcChords.join(','))}&type=${defaultType}${capoApplies ? capoParam : ''}`;
+          let v = basicLinks;
+          if (nAdvanced.length > 0) {
+            v += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
           }
-          return `<a href="${url}">${label}</a>`;
-        }).join(', ');
-        const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}&type=${defaultType}${capoParam}`;
-        let chordsValue = basicLinks;
-        if (nAdvanced.length > 0) {
-          chordsValue += `&nbsp;&nbsp;...&nbsp;&nbsp;▶ <a href="${allUrl}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">전체 코드 보기</font></a> 🎹`;
+          return v;
+        }
+        const playVal = naverUsedChords(chords, metadata.key, true);
+        let chordsValue;
+        if (origChordsN) {
+          const origVal = naverUsedChords(origChordsN, stripKeyLabel(metadata.originalKey), false);
+          chordsValue =
+            `<font color="#666666" size="1">[Play Key: ${esc(formatKeyLabel(metadata.key))}]</font><br>${playVal}` +
+            `<br><font color="#666666" size="1">[Original Key: ${esc(formatKeyLabel(metadata.originalKey))}]</font><br>${origVal}`;
+        } else {
+          chordsValue = playVal;
         }
         chordsValue += `<br><font color="#999999" size="1">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</font>`;
         extraRows.push({ label: '사용 코드', value: chordsValue });
@@ -888,7 +1008,12 @@ const Export = (() => {
       // 3-column layout for all renderers
 
       // Helper: build Naver-compatible chord table (4-column: 도수, 코드, 타입, 구성음)
-      function buildNaverTable(chordList, isCompact) {
+      function buildNaverTable(chordList, isCompact, opts) {
+        opts = opts || {};
+        const keyForCtx = opts.keyOverride || metadata.key;
+        const capoApplies = opts.capoApplies !== false;
+        const capoForTable = capoApplies ? capoPosition : 0;
+        const capoParamForTable = capoApplies ? capoParam : '';
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
@@ -903,7 +1028,7 @@ const Export = (() => {
         const groups = groupChordsByFamily(chordList);
         groups.forEach((group, gi) => {
           group.chords.forEach(name => {
-            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}&type=${defaultType}${capoParam}`;
+            const chordUrl = `${viewerBase}?chords=${encodeURIComponent(name)}&type=${defaultType}${capoParamForTable}`;
             const parsed = MusicTheory.parseChordName(name);
             let typeName = '';
             if (parsed) {
@@ -917,12 +1042,12 @@ const Export = (() => {
             // 코드 column: 도수 작게 + 코드명
             let chordCell = '';
             if (hasKey) {
-              const info = getScaleDegreeInfo(name, metadata.key);
+              const info = getScaleDegreeInfo(name, keyForCtx);
               if (info) chordCell += `<font color="#888888" size="1">${esc(info.roman)}</font><br>`;
             }
             chordCell += `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
-            if (capoPosition > 0) {
-              const soundName = MusicTheory.transposeChord(name, capoPosition);
+            if (capoForTable > 0) {
+              const soundName = MusicTheory.transposeChord(name, capoForTable);
               chordCell += `<br><font color="#92400e" size="1">(실음: ${esc(soundName)})</font>`;
             }
             t += isCompact
@@ -950,21 +1075,47 @@ const Export = (() => {
 
       // Primary chords (entire blockquote editable via override, shortcodes resolved in overrides)
       const naverSongLabel = [metadata.artist, metadata.songName].filter(Boolean).map(s => esc(s)).join(' - ');
+      const naverOrigChords = transposeChordsToOriginal(chords, metadata);
+      let naverOrigBasic = null, naverOrigAdvanced = null;
+      if (naverOrigChords) {
+        const s = splitChordsWithTriads(naverOrigChords, stripKeyLabel(metadata.originalKey));
+        naverOrigBasic = s.basicChords;
+        naverOrigAdvanced = s.advancedChords;
+      }
+      const naverPlayKeyLabel = `Play Key: ${formatKeyLabel(metadata.key)}`;
+      const naverOrigKeyLabel = metadata.originalKey ? `Original Key: ${formatKeyLabel(metadata.originalKey)}` : '';
+
       if (basicChords.length > 0) {
-        const primaryContent = overrides['primary-chords'] || `${naverSongLabel}&nbsp;&nbsp;주요 코드`;
+        const primaryLabel = naverOrigChords ? '주요 코드 (Play Key)' : '주요 코드';
+        const primaryContent = overrides['primary-chords'] || `${naverSongLabel}&nbsp;&nbsp;${esc(primaryLabel)}`;
         html += `<blockquote style="margin:0;">${primaryContent}`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key')} 기준</font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(naverOrigChords ? naverPlayKeyLabel : (formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key'))} 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(basicChords, false);
+
+        if (naverOrigChords && naverOrigBasic.length > 0) {
+          html += `<blockquote style="margin:0;">${naverSongLabel}&nbsp;&nbsp;주요 코드 (Original Key)`;
+          html += `<br><font color="#999999" size="1">* ${esc(naverOrigKeyLabel)} 기준</font>`;
+          html += `</blockquote>`;
+          html += buildNaverTable(naverOrigBasic, false, { keyOverride: stripKeyLabel(metadata.originalKey), capoApplies: false });
+        }
       }
 
       // Advanced chords (entire blockquote editable via override, shortcodes resolved in overrides)
       if (advancedChords.length > 0) {
-        const advancedContent = overrides['advanced-chords'] || `${naverSongLabel}&nbsp;&nbsp;심화 코드`;
+        const advancedLabel = naverOrigChords ? '심화 코드 (Play Key)' : '심화 코드';
+        const advancedContent = overrides['advanced-chords'] || `${naverSongLabel}&nbsp;&nbsp;${esc(advancedLabel)}`;
         html += `<blockquote style="margin:0;">${advancedContent}`;
-        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key')} 기준</font>`;
+        if (hasKey) html += `<br><font color="#999999" size="1">* ${esc(naverOrigChords ? naverPlayKeyLabel : (formatKeyDisplay(metadata, capoPosition) || metadata.key + ' Key'))} 기준</font>`;
         html += `</blockquote>`;
         html += buildNaverTable(advancedChords, true);
+
+        if (naverOrigChords && naverOrigAdvanced && naverOrigAdvanced.length > 0) {
+          html += `<blockquote style="margin:0;">${naverSongLabel}&nbsp;&nbsp;심화 코드 (Original Key)`;
+          html += `<br><font color="#999999" size="1">* ${esc(naverOrigKeyLabel)} 기준</font>`;
+          html += `</blockquote>`;
+          html += buildNaverTable(naverOrigAdvanced, true, { keyOverride: stripKeyLabel(metadata.originalKey), capoApplies: false });
+        }
       }
     }
 
@@ -1063,14 +1214,28 @@ const Export = (() => {
       text += `${label}   ${value}\n`;
     });
 
+    const plainOrigChords = chords.length > 0 ? transposeChordsToOriginal(chords, metadata) : null;
+    const plainOrigKeyStripped = plainOrigChords ? stripKeyLabel(metadata.originalKey) : '';
+
     // 사용 코드 (triads only, with advanced note)
     if (chords.length > 0) {
-      const ptBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
-      const ptAdv = chords.filter(c => !isPrimaryChord(c, metadata.key));
-      if (ptBasic.length > 0) {
-        text += `사용 코드   ${ptBasic.join(', ')}`;
-        if (ptAdv.length > 0) text += ` ... +심화 코드 ${ptAdv.length}개`;
-        text += '\n';
+      function usedChordsLine(srcChords, keyForSplit) {
+        const ptBasic = srcChords.filter(c => isPrimaryChord(c, keyForSplit));
+        const ptAdv = srcChords.filter(c => !isPrimaryChord(c, keyForSplit));
+        if (ptBasic.length === 0) return '';
+        let s = ptBasic.join(', ');
+        if (ptAdv.length > 0) s += ` ... +심화 코드 ${ptAdv.length}개`;
+        return s;
+      }
+      const playUsed = usedChordsLine(chords, metadata.key);
+      if (playUsed) {
+        if (plainOrigChords) {
+          text += `사용 코드   [Play Key: ${formatKeyLabel(metadata.key)}] ${playUsed}\n`;
+          const origUsed = usedChordsLine(plainOrigChords, plainOrigKeyStripped);
+          if (origUsed) text += `           [Original Key: ${formatKeyLabel(metadata.originalKey)}] ${origUsed}\n`;
+        } else {
+          text += `사용 코드   ${playUsed}\n`;
+        }
         text += `저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼\n`;
       }
     }
@@ -1079,7 +1244,11 @@ const Export = (() => {
       const { basicChords, advancedChords } = splitChordsWithTriads(chords, metadata.key);
       const hasKey = !!metadata.key;
 
-      function buildPlainTable(chordList) {
+      function buildPlainTable(chordList, opts) {
+        opts = opts || {};
+        const keyCtx = opts.keyOverride || metadata.key;
+        const capoApplies = opts.capoApplies !== false;
+        const keyLabelText = opts.keyLabelText || (formatKeyDisplay(metadata, capoPosition) || primaryKey(metadata.key) + ' Key');
         let t = '';
         const groups = groupChordsByFamily(chordList);
         groups.forEach((group, gi) => {
@@ -1088,10 +1257,10 @@ const Export = (() => {
             const deg = MusicTheory.getChordDegreeLabels(name);
             const notesStr = notes.map((n, i) => `${MusicTheory.formatNoteDisplay(n)}(${deg[i] || ''})`).join(', ');
             if (hasKey) {
-              const info = getScaleDegreeInfo(name, metadata.key);
+              const info = getScaleDegreeInfo(name, keyCtx);
               const roman = info ? `(${info.roman})` : '';
               let chordLabel = `${name} ${roman}`.trim();
-              if (capoPosition > 0) {
+              if (capoApplies && capoPosition > 0) {
                 const soundName = MusicTheory.transposeChord(name, capoPosition);
                 chordLabel += ` → ${soundName}`;
               }
@@ -1103,7 +1272,7 @@ const Export = (() => {
           if (gi < groups.length - 1) t += '\n';
         });
         if (hasKey) {
-          t += `* ${formatKeyDisplay(metadata, capoPosition) || primaryKey(metadata.key) + ' Key'} 기준\n`;
+          t += `* ${keyLabelText} 기준\n`;
         }
         return t;
       }
@@ -1114,16 +1283,35 @@ const Export = (() => {
       const capoParam = capoPosition > 0 ? '&capo=' + capoPosition + '&cinst=' + cinst : '';
       const defaultType = isUkuleleScore ? 'ukulele-diagram' : 'guitar-diagram';
 
+      let origBasicP = null, origAdvancedP = null;
+      if (plainOrigChords) {
+        const s = splitChordsWithTriads(plainOrigChords, plainOrigKeyStripped);
+        origBasicP = s.basicChords;
+        origAdvancedP = s.advancedChords;
+      }
+      const playKeyLabelP = `Play Key: ${formatKeyLabel(metadata.key)}`;
+      const origKeyLabelP = plainOrigChords ? `Original Key: ${formatKeyLabel(metadata.originalKey)}` : '';
+
       if (basicChords.length > 0) {
-        text += `\n주요 코드\n`;
+        text += `\n주요 코드${plainOrigChords ? ' (Play Key)' : ''}\n`;
         text += `${'─'.repeat(30)}\n`;
-        text += buildPlainTable(basicChords);
+        text += buildPlainTable(basicChords, plainOrigChords ? { keyLabelText: playKeyLabelP } : null);
+        if (plainOrigChords && origBasicP.length > 0) {
+          text += `\n주요 코드 (Original Key)\n`;
+          text += `${'─'.repeat(30)}\n`;
+          text += buildPlainTable(origBasicP, { keyOverride: plainOrigKeyStripped, capoApplies: false, keyLabelText: origKeyLabelP });
+        }
       }
 
       if (advancedChords.length > 0) {
-        text += `\n심화 코드\n`;
+        text += `\n심화 코드${plainOrigChords ? ' (Play Key)' : ''}\n`;
         text += `${'─'.repeat(30)}\n`;
-        text += buildPlainTable(advancedChords);
+        text += buildPlainTable(advancedChords, plainOrigChords ? { keyLabelText: playKeyLabelP } : null);
+        if (plainOrigChords && origAdvancedP && origAdvancedP.length > 0) {
+          text += `\n심화 코드 (Original Key)\n`;
+          text += `${'─'.repeat(30)}\n`;
+          text += buildPlainTable(origAdvancedP, { keyOverride: plainOrigKeyStripped, capoApplies: false, keyLabelText: origKeyLabelP });
+        }
       }
 
       const allUrl = `${viewerBase}?chords=${encodeURIComponent(chords.join(','))}&type=${defaultType}${capoParam}`;
