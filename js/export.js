@@ -55,7 +55,7 @@ const Export = (() => {
 
     // Melody: keep as-is (existing behavior)
     if (isMelody && !scoreType.includes('piano') && !scoreType.includes('guitar') && !scoreType.includes('tab')) {
-      let display = playKey;
+      let display = `Play: ${formatKeyLabel(playKey)}`;
       if (originalKey && originalKey !== playKey) display += ` / Original Key: ${formatKeyLabel(originalKey)}`;
       return display;
     }
