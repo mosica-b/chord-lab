@@ -195,18 +195,23 @@ const SongDB = (() => {
       const albumNorm = norm(albumName);
       const collected = [];
       const seenIds = new Set();
-      for (let page = 1; page <= 5; page++) {
-        // Search by song name alone — widens backend fuzzy match so siblings aren't missed
-        const data = await searchSongs(songName, page);
-        const songs = (data && data.songs) || [];
-        if (songs.length === 0) break;
-        for (const s of songs) {
-          if (seenIds.has(s.id)) continue;
-          seenIds.add(s.id);
-          collected.push(s);
+      const queries = [songName, `${songName} ${artist}`, artist];
+      for (const q of queries) {
+        for (let page = 1; page <= 5; page++) {
+          let data;
+          try { data = await searchSongs(q, page); }
+          catch (err) { console.warn('[propagateOriginalKey] searchSongs err', q, page, err); break; }
+          const songs = (data && data.songs) || [];
+          console.log('[propagateOriginalKey] query', q, 'page', page, '→', songs.length);
+          if (songs.length === 0) break;
+          for (const s of songs) {
+            if (seenIds.has(s.id)) continue;
+            seenIds.add(s.id);
+            collected.push(s);
+          }
+          if (data && data.totalPages && page >= data.totalPages) break;
+          if (songs.length < 7) break;
         }
-        if (data && data.totalPages && page >= data.totalPages) break;
-        if (songs.length < 7) break;
       }
       const matches = collected.filter(s => {
         const sn = variants(s.song_name);

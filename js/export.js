@@ -592,12 +592,17 @@ const Export = (() => {
               soundSpan.textContent = `(실음: ${soundName})`;
               tdName.appendChild(soundSpan);
             }
-            // Dual-key: 원키 버전 병기
+            // Dual-key: 원키 버전 병기 (클릭 가능한 링크)
             if (dualKey) {
               const origName = MusicTheory.transposeChord(name, dualDiff);
               const origSpan = document.createElement('span');
               origSpan.style.cssText = 'font-size:11px;color:#6b21a8;display:block;';
-              origSpan.textContent = `(원키: ${origName})`;
+              const origLink = document.createElement('a');
+              origLink.href = `${viewerBase}?chords=${encodeURIComponent(origName)}&type=${defaultType}`;
+              origLink.target = '_blank';
+              origLink.style.cssText = 'color:#6b21a8;text-decoration:none;';
+              origLink.textContent = `(원키: ${origName} ▶)`;
+              origSpan.appendChild(origLink);
               tdName.appendChild(origSpan);
             }
             row.appendChild(tdName);
@@ -742,6 +747,9 @@ const Export = (() => {
         { key: 'piano', label: '피아노' }
       ];
       const chordsParam = encodeURIComponent(chords.join(','));
+      const notationDualKey = hasDualKeyVersion(metadata);
+      const notationOrigChords = notationDualKey ? transposeChordsToOriginal(chords, metadata) : null;
+      const chordsParamOrig = notationOrigChords ? encodeURIComponent(notationOrigChords.join(',')) : '';
 
       const table = document.createElement('table');
       table.style.width = '100%';
@@ -765,7 +773,6 @@ const Export = (() => {
 
       const tbody = document.createElement('tbody');
       notationTypes.forEach(({ key, label }) => {
-        const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}${capoParam}`;
         const row = document.createElement('tr');
 
         const tdLabel = document.createElement('td');
@@ -779,13 +786,27 @@ const Export = (() => {
         tdLink.style.padding = '10px 16px';
         tdLink.style.border = '1px solid #999';
         tdLink.style.textAlign = 'center';
+
+        const playUrl = `${viewerBase}?chords=${chordsParam}&type=${key}${capoParam}`;
         const a = document.createElement('a');
-        a.href = viewerUrl;
+        a.href = playUrl;
         a.target = '_blank';
-        a.textContent = '보기 🔍';
+        a.textContent = notationDualKey ? 'Play Key 보기 🔍' : '보기 🔍';
         a.style.color = '#8B2252';
         a.style.textDecoration = 'none';
         tdLink.appendChild(a);
+
+        if (notationDualKey) {
+          tdLink.appendChild(document.createElement('br'));
+          const origUrl = `${viewerBase}?chords=${chordsParamOrig}&type=${key}`;
+          const a2 = document.createElement('a');
+          a2.href = origUrl;
+          a2.target = '_blank';
+          a2.textContent = '원키 보기 🔍';
+          a2.style.color = '#6b21a8';
+          a2.style.textDecoration = 'none';
+          tdLink.appendChild(a2);
+        }
         row.appendChild(tdLink);
 
         tbody.appendChild(row);
@@ -1049,7 +1070,8 @@ const Export = (() => {
             }
             if (dualKey) {
               const origName = MusicTheory.transposeChord(name, dualDiffN);
-              chordCell += `<br><font color="#6b21a8" size="1">(원키: ${esc(origName)})</font>`;
+              const origUrl = `${viewerBase}?chords=${encodeURIComponent(origName)}&type=${defaultType}`;
+              chordCell += `<br><a href="${origUrl}"><font color="#6b21a8" size="1">(원키: ${esc(origName)} ▶)</font></a>`;
             }
             t += isCompact
               ? `<td align="center" bgcolor="${rowBg}"><font size="2">${chordCell}</font></td>`
@@ -1157,13 +1179,21 @@ const Export = (() => {
         { key: 'ukulele-diagram', label: '우쿨렐레 다이어그램' },
         { key: 'piano', label: '피아노' }
       ];
+      const naverDualKey = hasDualKeyVersion(metadata);
+      const naverOrigChordsList = naverDualKey ? transposeChordsToOriginal(chords, metadata) : null;
+      const chordsParamOrigN = naverOrigChordsList ? encodeURIComponent(naverOrigChordsList.join(',')) : '';
       html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
       html += `<tr><td align="center" bgcolor="#f0f0f0"><b>표기 유형</b></td><td align="center" bgcolor="#f0f0f0"><b>보기</b></td></tr>`;
       notationItems.forEach(({ key, label }) => {
         const viewerUrl = `${viewerBase}?chords=${chordsParam}&type=${key}${capoParam}`;
         html += `<tr>`;
         html += `<td align="center" bgcolor="#ffffff">${esc(label)}</td>`;
-        html += `<td align="center" bgcolor="#ffffff"><a href="${viewerUrl}"><font color="#8B2252">보기 🔍</font></a></td>`;
+        let linkCell = `<a href="${viewerUrl}"><font color="#8B2252">${naverDualKey ? 'Play Key 보기' : '보기'} 🔍</font></a>`;
+        if (naverDualKey) {
+          const origViewerUrl = `${viewerBase}?chords=${chordsParamOrigN}&type=${key}`;
+          linkCell += `<br><a href="${origViewerUrl}"><font color="#6b21a8">원키 보기 🔍</font></a>`;
+        }
+        html += `<td align="center" bgcolor="#ffffff">${linkCell}</td>`;
         html += `</tr>`;
       });
       html += `</table>`;
