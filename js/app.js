@@ -313,6 +313,8 @@ const App = (() => {
       saveState();
       updateAll();
 
+      await borrowOriginalKeyFromSiblings();
+
       // Search album via iTunes + Genius lyrics
       if (result.songName || result.artist) {
         const album = await ITunesSearch.searchAlbum(result.songName, result.artist);
@@ -367,6 +369,24 @@ const App = (() => {
     } finally {
       if (btn) { btn.textContent = '악보 불러오기'; btn.disabled = false; }
     }
+  }
+
+  async function borrowOriginalKeyFromSiblings() {
+    if (state.metadata.originalKey && state.metadata.originalKey.trim()) return;
+    if (!(state.metadata.songName && state.metadata.artist)) return;
+    if (typeof SongDB === 'undefined' || !SongDB.propagateOriginalKey) return;
+    try {
+      const borrowed = await SongDB.propagateOriginalKey(
+        state.metadata.songName, state.metadata.artist, state.metadata.albumName
+      );
+      if (borrowed) {
+        state.metadata.originalKey = borrowed;
+        const okEl = document.getElementById('originalKey');
+        if (okEl) okEl.value = borrowed;
+        saveState();
+        updateAll();
+      }
+    } catch (_) {}
   }
 
   async function processMusicXMLFile(file) {
@@ -436,6 +456,8 @@ const App = (() => {
 
       saveState();
       updateAll();
+
+      await borrowOriginalKeyFromSiblings();
 
       // Search album via iTunes + Genius lyrics
       if (result.songName || result.artist) {

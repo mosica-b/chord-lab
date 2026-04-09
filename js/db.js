@@ -726,5 +726,5 @@ const SongDB = (() => {
     updateTrashCount();
   }
 
-  return { saveSong, updateSong, searchSongs, recentSongs, loadSong, deleteSong, initUI, setEditingId, getEditingId };
+  return { saveSong, updateSong, searchSongs, recentSongs, loadSong, deleteSong, initUI, setEditingId, getEditingId, propagateOriginalKey };
 })();
