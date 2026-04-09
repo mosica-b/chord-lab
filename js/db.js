@@ -135,6 +135,13 @@ const SongDB = (() => {
    */
   async function loadSong(id) {
     const s = await apiRequest(`${API_BASE}?action=get&id=${id}`);
+    // If originalKey is empty, try to borrow from sibling records (same song/artist/album)
+    if (!(s.original_key && String(s.original_key).trim())) {
+      try {
+        const borrowed = await propagateOriginalKey(s.song_name, s.artist, s.album_name);
+        if (borrowed) s.original_key = borrowed;
+      } catch (_) {}
+    }
     return {
       metadata: {
         songName: s.song_name || '',
@@ -164,14 +171,50 @@ const SongDB = (() => {
   async function propagateOriginalKey(songName, artist, albumName) {
     if (!songName || !artist) return null;
     const norm = s => (s || '').trim().toLowerCase();
+    // Variants of a name: lowercase, strip trailing parens, content inside parens
+    function variants(str) {
+      const v = new Set();
+      const t = (str || '').trim();
+      if (!t) return v;
+      v.add(t.toLowerCase());
+      const stripped = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      if (stripped) v.add(stripped.toLowerCase());
+      const m = t.match(/\(([^)]*)\)\s*$/);
+      if (m) v.add(m[1].trim().toLowerCase());
+      return v;
+    }
+    function overlap(a, b) {
+      for (const x of a) if (b.has(x)) return true;
+      return false;
+    }
     try {
-      const data = await searchSongs(`${songName} ${artist}`, 1);
-      const songs = (data && data.songs) || [];
-      const matches = songs.filter(s =>
-        norm(s.song_name) === norm(songName) &&
-        norm(s.artist) === norm(artist) &&
-        norm(s.album_name) === norm(albumName)
-      );
+      // Collect across multiple pages so siblings aren't missed by pagination
+      const nameVar = variants(songName);
+      const artistVar = variants(artist);
+      const albumNorm = norm(albumName);
+      const collected = [];
+      const seenIds = new Set();
+      for (let page = 1; page <= 5; page++) {
+        const data = await searchSongs(`${songName} ${artist}`, page);
+        const songs = (data && data.songs) || [];
+        if (songs.length === 0) break;
+        for (const s of songs) {
+          if (seenIds.has(s.id)) continue;
+          seenIds.add(s.id);
+          collected.push(s);
+        }
+        if (data && data.totalPages && page >= data.totalPages) break;
+        if (songs.length < 7) break;
+      }
+      const matches = collected.filter(s => {
+        const sn = variants(s.song_name);
+        const an = variants(s.artist);
+        if (!overlap(sn, nameVar) || !overlap(an, artistVar)) return false;
+        // Album: loose — match if either side empty OR normalized equal
+        const sAlb = norm(s.album_name);
+        if (albumNorm && sAlb && albumNorm !== sAlb) return false;
+        return true;
+      });
       if (matches.length < 2) return null;
       const withKey = matches.find(s => s.original_key && String(s.original_key).trim());
       if (!withKey) return null;
