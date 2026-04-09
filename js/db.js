@@ -157,6 +157,58 @@ const SongDB = (() => {
   }
 
   /**
+   * Propagate originalKey across sibling records that share
+   * song_name + artist + album_name. If any sibling has original_key filled,
+   * auto-fill it on siblings whose original_key is empty.
+   */
+  async function propagateOriginalKey(songName, artist, albumName) {
+    if (!songName || !artist) return null;
+    const norm = s => (s || '').trim().toLowerCase();
+    try {
+      const data = await searchSongs(`${songName} ${artist}`, 1);
+      const songs = (data && data.songs) || [];
+      const matches = songs.filter(s =>
+        norm(s.song_name) === norm(songName) &&
+        norm(s.artist) === norm(artist) &&
+        norm(s.album_name) === norm(albumName)
+      );
+      if (matches.length < 2) return null;
+      const withKey = matches.find(s => s.original_key && String(s.original_key).trim());
+      if (!withKey) return null;
+      const targetKey = String(withKey.original_key).trim();
+      const needUpdate = matches.filter(s => !(s.original_key && String(s.original_key).trim()));
+      for (const s of needUpdate) {
+        const full = await apiRequest(`${API_BASE}?action=get&id=${s.id}`);
+        await apiRequest(`${API_BASE}?action=update`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            id: s.id,
+            song_name: full.song_name || '',
+            artist: full.artist || '',
+            album_name: full.album_name || '',
+            composer: full.composer || '',
+            lyricist: full.lyricist || '',
+            tempo: full.tempo || '',
+            time_signature: full.time_signature || '',
+            key_signature: full.key_signature || '',
+            lyrics_intro: full.lyrics_intro || '',
+            genius_url: full.genius_url || '',
+            apple_music_url: full.apple_music_url || '',
+            score_type: full.score_type || '',
+            original_key: targetKey,
+            selected_chords: full.selected_chords || [],
+            capo_position: full.capo_position || 0,
+          }),
+        });
+      }
+      return targetKey;
+    } catch (e) {
+      console.warn('propagateOriginalKey failed:', e);
+      return null;
+    }
+  }
+
+  /**
    * Delete a song by ID
    */
   async function deleteSong(id) {
@@ -539,6 +591,17 @@ const SongDB = (() => {
         if (result && result.id) {
           editingId = result.id;
         }
+        // Cross-propagate originalKey across sibling records (same song/artist/album)
+        try {
+          const md = App.state.metadata;
+          const propagated = await propagateOriginalKey(md.songName, md.artist, md.albumName);
+          // If current record had no originalKey but a sibling did, reflect it in-memory
+          if (propagated && !(md.originalKey && md.originalKey.trim())) {
+            md.originalKey = propagated;
+            const input = document.getElementById('originalKey');
+            if (input) input.value = propagated;
+          }
+        } catch (_) {}
         saveBtn.textContent = '저장됨!';
         saveBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'bg-amber-500', 'hover:bg-amber-600');
         saveBtn.classList.add('bg-green-500');
