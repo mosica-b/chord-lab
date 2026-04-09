@@ -196,7 +196,8 @@ const SongDB = (() => {
       const collected = [];
       const seenIds = new Set();
       for (let page = 1; page <= 5; page++) {
-        const data = await searchSongs(`${songName} ${artist}`, page);
+        // Search by song name alone — widens backend fuzzy match so siblings aren't missed
+        const data = await searchSongs(songName, page);
         const songs = (data && data.songs) || [];
         if (songs.length === 0) break;
         for (const s of songs) {
@@ -217,7 +218,7 @@ const SongDB = (() => {
         return true;
       });
       console.log('[propagateOriginalKey] collected', collected.length, 'filtered matches', matches.length, matches.map(m => ({ id: m.id, song: m.song_name, artist: m.artist, album: m.album_name })));
-      if (matches.length < 2) { console.log('[propagateOriginalKey] <2 matches, bail'); return null; }
+      if (matches.length === 0) { console.log('[propagateOriginalKey] no matches'); return null; }
       // Search results may not include original_key — fetch full records to check.
       const fullRecords = [];
       for (const m of matches) {
