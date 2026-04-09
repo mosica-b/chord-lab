@@ -372,21 +372,95 @@ const App = (() => {
   }
 
   async function borrowOriginalKeyFromSiblings() {
-    if (state.metadata.originalKey && state.metadata.originalKey.trim()) return;
+    const needOrig = !(state.metadata.originalKey && state.metadata.originalKey.trim());
+    const needPlay = !(state.metadata.key && state.metadata.key.trim());
+    if (!needOrig && !needPlay) return;
     if (!(state.metadata.songName && state.metadata.artist)) return;
-    if (typeof SongDB === 'undefined' || !SongDB.propagateOriginalKey) return;
+    if (typeof SongDB === 'undefined' || !SongDB.searchSongs || !SongDB.loadSong) return;
     try {
-      const borrowed = await SongDB.propagateOriginalKey(
-        state.metadata.songName, state.metadata.artist, state.metadata.albumName
-      );
-      if (borrowed) {
-        state.metadata.originalKey = borrowed;
-        const okEl = document.getElementById('originalKey');
-        if (okEl) okEl.value = borrowed;
-        saveState();
-        updateAll();
+      // Search siblings by song+artist and fetch each candidate to inspect keys
+      const sn = state.metadata.songName.trim();
+      const ar = state.metadata.artist.trim();
+      const norm = s => (s || '').trim().toLowerCase();
+      const variants = (str) => {
+        const v = new Set();
+        const t = (str || '').trim();
+        if (!t) return v;
+        v.add(t.toLowerCase());
+        const stripped = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        if (stripped) v.add(stripped.toLowerCase());
+        const m = t.match(/\(([^)]*)\)\s*$/);
+        if (m) v.add(m[1].trim().toLowerCase());
+        return v;
+      };
+      const nameVar = variants(sn);
+      const artistVar = variants(ar);
+      const seen = new Set();
+      const candidates = [];
+      for (const q of [sn, `${sn} ${ar}`, ar]) {
+        for (let page = 1; page <= 3; page++) {
+          let data;
+          try { data = await SongDB.searchSongs(q, page); } catch { break; }
+          const songs = (data && data.songs) || [];
+          if (songs.length === 0) break;
+          for (const s of songs) {
+            if (seen.has(s.id)) continue;
+            seen.add(s.id);
+            const sv = variants(s.song_name);
+            const av = variants(s.artist);
+            const nameOk = [...nameVar].some(x => sv.has(x));
+            const artistOk = [...artistVar].some(x => av.has(x));
+            if (nameOk && artistOk) candidates.push(s);
+          }
+          if (data.totalPages && page >= data.totalPages) break;
+          if (songs.length < 7) break;
+        }
       }
-    } catch (_) {}
+      // Prefer candidates whose list row already shows the needed field
+      let borrowedOrig = '';
+      let borrowedPlay = '';
+      for (const c of candidates) {
+        if (needOrig && !borrowedOrig && c.original_key) borrowedOrig = c.original_key;
+        if (needPlay && !borrowedPlay && c.key_signature) borrowedPlay = c.key_signature;
+        if ((!needOrig || borrowedOrig) && (!needPlay || borrowedPlay)) break;
+      }
+      // Fallback: fetch full records if list rows didn't carry the field
+      if ((needOrig && !borrowedOrig) || (needPlay && !borrowedPlay)) {
+        for (const c of candidates) {
+          try {
+            const full = await SongDB.loadSong(c.id);
+            const md = full.metadata || {};
+            if (needOrig && !borrowedOrig && md.originalKey) borrowedOrig = md.originalKey;
+            if (needPlay && !borrowedPlay && md.key) borrowedPlay = md.key;
+            if ((!needOrig || borrowedOrig) && (!needPlay || borrowedPlay)) break;
+          } catch (_) {}
+        }
+      }
+      let changed = false;
+      if (needOrig && borrowedOrig) {
+        state.metadata.originalKey = borrowedOrig;
+        const okEl = document.getElementById('originalKey');
+        if (okEl) okEl.value = borrowedOrig;
+        changed = true;
+      }
+      if (needPlay && borrowedPlay) {
+        state.metadata.key = borrowedPlay;
+        const keySelect = document.getElementById('songKey');
+        if (keySelect) {
+          if (!keySelect.querySelector(`option[value="${borrowedPlay}"]`)) {
+            const opt = document.createElement('option');
+            opt.value = borrowedPlay;
+            opt.textContent = borrowedPlay;
+            keySelect.appendChild(opt);
+          }
+          keySelect.value = borrowedPlay;
+        }
+        changed = true;
+      }
+      if (changed) { saveState(); updateAll(); }
+    } catch (e) {
+      console.warn('borrowKeysFromSiblings failed:', e);
+    }
   }
 
   async function processMusicXMLFile(file) {
