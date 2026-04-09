@@ -169,7 +169,8 @@ const SongDB = (() => {
    * auto-fill it on siblings whose original_key is empty.
    */
   async function propagateOriginalKey(songName, artist, albumName) {
-    if (!songName || !artist) return null;
+    console.log('[propagateOriginalKey] start', { songName, artist, albumName });
+    if (!songName || !artist) { console.log('[propagateOriginalKey] missing song/artist'); return null; }
     const norm = s => (s || '').trim().toLowerCase();
     // Variants of a name: lowercase, strip trailing parens, content inside parens
     function variants(str) {
@@ -215,7 +216,8 @@ const SongDB = (() => {
         if (albumNorm && sAlb && albumNorm !== sAlb) return false;
         return true;
       });
-      if (matches.length < 2) return null;
+      console.log('[propagateOriginalKey] collected', collected.length, 'filtered matches', matches.length, matches.map(m => ({ id: m.id, song: m.song_name, artist: m.artist, album: m.album_name })));
+      if (matches.length < 2) { console.log('[propagateOriginalKey] <2 matches, bail'); return null; }
       // Search results may not include original_key — fetch full records to check.
       const fullRecords = [];
       for (const m of matches) {
@@ -224,8 +226,9 @@ const SongDB = (() => {
           fullRecords.push(full);
         } catch (_) {}
       }
+      console.log('[propagateOriginalKey] full records original_key:', fullRecords.map(r => ({ id: r.id, original_key: r.original_key })));
       const withKey = fullRecords.find(s => s.original_key && String(s.original_key).trim());
-      if (!withKey) return null;
+      if (!withKey) { console.log('[propagateOriginalKey] no sibling with original_key'); return null; }
       const targetKey = String(withKey.original_key).trim();
       const needUpdate = fullRecords.filter(s => !(s.original_key && String(s.original_key).trim()));
       for (const full of needUpdate) {
