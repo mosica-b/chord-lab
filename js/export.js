@@ -397,7 +397,10 @@ const Export = (() => {
     const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
       && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele');
-    const defaultType = _isMelodyOnly ? 'staff' : (isUkuleleScore ? 'ukulele-diagram' : 'guitar-diagram');
+    const _isTabScore = _stLower.includes('tab');
+    const defaultType = _isMelodyOnly
+      ? 'staff'
+      : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
 
     // Build info table (matching Naver HTML format)
     if (infoRows.length > 0) {
@@ -916,7 +919,10 @@ const Export = (() => {
     const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
       && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele');
-    const defaultType = _isMelodyOnly ? 'staff' : (isUkuleleScore ? 'ukulele-diagram' : 'guitar-diagram');
+    const _isTabScore = _stLower.includes('tab');
+    const defaultType = _isMelodyOnly
+      ? 'staff'
+      : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
       '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
@@ -1305,7 +1311,10 @@ const Export = (() => {
       const _stLower = (metadata.scoreType || '').toLowerCase();
     const _isMelodyOnly = (_stLower.includes('melody') || _stLower.includes('vocal'))
       && !_stLower.includes('piano') && !_stLower.includes('guitar') && !_stLower.includes('tab') && !_stLower.includes('ukulele');
-    const defaultType = _isMelodyOnly ? 'staff' : (isUkuleleScore ? 'ukulele-diagram' : 'guitar-diagram');
+    const _isTabScore = _stLower.includes('tab');
+    const defaultType = _isMelodyOnly
+      ? 'staff'
+      : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
 
       if (basicChords.length > 0) {
         text += `\n주요 코드\n`;
