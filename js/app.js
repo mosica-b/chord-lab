@@ -661,13 +661,18 @@ const App = (() => {
     const addVariantBtn = document.getElementById('addVariantBtn');
     if (addVariantBtn) {
       addVariantBtn.addEventListener('click', () => {
-        // Clear scoreType + set as new record, keep everything else
+        // Clear scoreType + version only; preserve key, originalKey, lyrics, etc.
         state.metadata.scoreType = '';
         state.metadata.version = '';
         const stEl = document.getElementById('scoreType');
         if (stEl) { stEl.value = ''; stEl.focus(); }
         const verEl = document.getElementById('songVersion');
         if (verEl) verEl.value = '';
+        // Defensive: re-sync key/originalKey inputs from state so they stay visible
+        const okEl = document.getElementById('originalKey');
+        if (okEl) okEl.value = state.metadata.originalKey || '';
+        const keySelect = document.getElementById('songKey');
+        if (keySelect && state.metadata.key) keySelect.value = state.metadata.key;
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
