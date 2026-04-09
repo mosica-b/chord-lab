@@ -661,22 +661,44 @@ const App = (() => {
     const addVariantBtn = document.getElementById('addVariantBtn');
     if (addVariantBtn) {
       addVariantBtn.addEventListener('click', () => {
-        // Clear scoreType + version only; preserve key, originalKey, lyrics, etc.
+        // Clear scoreType + version; derive new variant's Play key from previous key+capo.
+        // Example: capo 2 + G → sounding A; new variant starts with key=A, capo=0.
+        const prevKey = (state.metadata.key || '').trim();
+        const prevCapo = parseInt(state.capoPosition) || 0;
+        if (prevKey && prevCapo > 0 && typeof MusicTheory !== 'undefined' && MusicTheory.transposeChord) {
+          try {
+            const sounded = MusicTheory.transposeChord(prevKey, prevCapo);
+            if (sounded) {
+              state.metadata.key = sounded;
+              const keySelect = document.getElementById('songKey');
+              if (keySelect) {
+                if (!keySelect.querySelector(`option[value="${sounded}"]`)) {
+                  const opt = document.createElement('option');
+                  opt.value = sounded; opt.textContent = sounded;
+                  keySelect.appendChild(opt);
+                }
+                keySelect.value = sounded;
+              }
+            }
+          } catch (_) {}
+          state.capoPosition = 0;
+          const capoEl = document.getElementById('capoPosition');
+          if (capoEl) capoEl.value = '0';
+        }
         state.metadata.scoreType = '';
         state.metadata.version = '';
         const stEl = document.getElementById('scoreType');
         if (stEl) { stEl.value = ''; stEl.focus(); }
         const verEl = document.getElementById('songVersion');
         if (verEl) verEl.value = '';
-        // Defensive: re-sync key/originalKey inputs from state so they stay visible
+        // Defensive: re-sync originalKey input from state
         const okEl = document.getElementById('originalKey');
         if (okEl) okEl.value = state.metadata.originalKey || '';
-        const keySelect = document.getElementById('songKey');
-        if (keySelect && state.metadata.key) keySelect.value = state.metadata.key;
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
         saveState();
+        updateAll();
       });
     }
 
