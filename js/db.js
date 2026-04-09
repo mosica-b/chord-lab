@@ -661,12 +661,14 @@ const SongDB = (() => {
         if (result && result.id) {
           editingId = result.id;
         }
-        // Cross-propagate originalKey across sibling records (same song/artist/album)
+        // Cross-propagate originalKey across sibling records (same song/artist/album).
+        // Only reflect borrowed key into the current form when Play key is empty —
+        // if Play key is set, leave Original key blank so the form stays as the user left it.
         try {
           const md = App.state.metadata;
           const propagated = await propagateOriginalKey(md.songName, md.artist, md.albumName);
-          // If current record had no originalKey but a sibling did, reflect it in-memory
-          if (propagated && !(md.originalKey && md.originalKey.trim())) {
+          const hasPlayKey = !!(md.key && md.key.trim());
+          if (propagated && !hasPlayKey && !(md.originalKey && md.originalKey.trim())) {
             md.originalKey = propagated;
             const input = document.getElementById('originalKey');
             if (input) input.value = propagated;
