@@ -216,12 +216,20 @@ const SongDB = (() => {
         return true;
       });
       if (matches.length < 2) return null;
-      const withKey = matches.find(s => s.original_key && String(s.original_key).trim());
+      // Search results may not include original_key — fetch full records to check.
+      const fullRecords = [];
+      for (const m of matches) {
+        try {
+          const full = await apiRequest(`${API_BASE}?action=get&id=${m.id}`);
+          fullRecords.push(full);
+        } catch (_) {}
+      }
+      const withKey = fullRecords.find(s => s.original_key && String(s.original_key).trim());
       if (!withKey) return null;
       const targetKey = String(withKey.original_key).trim();
-      const needUpdate = matches.filter(s => !(s.original_key && String(s.original_key).trim()));
-      for (const s of needUpdate) {
-        const full = await apiRequest(`${API_BASE}?action=get&id=${s.id}`);
+      const needUpdate = fullRecords.filter(s => !(s.original_key && String(s.original_key).trim()));
+      for (const full of needUpdate) {
+        const s = full;
         await apiRequest(`${API_BASE}?action=update`, {
           method: 'PUT',
           body: JSON.stringify({
