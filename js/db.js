@@ -85,6 +85,7 @@ const SongDB = (() => {
       genius_url: state.metadata.geniusUrl || '',
       apple_music_url: state.metadata.appleMusicUrl || '',
       score_type: state.metadata.scoreType || '',
+      version: state.metadata.version || '',
       original_key: state.metadata.originalKey || '',
       selected_chords: state.selectedChords,
       capo_position: state.capoPosition,
@@ -156,6 +157,7 @@ const SongDB = (() => {
         geniusUrl: s.genius_url || '',
         appleMusicUrl: s.apple_music_url || '',
         scoreType: s.score_type || '',
+        version: s.version || '',
         originalKey: s.original_key || '',
       },
       selectedChords: s.selected_chords || [],
@@ -255,6 +257,7 @@ const SongDB = (() => {
             genius_url: full.genius_url || '',
             apple_music_url: full.apple_music_url || '',
             score_type: full.score_type || '',
+            version: full.version || '',
             original_key: targetKey,
             selected_chords: full.selected_chords || [],
             capo_position: full.capo_position || 0,
@@ -358,7 +361,8 @@ const SongDB = (() => {
       if (g.songs.length === 1) {
         // Single item — render as before, with score_type badge if available
         const date = (first.updated_at || '').substring(0, 10);
-        const badge = first.score_type ? `<span class="db-score-badge">${escapeHtml(first.score_type)}</span>` : '';
+        const badgeLabel = (first.score_type || '') + (first.version ? ` · v.${first.version}` : '');
+        const badge = badgeLabel ? `<span class="db-score-badge">${escapeHtml(badgeLabel)}</span>` : '';
         html += `
           <div class="db-result-item" data-id="${first.id}">
             <div style="flex:1;min-width:0;">
@@ -373,7 +377,7 @@ const SongDB = (() => {
           </div>`;
       } else {
         // Multi-item group — accordion (collapsed by default)
-        const badgeList = g.songs.map(s => escapeHtml(s.score_type || '?')).join(', ');
+        const badgeList = g.songs.map(s => escapeHtml((s.score_type || '?') + (s.version ? ` · v.${s.version}` : ''))).join(', ');
         html += `<div class="db-result-group">`;
         html += `
           <div class="db-result-group-header db-accordion-toggle" role="button" tabindex="0">
@@ -389,7 +393,7 @@ const SongDB = (() => {
         html += `<div class="db-accordion-body" style="display:none;">`;
         g.songs.forEach(s => {
           const date = (s.updated_at || '').substring(0, 10);
-          const typeLabel = s.score_type || '(타입 없음)';
+          const typeLabel = (s.score_type || '(타입 없음)') + (s.version ? ` · v.${s.version}` : '');
           html += `
             <div class="db-result-subitem" data-id="${s.id}">
               <div style="flex:1;min-width:0;">

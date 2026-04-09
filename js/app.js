@@ -16,6 +16,7 @@ const App = (() => {
       key: '',
       originalKey: '',
       scoreType: '',
+      version: '',
     },
     selectedChords: [],
     capoPosition: 0,
@@ -60,14 +61,14 @@ const App = (() => {
   let _autoLyrics = false; // true when lyricsIntro was auto-populated
 
   function setupMetadataListeners() {
-    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType'];
+    const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType', 'songVersion'];
 
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       const event = el.tagName === 'SELECT' ? 'change' : 'input';
       el.addEventListener(event, () => {
-        const key = id === 'songKey' ? 'key' : id;
+        const key = id === 'songKey' ? 'key' : (id === 'songVersion' ? 'version' : id);
         state.metadata[key] = el.value;
         saveState();
         updatePreview();
@@ -566,8 +567,11 @@ const App = (() => {
       addVariantBtn.addEventListener('click', () => {
         // Clear scoreType + set as new record, keep everything else
         state.metadata.scoreType = '';
+        state.metadata.version = '';
         const stEl = document.getElementById('scoreType');
         if (stEl) { stEl.value = ''; stEl.focus(); }
+        const verEl = document.getElementById('songVersion');
+        if (verEl) verEl.value = '';
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
@@ -581,14 +585,14 @@ const App = (() => {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         // Clear metadata
-        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', originalKey: '', scoreType: '', geniusUrl: '', appleMusicUrl: '' };
+        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', originalKey: '', scoreType: '', version: '', geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
         updateSaveBtnState();
 
         // Clear form fields
-        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType', 'capoPosition'].forEach(id => {
+        ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType', 'songVersion', 'capoPosition'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = id === 'capoPosition' ? '0' : '';
         });
@@ -1259,6 +1263,8 @@ const App = (() => {
     document.getElementById('capoPosition').value = state.capoPosition;
     const scoreTypeEl = document.getElementById('scoreType');
     if (scoreTypeEl) scoreTypeEl.value = state.metadata.scoreType || '';
+    const versionEl = document.getElementById('songVersion');
+    if (versionEl) versionEl.value = state.metadata.version || '';
 
     // Mark lyrics as auto (came from DB, not manually typed now)
     _autoLyrics = false;
