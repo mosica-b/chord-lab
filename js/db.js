@@ -354,9 +354,12 @@ const SongDB = (() => {
     let html = '';
     groups.forEach(g => {
       const first = g.songs[0];
+      const keyInfoStr = first.key_signature
+        ? `Play: ${first.key_signature}`
+        : (first.original_key ? `Original: ${first.original_key}` : '');
       const metaStr = escapeHtml(first.artist || '아티스트 없음')
         + (first.album_name ? ' · ' + escapeHtml(first.album_name) : '')
-        + (first.key_signature ? ' · ' + first.key_signature : '');
+        + (keyInfoStr ? ' · ' + escapeHtml(keyInfoStr) : '');
 
       if (g.songs.length === 1) {
         // Single item — render as before, with score_type badge if available
@@ -393,7 +396,10 @@ const SongDB = (() => {
         html += `<div class="db-accordion-body" style="display:none;">`;
         g.songs.forEach(s => {
           const date = (s.updated_at || '').substring(0, 10);
-          const typeLabel = (s.score_type || '(타입 없음)') + (s.version ? ` · v.${s.version}` : '');
+          const subKeyInfo = s.key_signature
+            ? ` · Play: ${s.key_signature}`
+            : (s.original_key ? ` · Original: ${s.original_key}` : '');
+          const typeLabel = (s.score_type || '(타입 없음)') + (s.version ? ` · v.${s.version}` : '') + subKeyInfo;
           html += `
             <div class="db-result-subitem" data-id="${s.id}">
               <div style="flex:1;min-width:0;">
