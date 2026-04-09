@@ -21,7 +21,8 @@ const Export = (() => {
     if (k.includes('→')) {
       return k.split('→').map(p => formatKeyLabel(p.trim())).join(' → ');
     }
-    if (k.endsWith('m') && k.length > 1 && k[k.length - 2] !== '#') {
+    // Minor: ends with 'm' but not 'maj'/'M'. Root may include # or b.
+    if (/^[A-G][#b]?m$/.test(k)) {
       return k.slice(0, -1) + ' min';
     }
     return k + ' Maj';
@@ -55,7 +56,7 @@ const Export = (() => {
 
     // Melody: keep as-is (existing behavior)
     if (isMelody && !scoreType.includes('piano') && !scoreType.includes('guitar') && !scoreType.includes('tab')) {
-      let display = `Play: ${formatKeyLabel(playKey)}`;
+      let display = `Play Key: ${formatKeyLabel(playKey)}`;
       if (originalKey && originalKey !== playKey) display += ` / Original Key: ${formatKeyLabel(originalKey)}`;
       return display;
     }
