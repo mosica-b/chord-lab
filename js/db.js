@@ -353,10 +353,24 @@ const SongDB = (() => {
     // Render grouped results
     let html = '';
     groups.forEach(g => {
+      // Share original_key across siblings in the same group
+      const groupOrigKey = g.songs.find(s => s.original_key && String(s.original_key).trim());
+      if (groupOrigKey) {
+        g.songs.forEach(s => {
+          if (!s.original_key || !String(s.original_key).trim()) {
+            s.original_key = groupOrigKey.original_key;
+          }
+        });
+      }
       const first = g.songs[0];
-      const keyInfoStr = first.key_signature
-        ? `Play: ${first.key_signature}`
-        : (first.original_key ? `Original: ${first.original_key}` : '');
+      let keyInfoStr = '';
+      if (first.key_signature && first.original_key) {
+        keyInfoStr = `Play: ${first.key_signature} / Original: ${first.original_key}`;
+      } else if (first.key_signature) {
+        keyInfoStr = `Play: ${first.key_signature}`;
+      } else if (first.original_key) {
+        keyInfoStr = `Original: ${first.original_key}`;
+      }
       const metaStr = escapeHtml(first.artist || '아티스트 없음')
         + (first.album_name ? ' · ' + escapeHtml(first.album_name) : '')
         + (keyInfoStr ? ' · ' + escapeHtml(keyInfoStr) : '');
@@ -396,9 +410,14 @@ const SongDB = (() => {
         html += `<div class="db-accordion-body" style="display:none;">`;
         g.songs.forEach(s => {
           const date = (s.updated_at || '').substring(0, 10);
-          const subKeyInfo = s.key_signature
-            ? ` · Play: ${s.key_signature}`
-            : (s.original_key ? ` · Original: ${s.original_key}` : '');
+          let subKeyInfo = '';
+          if (s.key_signature && s.original_key) {
+            subKeyInfo = ` · Play: ${s.key_signature} / Original: ${s.original_key}`;
+          } else if (s.key_signature) {
+            subKeyInfo = ` · Play: ${s.key_signature}`;
+          } else if (s.original_key) {
+            subKeyInfo = ` · Original: ${s.original_key}`;
+          }
           const typeLabel = (s.score_type || '(타입 없음)') + (s.version ? ` · v.${s.version}` : '') + subKeyInfo;
           html += `
             <div class="db-result-subitem" data-id="${s.id}">
