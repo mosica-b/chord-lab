@@ -234,7 +234,7 @@ const ChordAudio = (() => {
     // Use sampled guitar if available
     if (guitarReady && sfPlayer && guitarPreset && noteName != null) {
       const midi = noteToMidi(noteName, octave);
-      sfPlayer.queueWaveTable(ctx, dest, guitarPreset, now, midi, duration, 0.5);
+      sfPlayer.queueWaveTable(ctx, dest, guitarPreset, now, midi, duration, 0.7);
       return;
     }
 
