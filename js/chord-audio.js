@@ -475,6 +475,38 @@ const ChordAudio = (() => {
   }
   function getIsPlaying() { return isPlaying; }
 
+  // Eagerly create AudioContext on first user interaction to preload piano samples
+  // This ensures preset is decoded BEFORE the user clicks a play button
+  function preloadPiano() {
+    if (!audioCtx) {
+      createAudioContext();
+      addGestureResumeListener();
+    } else if (!pianoPlayer) {
+      initPianoPreset();
+    }
+    document.removeEventListener('pointerdown', preloadPiano, true);
+    document.removeEventListener('touchstart', preloadPiano);
+  }
+  document.addEventListener('pointerdown', preloadPiano, { capture: true });
+  document.addEventListener('touchstart', preloadPiano, { passive: true });
+
+  // On desktop, also try to preload immediately on DOMContentLoaded
+  if (!isMobile()) {
+    const eager = () => {
+      if (!audioCtx) {
+        try {
+          createAudioContext();
+          addGestureResumeListener();
+        } catch (e) { /* some browsers block without gesture */ }
+      }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', eager);
+    } else {
+      eager();
+    }
+  }
+
   return {
     playChord,
     playChordArpeggio,
