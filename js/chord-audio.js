@@ -14,6 +14,8 @@ const ChordAudio = (() => {
   let pianoReady = false;
   let guitarPreset = null;
   let guitarReady = false;
+  let ukulelePreset = null;
+  let ukuleleReady = false;
 
   const NOTE_SEMITONES = {
     'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
@@ -38,6 +40,18 @@ const ChordAudio = (() => {
           pianoReady = true;
           console.log('Piano preset ready:', pianoPreset.zones.length, 'zones decoded');
         } else setTimeout(checkPiano, 50);
+      })();
+    }
+
+    // Ukulele preset (nylon guitar, played an octave higher)
+    if (!ukuleleReady && typeof _tone_0240_LK_Godin_Nylon_SF2_file !== 'undefined' && !ukulelePreset) {
+      ukulelePreset = _tone_0240_LK_Godin_Nylon_SF2_file;
+      sfPlayer.adjustPreset(audioCtx, ukulelePreset);
+      (function checkUkulele() {
+        if (ukulelePreset.zones.every(z => z.buffer)) {
+          ukuleleReady = true;
+          console.log('Ukulele preset ready:', ukulelePreset.zones.length, 'zones decoded');
+        } else setTimeout(checkUkulele, 50);
       })();
     }
 
@@ -103,8 +117,10 @@ const ChordAudio = (() => {
     // Reset sampled presets so they re-decode with the new context
     pianoReady = false;
     guitarReady = false;
+    ukuleleReady = false;
     pianoPreset = null;
     guitarPreset = null;
+    ukulelePreset = null;
     sfPlayer = null;
     initSampledPresets();
   }
@@ -316,23 +332,29 @@ const ChordAudio = (() => {
   }
 
   // =========================================
-  // Ukulele: Nylon pluck → bright & short → happy tone
+  // Ukulele: Sampled Nylon Guitar (octave up) via WebAudioFont (synth fallback)
   // =========================================
-  function playUkuleleNote(ctx, dest, freq, now, duration) {
-    // Ukulele plays an octave higher for bright, small-body character
+  function playUkuleleNote(ctx, dest, freq, now, duration, noteName, octave) {
+    // Use sampled nylon guitar an octave higher for ukulele character
+    if (ukuleleReady && sfPlayer && ukulelePreset && noteName != null) {
+      const midi = noteToMidi(noteName, octave) + 12; // octave up
+      const ukeDur = Math.min(duration, 1.2);
+      sfPlayer.queueWaveTable(ctx, dest, ukulelePreset, now, midi, ukeDur, 0.6);
+      return;
+    }
+
+    // Fallback: synthesis while preset is loading
     const ukeFreq = freq * 2;
-    const ukeDur = Math.min(duration, 1.2); // shorter sustain
+    const ukeDur = Math.min(duration, 1.2);
 
     const gain = ctx.createGain();
     gain.connect(dest);
-    // Ukulele: snappy pluck, quick decay, very short sustain
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.20, now + 0.002);
     gain.gain.exponentialRampToValueAtTime(0.08, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.02, now + ukeDur * 0.35);
     gain.gain.linearRampToValueAtTime(0.001, now + ukeDur);
 
-    // Bright filter (small nylon body)
     const lpf = ctx.createBiquadFilter();
     lpf.type = 'lowpass';
     lpf.frequency.setValueAtTime(6000, now);
@@ -340,7 +362,6 @@ const ChordAudio = (() => {
     lpf.Q.value = 1;
     lpf.connect(gain);
 
-    // High-mid boost (ukulele brightness)
     const peak = ctx.createBiquadFilter();
     peak.type = 'peaking';
     peak.frequency.value = 2000;
@@ -348,21 +369,18 @@ const ChordAudio = (() => {
     peak.Q.value = 2;
     peak.connect(lpf);
 
-    // Triangle (soft nylon string)
     const o1 = ctx.createOscillator();
     o1.type = 'triangle';
     o1.frequency.value = ukeFreq;
     const g1 = ctx.createGain(); g1.gain.value = 0.45;
     o1.connect(g1); g1.connect(peak);
 
-    // Sine fundamental
     const o2 = ctx.createOscillator();
     o2.type = 'sine';
     o2.frequency.value = ukeFreq;
     const g2 = ctx.createGain(); g2.gain.value = 0.35;
     o2.connect(g2); g2.connect(peak);
 
-    // Soft 2nd harmonic
     const o3 = ctx.createOscillator();
     o3.type = 'sine';
     o3.frequency.value = ukeFreq * 2;
@@ -412,7 +430,7 @@ const ChordAudio = (() => {
         if (inst === 'guitar') {
           playGuitarNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else if (inst === 'ukulele') {
-          playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
+          playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else {
           playPianoNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         }
@@ -452,7 +470,7 @@ const ChordAudio = (() => {
         if (inst === 'guitar') {
           playGuitarNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else if (inst === 'ukulele') {
-          playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
+          playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else {
           playPianoNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         }
