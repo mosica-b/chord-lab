@@ -8,10 +8,12 @@ const ChordAudio = (() => {
   let currentInstrument = 'piano';
   let muteWarningShown = false;
 
-  // WebAudioFont sampled piano (Yamaha CFX)
-  let pianoPlayer = null;
+  // WebAudioFont sampled instruments
+  let sfPlayer = null;
   let pianoPreset = null;
   let pianoReady = false;
+  let guitarPreset = null;
+  let guitarReady = false;
 
   const NOTE_SEMITONES = {
     'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
@@ -23,25 +25,33 @@ const ChordAudio = (() => {
     return (octave + 1) * 12 + (NOTE_SEMITONES[normalized] || 0);
   }
 
-  function initPianoPreset() {
-    if (pianoPlayer || typeof WebAudioFontPlayer === 'undefined') return;
-    if (typeof _tone_0000_JCLive_sf2_file === 'undefined') return;
+  function initSampledPresets() {
+    if (typeof WebAudioFontPlayer === 'undefined') return;
+    if (!sfPlayer) sfPlayer = new WebAudioFontPlayer();
 
-    pianoPlayer = new WebAudioFontPlayer();
-    pianoPreset = _tone_0000_JCLive_sf2_file;
-    pianoPlayer.adjustPreset(audioCtx, pianoPreset);
-
-    const totalZones = pianoPreset.zones.length;
-    function checkDecoded() {
-      const decoded = pianoPreset.zones.filter(z => z.buffer).length;
-      if (decoded < totalZones) {
-        setTimeout(checkDecoded, 50);
-      } else {
-        pianoReady = true;
-        console.log('Piano preset ready:', totalZones, 'zones decoded');
-      }
+    // Piano preset
+    if (!pianoReady && typeof _tone_0000_JCLive_sf2_file !== 'undefined' && !pianoPreset) {
+      pianoPreset = _tone_0000_JCLive_sf2_file;
+      sfPlayer.adjustPreset(audioCtx, pianoPreset);
+      (function checkPiano() {
+        if (pianoPreset.zones.every(z => z.buffer)) {
+          pianoReady = true;
+          console.log('Piano preset ready:', pianoPreset.zones.length, 'zones decoded');
+        } else setTimeout(checkPiano, 50);
+      })();
     }
-    checkDecoded();
+
+    // Guitar preset
+    if (!guitarReady && typeof _tone_0250_LK_AcousticSteel_SF2_file !== 'undefined' && !guitarPreset) {
+      guitarPreset = _tone_0250_LK_AcousticSteel_SF2_file;
+      sfPlayer.adjustPreset(audioCtx, guitarPreset);
+      (function checkGuitar() {
+        if (guitarPreset.zones.every(z => z.buffer)) {
+          guitarReady = true;
+          console.log('Guitar preset ready:', guitarPreset.zones.length, 'zones decoded');
+        } else setTimeout(checkGuitar, 50);
+      })();
+    }
   }
 
   // Detect mobile device (iOS / Android / touch device)
@@ -90,10 +100,13 @@ const ChordAudio = (() => {
   function createAudioContext() {
     try { if (audioCtx) audioCtx.close(); } catch (e) { /* ignore */ }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Reset sampled piano so it re-decodes with the new context
+    // Reset sampled presets so they re-decode with the new context
     pianoReady = false;
-    pianoPlayer = null;
-    initPianoPreset();
+    guitarReady = false;
+    pianoPreset = null;
+    guitarPreset = null;
+    sfPlayer = null;
+    initSampledPresets();
   }
 
   // iOS: resume AudioContext on any user interaction (touch/click)
@@ -137,8 +150,8 @@ const ChordAudio = (() => {
     if (!audioCtx) {
       createAudioContext();
       addGestureResumeListener();
-    } else if (!pianoPlayer) {
-      initPianoPreset();
+    } else if (!sfPlayer) {
+      initSampledPresets();
     }
 
     // iOS interrupted/closed state: cannot resume, must recreate
@@ -169,9 +182,9 @@ const ChordAudio = (() => {
   // =========================================
   function playPianoNote(ctx, dest, freq, now, duration, noteName, octave) {
     // Use sampled piano if available
-    if (pianoReady && pianoPlayer && pianoPreset && noteName != null) {
+    if (pianoReady && sfPlayer && pianoPreset && noteName != null) {
       const midi = noteToMidi(noteName, octave);
-      pianoPlayer.queueWaveTable(ctx, dest, pianoPreset, now, midi, duration, 0.4);
+      sfPlayer.queueWaveTable(ctx, dest, pianoPreset, now, midi, duration, 0.4);
       return;
     }
 
@@ -215,9 +228,18 @@ const ChordAudio = (() => {
   }
 
   // =========================================
-  // Guitar: Steel string pluck → filtered harmonics → medium decay
+  // Guitar: Sampled Acoustic Steel via WebAudioFont (synth fallback while loading)
   // =========================================
-  function playGuitarNote(ctx, dest, freq, now, duration) {
+  function playGuitarNote(ctx, dest, freq, now, duration, noteName, octave) {
+    // Use sampled guitar if available
+    if (guitarReady && sfPlayer && guitarPreset && noteName != null) {
+      const midi = noteToMidi(noteName, octave);
+      sfPlayer.queueWaveTable(ctx, dest, guitarPreset, now, midi, duration, 0.5);
+      return;
+    }
+
+    // Fallback: synthesis while preset is loading
+    (function playGuitarSynth(ctx, dest, freq, now, duration) {
     const gain = ctx.createGain();
     gain.connect(dest);
     // Guitar: sharp pluck, fast initial decay, warm sustain
@@ -290,6 +312,7 @@ const ChordAudio = (() => {
     noise.start(now);
 
     [o1, o2, o3].forEach(o => { o.start(now); o.stop(now + duration); });
+    })(ctx, dest, freq, now, duration);
   }
 
   // =========================================
@@ -387,7 +410,7 @@ const ChordAudio = (() => {
         const noteStart = now + strumDelay;
 
         if (inst === 'guitar') {
-          playGuitarNote(ctx, ctx.destination, freq, noteStart, duration);
+          playGuitarNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else if (inst === 'ukulele') {
           playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
         } else {
@@ -427,7 +450,7 @@ const ChordAudio = (() => {
         const noteStart = now + i * noteDelay;
 
         if (inst === 'guitar') {
-          playGuitarNote(ctx, ctx.destination, freq, noteStart, duration);
+          playGuitarNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         } else if (inst === 'ukulele') {
           playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
         } else {
@@ -469,8 +492,8 @@ const ChordAudio = (() => {
   function stopPlayback() {
     isPlaying = false;
     playbackGen++;
-    if (pianoPlayer && audioCtx) {
-      pianoPlayer.cancelQueue(audioCtx);
+    if (sfPlayer && audioCtx) {
+      sfPlayer.cancelQueue(audioCtx);
     }
   }
   function getIsPlaying() { return isPlaying; }
@@ -481,8 +504,8 @@ const ChordAudio = (() => {
     if (!audioCtx) {
       createAudioContext();
       addGestureResumeListener();
-    } else if (!pianoPlayer) {
-      initPianoPreset();
+    } else if (!sfPlayer) {
+      initSampledPresets();
     }
     document.removeEventListener('pointerdown', preloadPiano, true);
     document.removeEventListener('touchstart', preloadPiano);
