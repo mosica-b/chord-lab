@@ -8,6 +8,42 @@ const ChordAudio = (() => {
   let currentInstrument = 'piano';
   let muteWarningShown = false;
 
+  // WebAudioFont sampled piano (Yamaha CFX)
+  let pianoPlayer = null;
+  let pianoPreset = null;
+  let pianoReady = false;
+
+  const NOTE_SEMITONES = {
+    'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+    'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11,
+  };
+
+  function noteToMidi(noteName, octave) {
+    const normalized = MusicTheory.normalizeNote(noteName);
+    return (octave + 1) * 12 + (NOTE_SEMITONES[normalized] || 0);
+  }
+
+  function initPianoPreset() {
+    if (pianoPlayer || typeof WebAudioFontPlayer === 'undefined') return;
+    if (typeof _tone_0000_JCLive_sf2_file === 'undefined') return;
+
+    pianoPlayer = new WebAudioFontPlayer();
+    pianoPreset = _tone_0000_JCLive_sf2_file;
+    pianoPlayer.adjustPreset(audioCtx, pianoPreset);
+
+    const totalZones = pianoPreset.zones.length;
+    function checkDecoded() {
+      const decoded = pianoPreset.zones.filter(z => z.buffer).length;
+      if (decoded < totalZones) {
+        setTimeout(checkDecoded, 50);
+      } else {
+        pianoReady = true;
+        console.log('Piano preset ready:', totalZones, 'zones decoded');
+      }
+    }
+    checkDecoded();
+  }
+
   // Detect mobile device (iOS / Android / touch device)
   function isMobile() {
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return true;
@@ -54,6 +90,10 @@ const ChordAudio = (() => {
   function createAudioContext() {
     try { if (audioCtx) audioCtx.close(); } catch (e) { /* ignore */ }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Reset sampled piano so it re-decodes with the new context
+    pianoReady = false;
+    pianoPlayer = null;
+    initPianoPreset();
   }
 
   // iOS: resume AudioContext on any user interaction (touch/click)
@@ -97,6 +137,8 @@ const ChordAudio = (() => {
     if (!audioCtx) {
       createAudioContext();
       addGestureResumeListener();
+    } else if (!pianoPlayer) {
+      initPianoPreset();
     }
 
     // iOS interrupted/closed state: cannot resume, must recreate
@@ -123,92 +165,53 @@ const ChordAudio = (() => {
   function getInstrument() { return currentInstrument; }
 
   // =========================================
-  // Piano: FM Synthesis (DX7-style) for realistic piano tone
-  // Carrier + Modulator creates harmonic-rich, bell-like piano timbre
+  // Piano: Sampled Yamaha CFX via WebAudioFont (FM fallback while loading)
   // =========================================
-  function playPianoNote(ctx, dest, freq, now, duration) {
-    // Master output with envelope
+  function playPianoNote(ctx, dest, freq, now, duration, noteName, octave) {
+    // Use sampled piano if available
+    if (pianoReady && pianoPlayer && pianoPreset && noteName != null) {
+      const midi = noteToMidi(noteName, octave);
+      pianoPlayer.queueWaveTable(ctx, dest, pianoPreset, now, midi, duration, 0.4);
+      return;
+    }
+
+    // Fallback: FM synthesis while preset is loading
     const masterGain = ctx.createGain();
     masterGain.connect(dest);
     masterGain.gain.setValueAtTime(0, now);
-    masterGain.gain.linearRampToValueAtTime(0.18, now + 0.005);   // hammer strike
-    masterGain.gain.exponentialRampToValueAtTime(0.10, now + 0.08); // quick initial decay
+    masterGain.gain.linearRampToValueAtTime(0.18, now + 0.005);
+    masterGain.gain.exponentialRampToValueAtTime(0.10, now + 0.08);
     masterGain.gain.exponentialRampToValueAtTime(0.06, now + duration * 0.5);
     masterGain.gain.linearRampToValueAtTime(0.001, now + duration);
 
-    // --- FM Pair 1: main piano tone ---
-    // Modulator (controls brightness/harmonics)
     const mod1 = ctx.createOscillator();
     mod1.type = 'sine';
-    mod1.frequency.value = freq * 2; // ratio 2:1
+    mod1.frequency.value = freq * 2;
     const mod1Gain = ctx.createGain();
-    // Modulation depth decays = brightness fades like real piano
-    mod1Gain.gain.setValueAtTime(freq * 1.5, now);           // bright at hammer strike
-    mod1Gain.gain.exponentialRampToValueAtTime(freq * 0.2, now + 0.15); // fades quickly
+    mod1Gain.gain.setValueAtTime(freq * 1.5, now);
+    mod1Gain.gain.exponentialRampToValueAtTime(freq * 0.2, now + 0.15);
     mod1Gain.gain.exponentialRampToValueAtTime(freq * 0.05, now + duration * 0.5);
     mod1.connect(mod1Gain);
 
-    // Carrier (fundamental tone)
     const car1 = ctx.createOscillator();
     car1.type = 'sine';
     car1.frequency.value = freq;
-    mod1Gain.connect(car1.frequency); // FM connection
+    mod1Gain.connect(car1.frequency);
     const car1Gain = ctx.createGain();
     car1Gain.gain.value = 0.35;
     car1.connect(car1Gain);
     car1Gain.connect(masterGain);
 
-    // --- FM Pair 2: adds upper register shimmer ---
-    const mod2 = ctx.createOscillator();
-    mod2.type = 'sine';
-    mod2.frequency.value = freq * 3;
-    const mod2Gain = ctx.createGain();
-    mod2Gain.gain.setValueAtTime(freq * 0.8, now);
-    mod2Gain.gain.exponentialRampToValueAtTime(freq * 0.02, now + 0.1);
-    mod2.connect(mod2Gain);
-
-    const car2 = ctx.createOscillator();
-    car2.type = 'sine';
-    car2.frequency.value = freq * 2;
-    mod2Gain.connect(car2.frequency);
-    const car2Gain = ctx.createGain();
-    car2Gain.gain.setValueAtTime(0.15, now);
-    car2Gain.gain.exponentialRampToValueAtTime(0.03, now + 0.3);
-    car2.connect(car2Gain);
-    car2Gain.connect(masterGain);
-
-    // --- Hammer noise (percussive attack transient) ---
-    const noiseLen = ctx.sampleRate * 0.02;
-    const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
-    const nd = noiseBuf.getChannelData(0);
-    for (let i = 0; i < noiseLen; i++) {
-      nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noiseLen, 2);
-    }
-    const noiseSrc = ctx.createBufferSource();
-    noiseSrc.buffer = noiseBuf;
-    const noiseFilt = ctx.createBiquadFilter();
-    noiseFilt.type = 'bandpass';
-    noiseFilt.frequency.value = freq * 4;
-    noiseFilt.Q.value = 0.8;
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.12, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-    noiseSrc.connect(noiseFilt);
-    noiseFilt.connect(noiseGain);
-    noiseGain.connect(masterGain);
-    noiseSrc.start(now);
-
-    // --- Subtle string resonance (detuned for warmth) ---
     const res = ctx.createOscillator();
     res.type = 'sine';
-    res.frequency.value = freq * 1.001; // very slight detune
+    res.frequency.value = freq * 1.001;
     const resGain = ctx.createGain();
     resGain.gain.setValueAtTime(0.08, now);
     resGain.gain.exponentialRampToValueAtTime(0.02, now + 0.5);
     res.connect(resGain);
     resGain.connect(masterGain);
 
-    [mod1, car1, mod2, car2, res].forEach(o => { o.start(now); o.stop(now + duration); });
+    [mod1, car1, res].forEach(o => { o.start(now); o.stop(now + duration); });
   }
 
   // =========================================
@@ -388,7 +391,7 @@ const ChordAudio = (() => {
         } else if (inst === 'ukulele') {
           playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
         } else {
-          playPianoNote(ctx, ctx.destination, freq, noteStart, duration);
+          playPianoNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         }
       });
 
@@ -428,7 +431,7 @@ const ChordAudio = (() => {
         } else if (inst === 'ukulele') {
           playUkuleleNote(ctx, ctx.destination, freq, noteStart, duration);
         } else {
-          playPianoNote(ctx, ctx.destination, freq, noteStart, duration);
+          playPianoNote(ctx, ctx.destination, freq, noteStart, duration, note, currentOctave);
         }
       });
 
@@ -463,7 +466,13 @@ const ChordAudio = (() => {
     if (myGen === playbackGen) isPlaying = false;
   }
 
-  function stopPlayback() { isPlaying = false; playbackGen++; }
+  function stopPlayback() {
+    isPlaying = false;
+    playbackGen++;
+    if (pianoPlayer && audioCtx) {
+      pianoPlayer.cancelQueue(audioCtx);
+    }
+  }
   function getIsPlaying() { return isPlaying; }
 
   return {
