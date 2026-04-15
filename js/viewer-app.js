@@ -56,6 +56,13 @@ const ViewerApp = (() => {
     const chordsParam = params.get('chords');
     const typeParam = params.get('type');
 
+    // Embed mode: hide editing/playback chrome so the viewer can be iframe-embedded
+    // as a quick chord-diagram preview in other projects.
+    const embedMode = params.get('embed') === '1';
+    if (embedMode) {
+      document.body.classList.add('embed-mode');
+    }
+
     if (chordsParam) {
       chords = chordsParam.split(',').map(c => c.trim()).filter(Boolean);
     }
