@@ -33,7 +33,10 @@ const Renderers = (() => {
 
     const labelHeight = 14; // Space reserved for chord names above stave
     const staveY = 36 + labelHeight;
-    const totalHeight = staveY + 120;
+    // Extra top room so labels can rise above tall notehead stacks (e.g. B7(b9,b13)
+    // pushes ledger-line notes well above the stave).
+    const extraTopRoom = 24;
+    const totalHeight = staveY + 120 + extraTopRoom;
     const minContentWidth = chords.length * 120 + 80;
     const width = getAvailableWidth(container, minContentWidth);
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
@@ -84,15 +87,22 @@ const Renderers = (() => {
     new VF.Formatter().joinVoices([voice]).format([voice], width - 80);
     voice.draw(context, stave);
 
-    // Draw chord names as fixed SVG text above the stave (not as VexFlow annotations)
+    // Draw chord names as fixed SVG text above the stave (not as VexFlow annotations).
+    // Per-note baseline = min(default position, top of notehead stack - padding) so
+    // that high noteheads (e.g. B7(b9,b13) ledger-line notes) push the label up
+    // instead of overlapping it.
     const svgEl = container.querySelector('svg');
     if (svgEl) {
+      const defaultTextY = staveY - 5;
+      const labelPadding = 8; // gap between top of noteheads and label baseline
       notes.forEach((note, i) => {
         const bbox = note.getBoundingBox();
         const centerX = bbox.getX() + bbox.getW() / 2;
+        const noteTopY = bbox.getY();
+        const textY = Math.min(defaultTextY, noteTopY - labelPadding);
         const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textEl.setAttribute('x', centerX);
-        textEl.setAttribute('y', staveY - 5);
+        textEl.setAttribute('y', textY);
         textEl.setAttribute('text-anchor', 'middle');
         textEl.setAttribute('font-family', 'Arial');
         textEl.setAttribute('font-size', '13');
