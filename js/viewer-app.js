@@ -49,6 +49,27 @@ const ViewerApp = (() => {
   ];
   const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
 
+  // Split a chord-list string on top-level commas only.
+  // Commas inside parens/brackets are part of multi-tension notation
+  // (e.g. D7(#9,b13), G7(b9,#11,13)) and must NOT be treated as separators.
+  function splitChordsRespectingParens(str) {
+    const out = [];
+    let depth = 0;
+    let cur = '';
+    for (const ch of str) {
+      if (ch === '(' || ch === '[') depth++;
+      else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+      else if (ch === ',' && depth === 0) {
+        out.push(cur);
+        cur = '';
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+
   async function init() {
     await ChordDB.load();
 
@@ -77,7 +98,7 @@ const ViewerApp = (() => {
     }
 
     if (chordsParam) {
-      chords = chordsParam.split(',').map(c => c.trim()).filter(Boolean);
+      chords = splitChordsRespectingParens(chordsParam).map(c => c.trim()).filter(Boolean);
     }
     originalChords = chords.slice(); // save original order
 
