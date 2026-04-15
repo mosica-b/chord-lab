@@ -61,6 +61,19 @@ const ViewerApp = (() => {
     const embedMode = params.get('embed') === '1';
     if (embedMode) {
       document.body.classList.add('embed-mode');
+
+      // Notify parent window about content height changes so the iframe can
+      // auto-size to fit (avoids the "force a giant iframe to push floating
+      // buttons offscreen" workaround in the parent project).
+      const sendHeight = () => {
+        const h = document.documentElement.scrollHeight;
+        parent.postMessage({ type: 'chord-viewer-height', height: h }, '*');
+      };
+      const ro = new ResizeObserver(sendHeight);
+      ro.observe(document.body);
+      window.addEventListener('load', sendHeight);
+      // Accordion toggles animate ~300ms — re-measure after they settle.
+      document.addEventListener('click', () => setTimeout(sendHeight, 350), true);
     }
 
     if (chordsParam) {
