@@ -35,7 +35,7 @@ const Renderers = (() => {
     const staveY = 36 + labelHeight;
     // Extra top room so labels can rise above tall notehead stacks (e.g. B7(b9,b13)
     // pushes ledger-line notes well above the stave).
-    const extraTopRoom = 24;
+    const extraTopRoom = 36;
     const totalHeight = staveY + 120 + extraTopRoom;
     const minContentWidth = chords.length * 120 + 80;
     const width = getAvailableWidth(container, minContentWidth);
@@ -88,17 +88,27 @@ const Renderers = (() => {
     voice.draw(context, stave);
 
     // Draw chord names as fixed SVG text above the stave (not as VexFlow annotations).
-    // Per-note baseline = min(default position, top of notehead stack - padding) so
-    // that high noteheads (e.g. B7(b9,b13) ledger-line notes) push the label up
-    // instead of overlapping it.
+    // Per-note baseline = min(default position, real SVG top of the rendered note
+    // group - padding) so that high noteheads + ledger lines (e.g. B7(b9,b13))
+    // push the label up instead of overlapping it. SVG's native getBBox() captures
+    // ledger lines and accidentals which VexFlow's getBoundingBox() can miss.
     const svgEl = container.querySelector('svg');
     if (svgEl) {
       const defaultTextY = staveY - 5;
-      const labelPadding = 8; // gap between top of noteheads and label baseline
+      const labelPadding = 14; // gap between top of notes (incl. ledger lines) and label baseline
+      const noteGroups = svgEl.querySelectorAll('g.vf-stavenote');
       notes.forEach((note, i) => {
-        const bbox = note.getBoundingBox();
-        const centerX = bbox.getX() + bbox.getW() / 2;
-        const noteTopY = bbox.getY();
+        const vfBbox = note.getBoundingBox();
+        const centerX = vfBbox.getX() + vfBbox.getW() / 2;
+        let noteTopY = vfBbox.getY();
+        const groupEl = noteGroups[i];
+        if (groupEl && typeof groupEl.getBBox === 'function') {
+          try {
+            const realBbox = groupEl.getBBox();
+            // Use whichever is higher (smaller Y)
+            noteTopY = Math.min(noteTopY, realBbox.y);
+          } catch (e) { /* getBBox can throw on detached/hidden — fall back to vfBbox */ }
+        }
         const textY = Math.min(defaultTextY, noteTopY - labelPadding);
         const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textEl.setAttribute('x', centerX);
