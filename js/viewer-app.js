@@ -103,8 +103,11 @@ const ViewerApp = (() => {
     originalChords = chords.slice(); // save original order
 
     if (typeParam) {
+      // Convenience aliases: 'guitar' → 'guitar-diagram', 'ukulele' → 'ukulele-diagram'
+      const typeAlias = { guitar: 'guitar-diagram', ukulele: 'ukulele-diagram' };
+      const resolvedType = typeAlias[typeParam] || typeParam;
       const validTypes = TABS.map(t => t.id);
-      if (validTypes.includes(typeParam)) defaultType = typeParam;
+      if (validTypes.includes(resolvedType)) defaultType = resolvedType;
     }
     // Read capo params from URL
     const capoParam = parseInt(params.get('capo'), 10);
