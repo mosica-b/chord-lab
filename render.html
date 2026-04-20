@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chord Render</title>
+<!--
+  Standalone chord-diagram endpoint.
+
+  URL: render.html?chord=<name>&type=<guitar|ukulele>[&voicing=N][&label=0|1][&capo=N][&w=pixels]
+
+  Query params:
+    chord   — chord name (required). URL-encoded. e.g. "C", "Am7", "G%2FB" (G/B).
+    type    — "guitar" (default) or "ukulele".
+    voicing — voicing index, 0-based (default 0). Clamped to available positions.
+    label   — "1" (default) shows chord name text above diagram. "0" hides it.
+    capo    — guitar capo fret (0=off). Currently informational only; the diagram
+              shape is rendered as printed (sounding pitch differs by +N semitones).
+              Reserved for future "fret marker" annotation.
+    w       — target width in px. Height scales proportionally.
+
+  Response:
+    A stripped HTML document whose body contains only the inline <svg>.
+    Designed for cross-origin embedding via <iframe> or <object>.
+
+  Error behavior:
+    If the chord is unknown, renders a placeholder "<chord> / not found" message.
+    Still returns HTTP 200 with valid HTML.
+
+  Implementation note:
+    Reuses the production Renderers.drawGuitarDiagram / drawUkuleleDiagram
+    from js/renderers.js so appearance stays in lock-step with the main viewer.
+    VexFlow must be loaded first because renderers.js captures Vex.Flow at
+    module-init time, even though the chord-diagram functions themselves don't
+    use it.
+-->
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  #root svg { display: block; }
+  .err {
+    color: #888;
+    font-size: 11px;
+    text-align: center;
+    padding: 4px;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Dependencies (same set as viewer.html — renderers.js references Vex.Flow at load) -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@3.0.9/releases/vexflow-min.js"></script>
+<script src="js/music-theory.js"></script>
+<script src="js/chord-db.js"></script>
+<script src="js/renderers.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  function qp(name, def) {
+    const v = new URLSearchParams(location.search).get(name);
+    return (v == null || v === '') ? def : v;
+  }
+
+  const chord   = qp('chord', '');
+  const type    = qp('type', 'guitar').toLowerCase();
+  const voicing = parseInt(qp('voicing', '0'), 10) || 0;
+  const label   = qp('label', '1') !== '0';
+  const capo    = parseInt(qp('capo', '0'), 10) || 0;  // reserved; not rendered yet
+  const w       = parseInt(qp('w', '0'), 10) || 0;
+
+  const root = document.getElementById('root');
+
+  function showError(msg) {
+    root.innerHTML = '<div class="err">' +
+      (chord ? chord.replace(/[<>&]/g, '') + '<br>' : '') +
+      msg + '</div>';
+    document.title = (chord || '?') + ' (' + msg + ')';
+  }
+
+  function scaleSVG(svg, targetWidth) {
+    if (!svg || !targetWidth || targetWidth <= 0) return;
+    const origW = parseFloat(svg.getAttribute('width'));
+    const origH = parseFloat(svg.getAttribute('height'));
+    if (!origW) return;
+    const scale = targetWidth / origW;
+    svg.setAttribute('width', targetWidth);
+    svg.setAttribute('height', Math.round(origH * scale));
+  }
+
+  if (!chord) {
+    showError('no chord');
+    return;
+  }
+
+  const loadPromise = (typeof ChordDB !== 'undefined' && ChordDB.load)
+    ? ChordDB.load()
+    : Promise.resolve();
+
+  loadPromise
+    .catch(function () { /* fall through; getter will return null */ })
+    .then(function () {
+      let positions;
+      try {
+        positions = (type === 'ukulele')
+          ? ChordDB.getUkuleleChord(chord)
+          : ChordDB.getGuitarChord(chord);
+      } catch (e) {
+        positions = null;
+      }
+
+      if (!positions || !positions.length) {
+        showError('not found');
+        return;
+      }
+
+      const idx = Math.min(Math.max(0, voicing), positions.length - 1);
+      const pos = positions[idx];
+      const displayName = label ? chord : '';
+
+      // Delegate to production renderer — appearance matches main viewer 1:1
+      if (type === 'ukulele') {
+        Renderers.drawUkuleleDiagram(root, pos, displayName);
+      } else {
+        Renderers.drawGuitarDiagram(root, pos, displayName);
+      }
+
+      const svg = root.querySelector('svg');
+      if (!svg) {
+        showError('render error');
+        return;
+      }
+
+      if (w > 0) scaleSVG(svg, w);
+
+      document.title = chord + (capo > 0 ? ' (capo ' + capo + ')' : '');
+
+      // Expose natural dims for iframe parents that want to autosize.
+      const dims = {
+        width: parseFloat(svg.getAttribute('width')) || 0,
+        height: parseFloat(svg.getAttribute('height')) || 0,
+      };
+      window.chordDims = dims;
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            kind: 'chord-render',
+            chord: chord,
+            type: type,
+            width: dims.width,
+            height: dims.height,
+          }, '*');
+        }
+      } catch (e) { /* cross-origin postMessage can still fail in rare cases */ }
+    });
+})();
+</script>
+</body>
+</html>
