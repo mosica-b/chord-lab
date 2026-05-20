@@ -17,7 +17,7 @@ In Supabase Dashboard:
 1. Open `Authentication` > `Users`.
 2. Click `Add user`.
 3. Use:
-   - Email: `silverstarca@naver.com`
+   - Email: your admin email
    - Password: your admin password
 4. Make sure the user is confirmed.
 

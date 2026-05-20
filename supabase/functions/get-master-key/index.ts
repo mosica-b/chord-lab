@@ -1,5 +1,5 @@
 const DEFAULT_ALLOWED_ORIGINS = 'https://mosica-b.github.io';
-const DEFAULT_ALLOWED_EMAILS = 'silverstarca@naver.com';
+const DEFAULT_ALLOWED_EMAILS = '';
 
 function splitEnv(value: string | undefined, fallback: string): string[] {
   return (value || fallback)
