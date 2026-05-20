@@ -6,6 +6,7 @@
  *   1. Master key encrypts all app JS (AES-GCM)
  *   2. Password encrypts the master key (PBKDF2 + AES-GCM)
  * Password changes only re-encrypt the master key (stored in localStorage).
+ * The password itself is not persisted after login.
  */
 const Auth = (() => {
   const SESSION_KEY = 'chord_lab_auth';
@@ -88,7 +89,7 @@ const Auth = (() => {
   /* ── Fetch encrypted bundle ── */
   async function fetchBundle() {
     if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=52');
+    const res = await fetch('js/app.encrypted?v=53');
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
     encryptedBundle = await res.json();
     return encryptedBundle;
@@ -163,6 +164,9 @@ const Auth = (() => {
 
   /* ── Init ── */
   function init() {
+    // Clear stale auth markers and any plaintext password from older builds.
+    sessionStorage.removeItem(SESSION_KEY);
+
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -191,7 +195,7 @@ const Auth = (() => {
 
       try {
         await decryptAndLoad(password);
-        sessionStorage.setItem(SESSION_KEY, password); // for session restore
+        sessionStorage.setItem(SESSION_KEY, '1');
         setRateLimit({}); // reset on success
         showApp();
       } catch (err) {
@@ -207,24 +211,6 @@ const Auth = (() => {
         submitBtn.textContent = '로그인';
       }
     });
-
-    // Session restore (already logged in this tab)
-    const savedPw = sessionStorage.getItem(SESSION_KEY);
-    if (savedPw) {
-      // Auto-login silently
-      const overlay = document.createElement('div');
-      overlay.className = 'fixed inset-0 bg-white flex items-center justify-center z-50';
-      overlay.innerHTML = '<p class="text-gray-400 text-sm">로딩 중...</p>';
-      document.body.appendChild(overlay);
-
-      decryptAndLoad(savedPw)
-        .then(() => { overlay.remove(); showApp(); })
-        .catch(() => {
-          overlay.remove();
-          sessionStorage.removeItem(SESSION_KEY);
-          // password changed elsewhere, show login
-        });
-    }
 
     // Logout
     if (logoutBtn) {
@@ -310,8 +296,8 @@ const Auth = (() => {
           };
           localStorage.setItem(MK_OVERRIDE_KEY, JSON.stringify(newMkData));
 
-          // Update session password
-          sessionStorage.setItem(SESSION_KEY, newPw);
+          // Keep admin-only companion pages enabled for this tab.
+          sessionStorage.setItem(SESSION_KEY, '1');
 
           changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
           changePwForm.reset();

@@ -4,8 +4,9 @@ Song & Chord Lab - Build Script
 Encrypts all app JS files into a single encrypted bundle.
 
 Usage:
-  python3 build.py              # uses default password
-  python3 build.py "mypassword" # custom password
+  CHORD_LAB_ADMIN_PASSWORD="mypassword" python3 build.py
+  CHORD_LAB_ADMIN_PASSWORD_FILE=/path/to/password.txt python3 build.py
+  python3 build.py "mypassword"  # supported, but env/file is safer
 
 Two-layer encryption:
   1. Random master key encrypts all JS code (AES-256-GCM)
@@ -38,6 +39,50 @@ PBKDF2_ITERATIONS = 100000
 OUTPUT_FILE = 'js/app.encrypted'
 
 
+def get_password():
+    """Read the admin password from CLI, env, or env-pointed file."""
+    if len(sys.argv) > 2:
+        print('Error: too many arguments', file=sys.stderr)
+        print_usage()
+        sys.exit(2)
+
+    if len(sys.argv) == 2:
+        password = sys.argv[1]
+        source = 'command line'
+    elif os.environ.get('CHORD_LAB_ADMIN_PASSWORD'):
+        password = os.environ['CHORD_LAB_ADMIN_PASSWORD']
+        source = 'CHORD_LAB_ADMIN_PASSWORD'
+    elif os.environ.get('CHORD_LAB_ADMIN_PASSWORD_FILE'):
+        password_file = os.environ['CHORD_LAB_ADMIN_PASSWORD_FILE']
+        try:
+            with open(password_file, 'r', encoding='utf-8') as f:
+                password = f.read().strip('\r\n')
+        except OSError as exc:
+            print(f'Error: could not read password file: {exc}', file=sys.stderr)
+            sys.exit(2)
+        source = 'CHORD_LAB_ADMIN_PASSWORD_FILE'
+    else:
+        print('Error: admin password is required.', file=sys.stderr)
+        print_usage()
+        sys.exit(2)
+
+    if len(password) < 8:
+        print('Error: admin password must be at least 8 characters.', file=sys.stderr)
+        sys.exit(2)
+
+    return password, source
+
+
+def print_usage():
+    print(
+        'Usage:\n'
+        '  CHORD_LAB_ADMIN_PASSWORD="mypassword" python3 build.py\n'
+        '  CHORD_LAB_ADMIN_PASSWORD_FILE=/path/to/password.txt python3 build.py\n'
+        '  python3 build.py "mypassword"  # supported, but env/file is safer',
+        file=sys.stderr,
+    )
+
+
 def encrypt_aes_gcm(key_bytes, plaintext_bytes):
     """Encrypt with AES-256-GCM. Returns (iv, ciphertext+tag)."""
     iv = os.urandom(12)  # 96-bit IV for GCM
@@ -48,7 +93,8 @@ def encrypt_aes_gcm(key_bytes, plaintext_bytes):
 
 def main():
     project_dir = os.path.dirname(os.path.abspath(__file__))
-    password = sys.argv[1] if len(sys.argv) > 1 else 'qerw1212@@'
+    password, password_source = get_password()
+    print(f'Using admin password from {password_source}')
 
     # 1. Read and concatenate all JS files
     code_parts = []
