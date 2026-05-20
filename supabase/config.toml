@@ -1,0 +1,4 @@
+project_id = "uciiyjxknkxgaynbmqki"
+
+[functions.get-master-key]
+verify_jwt = false

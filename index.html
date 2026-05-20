@@ -20,6 +20,12 @@
       <p class="text-sm text-gray-400 text-center mb-6">관리자 로그인</p>
       <form id="loginForm" class="space-y-4">
         <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">아이디</label>
+          <input type="text" id="loginId" required autocomplete="username"
+            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="아이디를 입력하세요">
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">비밀번호</label>
           <input type="password" id="loginPassword" required autocomplete="current-password"
             class="w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -44,7 +50,6 @@
       <div class="flex items-center gap-3">
         <button id="saveToDbBtn" class="text-xs text-white bg-blue-500 px-3 py-1.5 rounded-lg hover:bg-blue-600 transition font-medium">저장</button>
         <button id="loadFromDbBtn" class="text-xs text-white bg-green-500 px-3 py-1.5 rounded-lg hover:bg-green-600 transition font-medium">불러오기</button>
-        <button id="changePwBtn" class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">비밀번호 변경</button>
         <button id="logoutBtn" class="text-xs text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">로그아웃</button>
       </div>
     </div>
@@ -269,37 +274,6 @@
     </div>
   </div>
 
-  <!-- Change Password Modal -->
-  <div id="changePwModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-700">비밀번호 변경</h3>
-        <button id="changePwClose" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-      </div>
-      <form id="changePwForm" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">현재 비밀번호</label>
-          <input type="password" id="currentPassword" required autocomplete="current-password"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">새 비밀번호</label>
-          <input type="password" id="newPassword" required autocomplete="new-password"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="8자 이상">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">새 비밀번호 확인</label>
-          <input type="password" id="confirmPassword" required autocomplete="new-password"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <p id="changePwError" class="text-red-500 text-xs min-h-[1rem]"></p>
-        <p id="changePwSuccess" class="text-green-600 text-xs min-h-[1rem]"></p>
-        <button type="submit" class="w-full bg-blue-500 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-600 transition">비밀번호 변경</button>
-      </form>
-    </div>
-  </div>
-
   <!-- Song Database Load Modal -->
   <div id="dbLoadModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4" style="max-height: 80vh; display: flex; flex-direction: column;">
@@ -329,6 +303,6 @@
   </div>
 
   <!-- Auth: decrypts and loads app JS on login -->
-  <script src="js/auth.js?v=29"></script>
+  <script src="js/auth.js?v=30"></script>
 </body>
 </html>

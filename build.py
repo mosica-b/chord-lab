@@ -4,22 +4,17 @@ Song & Chord Lab - Build Script
 Encrypts all app JS files into a single encrypted bundle.
 
 Usage:
-  CHORD_LAB_ADMIN_PASSWORD="mypassword" python3 build.py
-  CHORD_LAB_ADMIN_PASSWORD_FILE=/path/to/password.txt python3 build.py
-  python3 build.py "mypassword"  # supported, but env/file is safer
+  CHORD_LAB_MASTER_KEY_B64="base64-encoded-32-byte-key" python3 build.py
 
-Two-layer encryption:
-  1. Random master key encrypts all JS code (AES-256-GCM)
-  2. Password encrypts the master key (PBKDF2 + AES-256-GCM)
-
-This allows password changes without re-encrypting the entire app.
+The app bundle is encrypted with a master key stored outside the public site.
+For production, keep CHORD_LAB_MASTER_KEY_B64 in the backend secret store
+(Supabase Edge Function secrets), not in GitHub Pages.
 """
 
 import os
 import sys
 import json
 import base64
-import hashlib
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # JS files to encrypt (order matters - matches script tag order in index.html)
@@ -35,50 +30,39 @@ JS_FILES = [
     'js/app.js',
 ]
 
-PBKDF2_ITERATIONS = 100000
 OUTPUT_FILE = 'js/app.encrypted'
 
 
-def get_password():
-    """Read the admin password from CLI, env, or env-pointed file."""
-    if len(sys.argv) > 2:
+def get_master_key():
+    """Read the AES-256 master key from the environment."""
+    if len(sys.argv) > 1:
         print('Error: too many arguments', file=sys.stderr)
         print_usage()
         sys.exit(2)
 
-    if len(sys.argv) == 2:
-        password = sys.argv[1]
-        source = 'command line'
-    elif os.environ.get('CHORD_LAB_ADMIN_PASSWORD'):
-        password = os.environ['CHORD_LAB_ADMIN_PASSWORD']
-        source = 'CHORD_LAB_ADMIN_PASSWORD'
-    elif os.environ.get('CHORD_LAB_ADMIN_PASSWORD_FILE'):
-        password_file = os.environ['CHORD_LAB_ADMIN_PASSWORD_FILE']
-        try:
-            with open(password_file, 'r', encoding='utf-8') as f:
-                password = f.read().strip('\r\n')
-        except OSError as exc:
-            print(f'Error: could not read password file: {exc}', file=sys.stderr)
-            sys.exit(2)
-        source = 'CHORD_LAB_ADMIN_PASSWORD_FILE'
-    else:
-        print('Error: admin password is required.', file=sys.stderr)
+    key_b64 = os.environ.get('CHORD_LAB_MASTER_KEY_B64')
+    if not key_b64:
+        print('Error: CHORD_LAB_MASTER_KEY_B64 is required.', file=sys.stderr)
         print_usage()
         sys.exit(2)
 
-    if len(password) < 8:
-        print('Error: admin password must be at least 8 characters.', file=sys.stderr)
+    try:
+        key = base64.b64decode(key_b64, validate=True)
+    except ValueError as exc:
+        print(f'Error: CHORD_LAB_MASTER_KEY_B64 is not valid base64: {exc}', file=sys.stderr)
         sys.exit(2)
 
-    return password, source
+    if len(key) != 32:
+        print('Error: CHORD_LAB_MASTER_KEY_B64 must decode to exactly 32 bytes.', file=sys.stderr)
+        sys.exit(2)
+
+    return key
 
 
 def print_usage():
     print(
         'Usage:\n'
-        '  CHORD_LAB_ADMIN_PASSWORD="mypassword" python3 build.py\n'
-        '  CHORD_LAB_ADMIN_PASSWORD_FILE=/path/to/password.txt python3 build.py\n'
-        '  python3 build.py "mypassword"  # supported, but env/file is safer',
+        '  CHORD_LAB_MASTER_KEY_B64="base64-encoded-32-byte-key" python3 build.py',
         file=sys.stderr,
     )
 
@@ -93,8 +77,8 @@ def encrypt_aes_gcm(key_bytes, plaintext_bytes):
 
 def main():
     project_dir = os.path.dirname(os.path.abspath(__file__))
-    password, password_source = get_password()
-    print(f'Using admin password from {password_source}')
+    master_key = get_master_key()
+    print('Using master key from CHORD_LAB_MASTER_KEY_B64')
 
     # 1. Read and concatenate all JS files
     code_parts = []
@@ -109,29 +93,12 @@ def main():
     app_code = '\n'.join(code_parts)
     print(f'Concatenated {len(JS_FILES)} JS files ({len(app_code):,} bytes)')
 
-    # 2. Generate random master key (256-bit)
-    master_key = os.urandom(32)
-
-    # 3. Encrypt app code with master key
+    # 2. Encrypt app code with backend-managed master key
     app_iv, app_encrypted = encrypt_aes_gcm(master_key, app_code.encode('utf-8'))
 
-    # 4. Derive key from password using PBKDF2
-    mk_salt = os.urandom(16)
-    derived_key = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), mk_salt, PBKDF2_ITERATIONS, dklen=32
-    )
-
-    # 5. Encrypt master key with password-derived key
-    mk_iv, mk_encrypted = encrypt_aes_gcm(derived_key, master_key)
-
-    # 6. Build output JSON
+    # 3. Build output JSON
     # Format compatible with Web Crypto API (AES-GCM ciphertext includes 16-byte auth tag)
     result = {
-        'mk': {
-            'salt': base64.b64encode(mk_salt).decode(),
-            'iv': base64.b64encode(mk_iv).decode(),
-            'data': base64.b64encode(mk_encrypted).decode(),
-        },
         'app': {
             'iv': base64.b64encode(app_iv).decode(),
             'data': base64.b64encode(app_encrypted).decode(),

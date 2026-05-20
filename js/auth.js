@@ -1,63 +1,37 @@
 /**
  * Authentication Module
- * AES-256-GCM encrypted app loader with rate limiting.
+ * Supabase Auth + backend-managed AES-256-GCM app loader.
  *
- * Two-layer encryption:
- *   1. Master key encrypts all app JS (AES-GCM)
- *   2. Password encrypts the master key (PBKDF2 + AES-GCM)
- * Password changes only re-encrypt the master key (stored in localStorage).
- * The password itself is not persisted after login.
+ * The public bundle contains only encrypted app code. The raw master key is
+ * stored in Supabase Edge Function secrets and returned only after login.
  */
 const Auth = (() => {
   const SESSION_KEY = 'chord_lab_auth';
-  const MK_OVERRIDE_KEY = 'chord_lab_mk';
-  const PBKDF2_ITERATIONS = 100000;
+  const LEGACY_MK_OVERRIDE_KEY = 'chord_lab_mk';
+  const SUPABASE_URL = 'https://uciiyjxknkxgaynbmqki.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_zHEGT9xPZlgM5zihVIrIFg_K_L5aON2';
+  const MASTER_KEY_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/get-master-key`;
+  const AUTH_TOKEN_URL = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
+  const LOGIN_EMAIL_DOMAIN = 'chord-lab.local';
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_SECONDS = 30;
 
-  let encryptedBundle = null; // cached fetch result
-  let decryptedMasterKey = null; // cached for password change
+  let encryptedBundle = null;
 
-  /* ── Base64 helpers ── */
+  /* -- Base64 helpers -- */
   function b64ToU8(b64) {
     const bin = atob(b64);
     const u8 = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
     return u8;
   }
-  function u8ToB64(u8) {
-    let bin = '';
-    const chunk = 8192;
-    for (let i = 0; i < u8.length; i += chunk) {
-      bin += String.fromCharCode.apply(null, u8.slice(i, i + chunk));
-    }
-    return btoa(bin);
-  }
 
-  /* ── Crypto helpers ── */
-  async function deriveKey(password, salt, usages) {
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
-    );
-    return crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-      keyMaterial,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      usages
-    );
-  }
-
+  /* -- Crypto helpers -- */
   async function aesDecrypt(key, iv, data) {
     return crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
   }
 
-  async function aesEncrypt(key, iv, data) {
-    return crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
-  }
-
-  /* ── Rate limiting ── */
+  /* -- Rate limiting -- */
   function getRateLimit() {
     try {
       return JSON.parse(sessionStorage.getItem('chord_lab_rl') || '{}');
@@ -86,53 +60,91 @@ const Auth = (() => {
     }
   }
 
-  /* ── Fetch encrypted bundle ── */
+  /* -- Supabase helpers -- */
+  function loginIdToEmail(loginId) {
+    const trimmed = loginId.trim().toLowerCase();
+    if (trimmed.includes('@')) return trimmed;
+    return `${trimmed}@${LOGIN_EMAIL_DOMAIN}`;
+  }
+
+  async function signIn(loginId, password) {
+    const res = await fetch(AUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: loginIdToEmail(loginId),
+        password,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    const data = await res.json();
+    if (!data.access_token) {
+      throw new Error('로그인 응답을 확인할 수 없습니다.');
+    }
+    return data.access_token;
+  }
+
+  async function fetchMasterKey(accessToken) {
+    const res = await fetch(MASTER_KEY_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ app: 'song-chord-lab' }),
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('관리자 권한을 확인할 수 없습니다.');
+    }
+    if (!res.ok) {
+      throw new Error('인증 서버에서 키를 가져올 수 없습니다.');
+    }
+
+    const data = await res.json();
+    if (!data.masterKey) {
+      throw new Error('인증 서버 응답이 올바르지 않습니다.');
+    }
+    return b64ToU8(data.masterKey);
+  }
+
+  /* -- Fetch encrypted bundle -- */
   async function fetchBundle() {
     if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=53');
+    const res = await fetch('js/app.encrypted?v=54');
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
     encryptedBundle = await res.json();
+    if (!encryptedBundle.app || encryptedBundle.mk) {
+      throw new Error('암호화 파일 형식이 올바르지 않습니다.');
+    }
     return encryptedBundle;
   }
 
-  /* ── Core: decrypt and load app ── */
-  async function decryptAndLoad(password) {
+  /* -- Core: decrypt and load app -- */
+  async function decryptAndLoad(masterKeyRaw) {
     const bundle = await fetchBundle();
 
-    // Use localStorage override if password was changed, else use file's mk
-    const localMk = localStorage.getItem(MK_OVERRIDE_KEY);
-    const mkData = localMk ? JSON.parse(localMk) : bundle.mk;
-
-    // Derive key from password
-    const pwKey = await deriveKey(password, b64ToU8(mkData.salt), ['decrypt']);
-
-    // Decrypt master key
-    let masterKeyRaw;
-    try {
-      masterKeyRaw = await aesDecrypt(pwKey, b64ToU8(mkData.iv), b64ToU8(mkData.data));
-    } catch {
-      throw new Error('비밀번호가 올바르지 않습니다.');
-    }
-
-    // Cache for password change
-    decryptedMasterKey = new Uint8Array(masterKeyRaw);
-
-    // Import master key
     const masterKey = await crypto.subtle.importKey(
       'raw', masterKeyRaw, { name: 'AES-GCM' }, false, ['decrypt']
     );
 
-    // Decrypt app code
     const appPlain = await aesDecrypt(masterKey, b64ToU8(bundle.app.iv), b64ToU8(bundle.app.data));
     const appCode = new TextDecoder().decode(appPlain);
 
-    // Execute decrypted JS
     const script = document.createElement('script');
     script.textContent = appCode;
     document.body.appendChild(script);
   }
 
-  /* ── UI helpers ── */
+  /* -- UI helpers -- */
   function showApp() {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appContent').classList.remove('hidden');
@@ -140,13 +152,6 @@ const Auth = (() => {
     App.init();
   }
 
-  function showLogin() {
-    document.getElementById('loginSection').classList.remove('hidden');
-    document.getElementById('appContent').classList.add('hidden');
-    document.getElementById('appHeader').classList.add('hidden');
-  }
-
-  /* ── Lockout countdown ── */
   function startCountdown(errorEl, submitBtn) {
     const tick = () => {
       const rl = checkRateLimit();
@@ -162,27 +167,24 @@ const Auth = (() => {
     tick();
   }
 
-  /* ── Init ── */
   function init() {
-    // Clear stale auth markers and any plaintext password from older builds.
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(LEGACY_MK_OVERRIDE_KEY);
 
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
     const logoutBtn = document.getElementById('logoutBtn');
     const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-    // Check if already locked out
     const rl = checkRateLimit();
     if (rl.locked) startCountdown(loginError, submitBtn);
 
-    // Login form submit
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const loginId = document.getElementById('loginId').value;
       const password = document.getElementById('loginPassword').value;
-      if (!password) return;
+      if (!loginId || !password) return;
 
-      // Rate limit check
       const rlCheck = checkRateLimit();
       if (rlCheck.locked) {
         startCountdown(loginError, submitBtn);
@@ -190,13 +192,15 @@ const Auth = (() => {
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = '복호화 중...';
+      submitBtn.textContent = '로그인 중...';
       loginError.textContent = '';
 
       try {
-        await decryptAndLoad(password);
+        const accessToken = await signIn(loginId, password);
+        const masterKeyRaw = await fetchMasterKey(accessToken);
+        await decryptAndLoad(masterKeyRaw);
         sessionStorage.setItem(SESSION_KEY, '1');
-        setRateLimit({}); // reset on success
+        setRateLimit({});
         showApp();
       } catch (err) {
         recordFailedAttempt();
@@ -212,106 +216,14 @@ const Auth = (() => {
       }
     });
 
-    // Logout
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem(SESSION_KEY);
-        decryptedMasterKey = null;
         location.reload();
-      });
-    }
-
-    // ── Change Password ──
-    const changePwBtn = document.getElementById('changePwBtn');
-    const changePwModal = document.getElementById('changePwModal');
-    const changePwForm = document.getElementById('changePwForm');
-    const changePwError = document.getElementById('changePwError');
-    const changePwSuccess = document.getElementById('changePwSuccess');
-    const changePwClose = document.getElementById('changePwClose');
-
-    if (changePwBtn && changePwModal) {
-      changePwBtn.addEventListener('click', () => {
-        changePwModal.classList.remove('hidden');
-        changePwError.textContent = '';
-        changePwSuccess.textContent = '';
-        changePwForm.reset();
-      });
-
-      changePwClose.addEventListener('click', () => {
-        changePwModal.classList.add('hidden');
-      });
-
-      changePwModal.addEventListener('click', (e) => {
-        if (e.target === changePwModal) changePwModal.classList.add('hidden');
-      });
-
-      changePwForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const currentPw = document.getElementById('currentPassword').value;
-        const newPw = document.getElementById('newPassword').value;
-        const confirmPw = document.getElementById('confirmPassword').value;
-        const pwSubmitBtn = changePwForm.querySelector('button[type="submit"]');
-
-        changePwError.textContent = '';
-        changePwSuccess.textContent = '';
-
-        if (newPw.length < 8) {
-          changePwError.textContent = '새 비밀번호는 8자 이상이어야 합니다.';
-          return;
-        }
-        if (newPw !== confirmPw) {
-          changePwError.textContent = '새 비밀번호가 일치하지 않습니다.';
-          return;
-        }
-
-        pwSubmitBtn.disabled = true;
-        pwSubmitBtn.textContent = '변경 중...';
-
-        try {
-          // Verify current password by attempting to decrypt master key
-          const bundle = await fetchBundle();
-          const localMk = localStorage.getItem(MK_OVERRIDE_KEY);
-          const mkData = localMk ? JSON.parse(localMk) : bundle.mk;
-
-          const oldKey = await deriveKey(currentPw, b64ToU8(mkData.salt), ['decrypt']);
-          let mkRaw;
-          try {
-            mkRaw = await aesDecrypt(oldKey, b64ToU8(mkData.iv), b64ToU8(mkData.data));
-          } catch {
-            changePwError.textContent = '현재 비밀번호가 올바르지 않습니다.';
-            return;
-          }
-
-          // Re-encrypt master key with new password
-          const newSalt = crypto.getRandomValues(new Uint8Array(16));
-          const newKey = await deriveKey(newPw, newSalt, ['encrypt']);
-          const newIv = crypto.getRandomValues(new Uint8Array(12));
-          const newMkEncrypted = await aesEncrypt(newKey, newIv, mkRaw);
-
-          // Save to localStorage
-          const newMkData = {
-            salt: u8ToB64(newSalt),
-            iv: u8ToB64(newIv),
-            data: u8ToB64(new Uint8Array(newMkEncrypted)),
-          };
-          localStorage.setItem(MK_OVERRIDE_KEY, JSON.stringify(newMkData));
-
-          // Keep admin-only companion pages enabled for this tab.
-          sessionStorage.setItem(SESSION_KEY, '1');
-
-          changePwSuccess.textContent = '비밀번호가 변경되었습니다.';
-          changePwForm.reset();
-        } catch (err) {
-          changePwError.textContent = '비밀번호 변경에 실패했습니다.';
-        } finally {
-          pwSubmitBtn.disabled = false;
-          pwSubmitBtn.textContent = '비밀번호 변경';
-        }
       });
     }
   }
 
-  // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
