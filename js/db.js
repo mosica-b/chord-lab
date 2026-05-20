@@ -4,7 +4,6 @@
  */
 const SongDB = (() => {
   const API_BASE = 'https://mosica.net/chord-lab-api/index.php';
-  const API_KEY = 'REMOVED_DB_API_KEY';
 
   let currentPage = 1;
   let currentQuery = '';
@@ -49,10 +48,18 @@ const SongDB = (() => {
 
   /* ── API helpers ── */
 
+  function getAccessToken() {
+    const token = window.ChordLabAuth && window.ChordLabAuth.getAccessToken();
+    if (!token) {
+      throw new Error('로그인이 만료되었습니다. 다시 로그인해주세요.');
+    }
+    return token;
+  }
+
   async function apiRequest(url, options = {}) {
     options.headers = {
       'Content-Type': 'application/json',
-      'X-API-Key': API_KEY,
+      Authorization: `Bearer ${getAccessToken()}`,
       ...(options.headers || {}),
     };
     try {

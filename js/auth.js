@@ -16,6 +16,12 @@ const Auth = (() => {
   const LOCKOUT_SECONDS = 30;
 
   let encryptedBundle = null;
+  let currentAccessToken = null;
+
+  window.ChordLabAuth = {
+    getAccessToken: () => currentAccessToken,
+    clear: () => { currentAccessToken = null; },
+  };
 
   /* -- Base64 helpers -- */
   function b64ToU8(b64) {
@@ -116,7 +122,7 @@ const Auth = (() => {
   /* -- Fetch encrypted bundle -- */
   async function fetchBundle() {
     if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=54');
+    const res = await fetch('js/app.encrypted?v=55');
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
     encryptedBundle = await res.json();
     if (!encryptedBundle.app || encryptedBundle.mk) {
@@ -194,12 +200,14 @@ const Auth = (() => {
 
       try {
         const accessToken = await signIn(loginId, password);
+        currentAccessToken = accessToken;
         const masterKeyRaw = await fetchMasterKey(accessToken);
         await decryptAndLoad(masterKeyRaw);
         sessionStorage.setItem(SESSION_KEY, '1');
         setRateLimit({});
         showApp();
       } catch (err) {
+        currentAccessToken = null;
         recordFailedAttempt();
         const rlAfter = checkRateLimit();
         if (rlAfter.locked) {
@@ -215,6 +223,7 @@ const Auth = (() => {
 
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
+        currentAccessToken = null;
         sessionStorage.removeItem(SESSION_KEY);
         location.reload();
       });
