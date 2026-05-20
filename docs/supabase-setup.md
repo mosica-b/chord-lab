@@ -32,13 +32,15 @@ npm install -g supabase
 supabase login
 ```
 
-Set the generated local secret file, then deploy:
+Set the generated local secret file and the Genius token secret, then deploy:
 
 ```bash
 supabase link --project-ref uciiyjxknkxgaynbmqki
 supabase secrets set --env-file /private/tmp/chord-lab-supabase.env --project-ref uciiyjxknkxgaynbmqki
 supabase functions deploy get-master-key --project-ref uciiyjxknkxgaynbmqki
+supabase functions deploy genius-search --project-ref uciiyjxknkxgaynbmqki
 ```
 
-Do not commit `/private/tmp/chord-lab-supabase.env` or paste its values into
-GitHub Pages code.
+The `genius-search` function requires `GENIUS_ACCESS_TOKEN` in Supabase
+secrets. Do not commit `/private/tmp/chord-lab-supabase.env`, the Genius token,
+or any other secret value to GitHub Pages code.

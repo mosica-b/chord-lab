@@ -2,3 +2,6 @@ project_id = "uciiyjxknkxgaynbmqki"
 
 [functions.get-master-key]
 verify_jwt = false
+
+[functions.genius-search]
+verify_jwt = false

@@ -3,6 +3,9 @@
  * Searches iTunes API for album information
  */
 const ITunesSearch = (() => {
+  const SUPABASE_URL = 'https://uciiyjxknkxgaynbmqki.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_zHEGT9xPZlgM5zihVIrIFg_K_L5aON2';
+  const GENIUS_SEARCH_URL = `${SUPABASE_URL}/functions/v1/genius-search`;
 
   /**
    * Extract English name from parenthesized text.
@@ -116,11 +119,6 @@ const ITunesSearch = (() => {
   }
 
   /**
-   * Search Genius for direct lyrics page URL
-   */
-  const GENIUS_TOKEN = 'REMOVED_GENIUS_TOKEN';
-
-  /**
    * Check if a Genius hit is a translation/romanization page (not original lyrics)
    */
   function isTranslationPage(hit) {
@@ -180,6 +178,24 @@ const ITunesSearch = (() => {
     return stripped || null;
   }
 
+  async function searchGeniusApi(query) {
+    const accessToken = window.ChordLabAuth && window.ChordLabAuth.getAccessToken();
+    if (!accessToken) return null;
+
+    const res = await fetch(GENIUS_SEARCH_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!res.ok) return null;
+    return res.json();
+  }
+
   async function searchGeniusLyrics(songName, artist, altSongName, altArtist) {
     if (!songName) return null;
 
@@ -207,28 +223,15 @@ const ITunesSearch = (() => {
     for (const a of artistVariants) addQ(`${a} ${songName}`);
 
     for (const query of queries) {
-      const geniusApiUrl = `https://api.genius.com/search?q=${encodeURIComponent(query)}&access_token=${GENIUS_TOKEN}`;
+      try {
+        const data = await searchGeniusApi(query);
+        const hits = data && data.hits;
+        if (!hits || hits.length === 0) continue;
 
-      const attempts = [
-        () => fetch(geniusApiUrl),
-        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(geniusApiUrl)}`),
-        () => fetch(`https://corsproxy.io/?url=${encodeURIComponent(geniusApiUrl)}`),
-      ];
-
-      for (const attempt of attempts) {
-        try {
-          const res = await attempt();
-          if (!res.ok) continue;
-          const data = await res.json();
-          const hits = data.response && data.response.hits;
-          if (!hits || hits.length === 0) break; // try next query
-
-          const url = pickBestHit(hits, altSongName || songName, artist);
-          if (url) return url;
-          break;
-        } catch (e) {
-          // Try next attempt
-        }
+        const url = pickBestHit(hits, altSongName || songName, artist);
+        if (url) return url;
+      } catch (e) {
+        // Try next query
       }
     }
     console.warn('Genius search failed: all attempts exhausted');
