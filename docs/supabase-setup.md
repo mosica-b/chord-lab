@@ -17,12 +17,11 @@ In Supabase Dashboard:
 1. Open `Authentication` > `Users`.
 2. Click `Add user`.
 3. Use:
-   - Email: `admin@chord-lab.local`
+   - Email: `silverstarca@naver.com`
    - Password: your admin password
 4. Make sure the user is confirmed.
 
-The login screen accepts `admin` as the ID and maps it to
-`admin@chord-lab.local`.
+The login screen uses the Supabase user email as the login ID.
 
 ## Deploy Edge Function
 

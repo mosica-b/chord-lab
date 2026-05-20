@@ -12,7 +12,6 @@ const Auth = (() => {
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_zHEGT9xPZlgM5zihVIrIFg_K_L5aON2';
   const MASTER_KEY_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/get-master-key`;
   const AUTH_TOKEN_URL = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
-  const LOGIN_EMAIL_DOMAIN = 'chord-lab.local';
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_SECONDS = 30;
 
@@ -62,9 +61,7 @@ const Auth = (() => {
 
   /* -- Supabase helpers -- */
   function loginIdToEmail(loginId) {
-    const trimmed = loginId.trim().toLowerCase();
-    if (trimmed.includes('@')) return trimmed;
-    return `${trimmed}@${LOGIN_EMAIL_DOMAIN}`;
+    return loginId.trim().toLowerCase();
   }
 
   async function signIn(loginId, password) {
