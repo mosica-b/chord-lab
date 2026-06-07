@@ -59,6 +59,55 @@ const App = (() => {
   // =========================================
   let autoSearchTimer = null;
   let _autoLyrics = false; // true when lyricsIntro was auto-populated
+  let lyricsIntroLoadingCount = 0;
+
+  function setLyricsIntroLoading(isLoading) {
+    const indicator = document.getElementById('lyricsIntroLoading');
+    const textarea = document.getElementById('lyricsIntro');
+    if (indicator) indicator.classList.toggle('hidden', !isLoading);
+    if (textarea) {
+      textarea.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    }
+  }
+
+  function beginLyricsIntroLoading() {
+    lyricsIntroLoadingCount += 1;
+    setLyricsIntroLoading(true);
+    return () => {
+      lyricsIntroLoadingCount = Math.max(0, lyricsIntroLoadingCount - 1);
+      if (lyricsIntroLoadingCount === 0) setLyricsIntroLoading(false);
+    };
+  }
+
+  function canAutoUpdateLyricsIntro() {
+    return !state.metadata.lyricsIntro || _autoLyrics;
+  }
+
+  function applyAutoLyricsIntro(intro) {
+    if (!intro || !canAutoUpdateLyricsIntro()) return false;
+    state.metadata.lyricsIntro = intro;
+    _autoLyrics = true;
+    const el = document.getElementById('lyricsIntro');
+    if (el) el.value = intro;
+    saveState();
+    updatePreview();
+    return true;
+  }
+
+  function fetchAndApplyLyricsIntro(songName, artist, altSongName, altArtist, fallbackLyrics = '') {
+    if (!canAutoUpdateLyricsIntro()) return;
+    if (!songName) {
+      applyAutoLyricsIntro(fallbackLyrics);
+      return;
+    }
+    const finishLoading = beginLyricsIntroLoading();
+    ITunesSearch.fetchLyricsIntro(songName, artist, altSongName, 2, altArtist).then(intro => {
+      if (applyAutoLyricsIntro(intro)) return;
+      applyAutoLyricsIntro(fallbackLyrics);
+    }).catch(() => {
+      applyAutoLyricsIntro(fallbackLyrics);
+    }).finally(finishLoading);
+  }
 
   function setupMetadataListeners() {
     const fields = ['songName', 'artist', 'albumName', 'lyricsIntro', 'composer', 'lyricist', 'tempo', 'timeSignature', 'songKey', 'originalKey', 'scoreType', 'songVersion'];
@@ -142,16 +191,7 @@ const App = (() => {
       // Only fetch when lyricsIntro is truly empty — never overwrite existing
       // lyrics (from XML, prior fetch, or user input).
       if (!state.metadata.lyricsIntro) {
-        ITunesSearch.fetchLyricsIntro(songName, artist, altSongName, 2, altArtist).then(intro => {
-          if (intro) {
-            state.metadata.lyricsIntro = intro;
-            _autoLyrics = true;
-            const el = document.getElementById('lyricsIntro');
-            if (el) el.value = intro;
-            saveState();
-            updatePreview();
-          }
-        }).catch(() => {});
+        fetchAndApplyLyricsIntro(songName, artist, altSongName, altArtist);
       }
     } catch (e) {
       console.warn('Auto API search failed:', e);
@@ -335,32 +375,7 @@ const App = (() => {
         // Auto-fetch lyrics intro via LRCLIB, fallback to MusicXML lyrics
         const xmlLyrics = result.lyricsIntro || '';
         if (!state.metadata.lyricsIntro || _autoLyrics) {
-          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
-            if (intro) {
-              state.metadata.lyricsIntro = intro;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = intro;
-              saveState();
-              updatePreview();
-            } else if (xmlLyrics) {
-              state.metadata.lyricsIntro = xmlLyrics;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = xmlLyrics;
-              saveState();
-              updatePreview();
-            }
-          }).catch(() => {
-            if (xmlLyrics && (!state.metadata.lyricsIntro || _autoLyrics)) {
-              state.metadata.lyricsIntro = xmlLyrics;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = xmlLyrics;
-              saveState();
-              updatePreview();
-            }
-          });
+          fetchAndApplyLyricsIntro(result.songName, result.artist, altName, altArtistName, xmlLyrics);
         }
       }
     } catch (err) {
@@ -553,32 +568,7 @@ const App = (() => {
         // Auto-fetch lyrics intro via LRCLIB, fallback to MusicXML lyrics
         const xmlLyrics = result.lyricsIntro || '';
         if (!state.metadata.lyricsIntro || _autoLyrics) {
-          ITunesSearch.fetchLyricsIntro(result.songName, result.artist, altName, 2, altArtistName).then(intro => {
-            if (intro) {
-              state.metadata.lyricsIntro = intro;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = intro;
-              saveState();
-              updatePreview();
-            } else if (xmlLyrics) {
-              state.metadata.lyricsIntro = xmlLyrics;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = xmlLyrics;
-              saveState();
-              updatePreview();
-            }
-          }).catch(() => {
-            if (xmlLyrics && (!state.metadata.lyricsIntro || _autoLyrics)) {
-              state.metadata.lyricsIntro = xmlLyrics;
-              _autoLyrics = true;
-              const el = document.getElementById('lyricsIntro');
-              if (el) el.value = xmlLyrics;
-              saveState();
-              updatePreview();
-            }
-          });
+          fetchAndApplyLyricsIntro(result.songName, result.artist, altName, altArtistName, xmlLyrics);
         }
       }
     } catch (err) {
@@ -764,16 +754,7 @@ const App = (() => {
 
           // Auto-fetch lyrics intro via LRCLIB
           if (!state.metadata.lyricsIntro || _autoLyrics) {
-            ITunesSearch.fetchLyricsIntro(songName, artist, altName, 2, altArtistName2).then(intro => {
-              if (intro) {
-                state.metadata.lyricsIntro = intro;
-                _autoLyrics = true;
-                const el = document.getElementById('lyricsIntro');
-                if (el) el.value = intro;
-                saveState();
-                updatePreview();
-              }
-            }).catch(() => {});
+            fetchAndApplyLyricsIntro(songName, artist, altName, altArtistName2);
           }
 
           if (!album || !album.albumName) {

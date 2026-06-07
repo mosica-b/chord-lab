@@ -122,7 +122,7 @@ const Auth = (() => {
   /* -- Fetch encrypted bundle -- */
   async function fetchBundle() {
     if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=56');
+    const res = await fetch('js/app.encrypted?v=57');
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
     encryptedBundle = await res.json();
     if (!encryptedBundle.app || encryptedBundle.mk) {
@@ -145,9 +145,39 @@ const Auth = (() => {
     const script = document.createElement('script');
     script.textContent = appCode;
     document.body.appendChild(script);
+    installLyricsIntroLoadingIndicator();
   }
 
   /* -- UI helpers -- */
+  function installLyricsIntroLoadingIndicator() {
+    if (typeof ITunesSearch === 'undefined' || typeof ITunesSearch.fetchLyricsIntro !== 'function') return;
+    if (ITunesSearch.fetchLyricsIntro._showsLyricsIntroLoading) return;
+
+    const originalFetchLyricsIntro = ITunesSearch.fetchLyricsIntro;
+    let pendingFetches = 0;
+
+    const setLoading = (isLoading) => {
+      const indicator = document.getElementById('lyricsIntroLoading');
+      const textarea = document.getElementById('lyricsIntro');
+      if (indicator) indicator.classList.toggle('hidden', !isLoading);
+      if (textarea) {
+        textarea.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+      }
+    };
+
+    ITunesSearch.fetchLyricsIntro = async (...args) => {
+      pendingFetches += 1;
+      setLoading(true);
+      try {
+        return await originalFetchLyricsIntro.apply(ITunesSearch, args);
+      } finally {
+        pendingFetches = Math.max(0, pendingFetches - 1);
+        if (pendingFetches === 0) setLoading(false);
+      }
+    };
+    ITunesSearch.fetchLyricsIntro._showsLyricsIntroLoading = true;
+  }
+
   function showApp() {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appContent').classList.remove('hidden');

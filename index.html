@@ -93,7 +93,13 @@
           </div>
         </div>
         <div class="col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">가사 도입부</label>
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1">
+            <span>가사 도입부</span>
+            <span id="lyricsIntroLoading" class="hidden inline-flex items-center gap-1 text-[11px] font-medium text-blue-600" aria-live="polite">
+              <span class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+              불러오는 중...
+            </span>
+          </label>
           <textarea id="lyricsIntro" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="가사 도입부를 입력하세요 (예: 첫 소절)"></textarea>
         </div>
         <div>
@@ -303,6 +309,6 @@
   </div>
 
   <!-- Auth: decrypts and loads app JS on login -->
-  <script src="js/auth.js?v=34"></script>
+  <script src="js/auth.js?v=36"></script>
 </body>
 </html>
