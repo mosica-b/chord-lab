@@ -140,18 +140,22 @@ const ViewerApp = (() => {
     const topBody = document.getElementById('topAccordionBody');
     const topToggle = document.getElementById('topAccordionToggle');
     const topHint = document.getElementById('topAccordionHint');
-    if (!embedMode && topBody && chords.length > 0) {
-      topBody.classList.add('open');
-      if (topToggle) topToggle.classList.add('open');
-      if (topHint) topHint.textContent = '접기';
-
-      // Auto-collapse after 1s, then start attention animation
-      setTimeout(() => {
-        topBody.classList.remove('open');
-        if (topToggle) topToggle.classList.remove('open');
-        if (topHint) topHint.textContent = '열기';
+    if (topBody && chords.length > 0) {
+      if (embedMode) {
         startNotationAttention();
-      }, 1000);
+      } else {
+        topBody.classList.add('open');
+        if (topToggle) topToggle.classList.add('open');
+        if (topHint) topHint.textContent = '접기';
+
+        // Auto-collapse after 1s, then start attention animation
+        setTimeout(() => {
+          topBody.classList.remove('open');
+          if (topToggle) topToggle.classList.remove('open');
+          if (topHint) topHint.textContent = '열기';
+          startNotationAttention();
+        }, 1000);
+      }
     }
   }
 
