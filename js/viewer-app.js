@@ -134,11 +134,13 @@ const ViewerApp = (() => {
     setupVoicingModal();
     render();
 
-    // Open accordion by default on initial load, then auto-collapse after 1s
+    // Open accordion by default on normal viewer loads, then auto-collapse after 1s.
+    // Embed consumers size the iframe from content height, so avoid the initial
+    // expand/collapse cycle there.
     const topBody = document.getElementById('topAccordionBody');
     const topToggle = document.getElementById('topAccordionToggle');
     const topHint = document.getElementById('topAccordionHint');
-    if (topBody && chords.length > 0) {
+    if (!embedMode && topBody && chords.length > 0) {
       topBody.classList.add('open');
       if (topToggle) topToggle.classList.add('open');
       if (topHint) topHint.textContent = '접기';
