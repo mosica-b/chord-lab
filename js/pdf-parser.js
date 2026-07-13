@@ -210,13 +210,14 @@ const SibeliusPDFParser = (() => {
         meta.key = keyMatch[1].replace(/\s+/g, '').trim();
       }
 
-      // Tempo: "q = 120" or "♩ = 120" (first occurrence only for meta)
+      // Tempo: "q = 120", "q. = 120", "♩ = 120", or "♩. = 120"
+      // (first occurrence only for meta)
       // Use full line text to avoid split digits (e.g. "q = 17" + "4" → "174")
       if (!meta.tempo && /[q♩]/.test(s)) {
         const lineText = getLineText(item.y).replace(/(\d)\s+(?=\d)/g, '$1');
-        const tempoMatch = lineText.match(/[q♩]\s*=\s*(\d+)/);
+        const tempoMatch = lineText.match(/[q♩]\s*(\.)?\s*=\s*(\d+)/);
         if (tempoMatch) {
-          meta.tempo = '♩=' + tempoMatch[1];
+          meta.tempo = '♩' + (tempoMatch[1] || '') + '=' + tempoMatch[2];
         }
       }
     }
@@ -307,6 +308,10 @@ const SibeliusPDFParser = (() => {
     return { korean: titleCandidate, english: '' };
   }
 
+  function formatTempoLabel(bpm, dotted) {
+    return '♩' + (dotted ? '.' : '') + '=' + bpm;
+  }
+
   // Extract tempo markings from all pages, detecting changes (e.g. "♩=80 → ♩=160")
   function extractTempo(allItems, chordFontRefs) {
     const tempoItems = [];
@@ -328,10 +333,11 @@ const SibeliusPDFParser = (() => {
       // Use lookahead (?=\d) so consecutive splits like "1 7 4" → "174" all merge
       const rawText = items.map(i => i.str).join(' ');
       const lineText = rawText.replace(/(\d)\s+(?=\d)/g, '$1');
-      const m = lineText.match(/[q♩]\s*=\s*(\d+)/);
+      const m = lineText.match(/[q♩]\s*(\.)?\s*=\s*(\d+)/);
       if (m) {
         tempoItems.push({
-          bpm: m[1],
+          bpm: m[2],
+          dotted: Boolean(m[1]),
           page: items[0].page,
           x: items[0].x,
           y: items[0].y,
@@ -348,10 +354,10 @@ const SibeliusPDFParser = (() => {
       return a.x - b.x;
     });
 
-    // Deduplicate consecutive same BPM values
-    const unique = ['♩=' + tempoItems[0].bpm];
+    // Deduplicate consecutive same tempo markings
+    const unique = [formatTempoLabel(tempoItems[0].bpm, tempoItems[0].dotted)];
     for (let i = 1; i < tempoItems.length; i++) {
-      const label = '♩=' + tempoItems[i].bpm;
+      const label = formatTempoLabel(tempoItems[i].bpm, tempoItems[i].dotted);
       if (label !== unique[unique.length - 1]) {
         unique.push(label);
       }

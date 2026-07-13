@@ -698,7 +698,8 @@ const MusicXMLParser = (() => {
         const bpm = perMin.textContent.trim();
         const unit = beatUnit ? beatUnit.textContent.trim() : 'quarter';
         const symbol = BEAT_UNIT_SYMBOL[unit] || '♩';
-        const label = `${symbol}=${bpm}`;
+        const dots = m.querySelectorAll('beat-unit-dot').length;
+        const label = `${symbol}${'.'.repeat(dots)}=${bpm}`;
         // Deduplicate consecutive same tempo (allow back-and-forth changes)
         if (tempos.length === 0 || tempos[tempos.length - 1] !== label) {
           tempos.push(label);

@@ -16,6 +16,7 @@ const Auth = (() => {
   const LOCKOUT_SECONDS = 30;
 
   let encryptedBundle = null;
+  let legacyEncryptedBundle = null;
   let currentAccessToken = null;
 
   window.ChordLabAuth = {
@@ -120,26 +121,40 @@ const Auth = (() => {
   }
 
   /* -- Fetch encrypted bundle -- */
-  async function fetchBundle() {
-    if (encryptedBundle) return encryptedBundle;
-    const res = await fetch('js/app.encrypted?v=57');
+  async function fetchBundle(url, useLegacyCache = false) {
+    const cached = useLegacyCache ? legacyEncryptedBundle : encryptedBundle;
+    if (cached) return cached;
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error('암호화 파일을 불러올 수 없습니다.');
-    encryptedBundle = await res.json();
-    if (!encryptedBundle.app || encryptedBundle.mk) {
+    const bundle = await res.json();
+    if (!bundle.app || bundle.mk) {
       throw new Error('암호화 파일 형식이 올바르지 않습니다.');
     }
-    return encryptedBundle;
+    if (useLegacyCache) legacyEncryptedBundle = bundle;
+    else encryptedBundle = bundle;
+    return bundle;
   }
 
   /* -- Core: decrypt and load app -- */
   async function decryptAndLoad(masterKeyRaw) {
-    const bundle = await fetchBundle();
-
     const masterKey = await crypto.subtle.importKey(
       'raw', masterKeyRaw, { name: 'AES-GCM' }, false, ['decrypt']
     );
 
-    const appPlain = await aesDecrypt(masterKey, b64ToU8(bundle.app.iv), b64ToU8(bundle.app.data));
+    let appPlain;
+    try {
+      const bundle = await fetchBundle('js/app.encrypted?v=58');
+      appPlain = await aesDecrypt(masterKey, b64ToU8(bundle.app.iv), b64ToU8(bundle.app.data));
+    } catch (_) {
+      // During master-key rotation, existing sessions can still load the previous bundle.
+      try {
+        const legacyBundle = await fetchBundle('js/app.legacy.encrypted?v=1', true);
+        appPlain = await aesDecrypt(masterKey, b64ToU8(legacyBundle.app.iv), b64ToU8(legacyBundle.app.data));
+      } catch (_) {
+        throw new Error('현재 키로 앱을 복호화할 수 없습니다.');
+      }
+    }
     const appCode = new TextDecoder().decode(appPlain);
 
     const script = document.createElement('script');
