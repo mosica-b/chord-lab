@@ -141,22 +141,52 @@ const Export = (() => {
    */
   function extractBPM(tempoStr) {
     if (!tempoStr) return null;
-    const matches = tempoStr.match(/(\d+)/g);
+    const matches = tempoStr.match(/\d+(?:\.\d+)?/g);
     if (!matches) return null;
-    return parseInt(matches[matches.length - 1]);
+    return Math.round(parseFloat(matches[matches.length - 1]));
+  }
+
+  const TEMPO_NOTE_DENOMINATORS = {
+    '𝅝': 1,
+    '𝅗𝅥': 2,
+    '♩': 4,
+    '♪': 8,
+  };
+
+  /**
+   * Convert the last explicit tempo marking to the time-signature denominator.
+   * Example: dotted quarter=43 in 6/8 becomes eighth=129.
+   */
+  function metronomeBPM(tempoStr, beatType) {
+    const fallbackBpm = extractBPM(tempoStr);
+    if (!fallbackBpm || !beatType) return fallbackBpm;
+
+    const tempoPattern = /(𝅗𝅥|𝅝|♩|♪)\s*(\.*)\s*=\s*(\d+(?:\.\d+)?)/g;
+    let match;
+    let lastMatch = null;
+    while ((match = tempoPattern.exec(tempoStr)) !== null) lastMatch = match;
+    if (!lastMatch) return fallbackBpm;
+
+    const sourceBeatType = TEMPO_NOTE_DENOMINATORS[lastMatch[1]];
+    const sourceBpm = parseFloat(lastMatch[3]);
+    if (!sourceBeatType || !Number.isFinite(sourceBpm)) return fallbackBpm;
+
+    const dotCount = lastMatch[2].length;
+    const dotMultiplier = dotCount > 0 ? 2 - (1 / (2 ** dotCount)) : 1;
+    const converted = sourceBpm * (beatType / sourceBeatType) * dotMultiplier;
+    return Number.isFinite(converted) && converted > 0 ? Math.round(converted) : fallbackBpm;
   }
 
   /**
    * Build metronome link URL from tempo string and optional time signature.
    */
   function metronomeLinkUrl(tempoStr, timeSig) {
-    const bpm = extractBPM(tempoStr);
+    const timeMatch = timeSig ? timeSig.match(/^(\d+)\s*\/\s*(\d+)$/) : null;
+    const beatType = timeMatch ? parseInt(timeMatch[2], 10) : null;
+    const bpm = metronomeBPM(tempoStr, beatType);
     if (!bpm) return null;
     let url = `https://mosica-b.github.io/chord-lab/metronome.html?bpm=${bpm}`;
-    if (timeSig) {
-      const m = timeSig.match(/^(\d+)\s*\/\s*\d+$/);
-      if (m) url += `&beats=${m[1]}`;
-    }
+    if (timeMatch) url += `&beats=${timeMatch[1]}`;
     return url;
   }
 
