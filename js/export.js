@@ -88,14 +88,21 @@ const Export = (() => {
    * Compute the sounding key from play key + capo fret.
    * e.g., "D" + 8 → "Bb", "Am" + 8 → "Fm"
    */
-  function computeCapoKey(playKey, capoFret) {
+  function computeCapoKey(playKey, capoFret, useFlats) {
     if (!playKey || !capoFret) return '';
     // Strip (Maj)/(Min) labels for clean transposition
     let k = playKey.replace(/\s*\(Maj\)|\s*\(Min\)/gi, '').replace(/\s*\[.*?\]/g, '').trim();
     // For modulation keys, use first key
     if (k.includes('→')) k = k.split('→')[0].trim();
-    const transposed = MusicTheory.transposeChord(k, capoFret);
+    const transposed = MusicTheory.transposeChord(k, capoFret, useFlats);
     return transposed;
+  }
+
+  /** Transpose a capo shape to its sounding chord using the song's key spelling. */
+  function transposeCapoSound(chordName, capoFret, metadata) {
+    const spellingKey = stripKeyLabel((metadata && (metadata.originalKey || metadata.key)) || '');
+    const useFlats = spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
+    return MusicTheory.transposeChord(chordName, capoFret, useFlats);
   }
 
   /**
@@ -123,7 +130,9 @@ const Export = (() => {
     const hasCapo = capoPosition > 0;
 
     if (hasCapo) {
-      const capoResult = computeCapoKey(playKey, capoPosition);
+      const spellingKey = stripKeyLabel(originalKey || playKey);
+      const useFlats = spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
+      const capoResult = computeCapoKey(playKey, capoPosition, useFlats);
       const capoLabel = formatKeyLabel(capoResult);
       let display = `Play: ${playLabel} (Capo ${capoPosition} = ${capoLabel})`;
       if (origLabel) display += ` / Original Key: ${origLabel}`;
@@ -455,7 +464,7 @@ const Export = (() => {
             const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoApplies ? capoParam : ''}`;
             let label = esc(c);
             if (capoApplies && capoPosition > 0) {
-              const sound = MusicTheory.transposeChord(c, capoPosition);
+              const sound = transposeCapoSound(c, capoPosition, metadata);
               label += `<span style="color:#92400e;font-size:11px;font-weight:400;">(${esc(sound)})</span>`;
             }
             return `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:600;" target="_blank">${label}</a>`;
@@ -626,7 +635,7 @@ const Export = (() => {
             tdName.appendChild(chordLink);
             // 카포 적용 시 실음 표시
             if (capoForTable > 0) {
-              const soundName = MusicTheory.transposeChord(name, capoForTable);
+              const soundName = transposeCapoSound(name, capoForTable, metadata);
               const soundSpan = document.createElement('span');
               soundSpan.style.cssText = 'font-size:11px;color:#92400e;display:block;';
               soundSpan.textContent = `(실음: ${soundName})`;
@@ -727,7 +736,7 @@ const Export = (() => {
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
       const thCapo = document.createElement('th');
-      thCapo.textContent = '카포';
+      thCapo.textContent = '구분';
       headerRow.appendChild(thCapo);
       chords.forEach(name => {
         const th = document.createElement('th');
@@ -743,7 +752,7 @@ const Export = (() => {
         const entry = capoTable[pos];
         const row = document.createElement('tr');
         const tdCapo = document.createElement('td');
-        tdCapo.textContent = pos === 0 ? '원래 코드' : `카포 ${pos}프렛`;
+        tdCapo.textContent = pos === 0 ? '연주 폼' : `카포 ${pos}프렛 실음`;
         tdCapo.style.fontWeight = '600';
         row.appendChild(tdCapo);
 
@@ -1004,7 +1013,7 @@ const Export = (() => {
             const url = `${viewerBase}?chords=${encodeURIComponent(c)}&type=${defaultType}${capoApplies ? capoParam : ''}`;
             let label = `<b>${esc(c)}</b>`;
             if (capoApplies && capoPosition > 0) {
-              const sound = MusicTheory.transposeChord(c, capoPosition);
+              const sound = transposeCapoSound(c, capoPosition, metadata);
               label += `<font color="#92400e" size="1">(${esc(sound)})</font>`;
             }
             return `<a href="${url}">${label}</a>`;
@@ -1115,7 +1124,7 @@ const Export = (() => {
             }
             chordCell += `<b><a href="${chordUrl}">${esc(name)} ▶</a></b>`;
             if (capoForTable > 0) {
-              const soundName = MusicTheory.transposeChord(name, capoForTable);
+              const soundName = transposeCapoSound(name, capoForTable, metadata);
               chordCell += `<br><font color="#92400e" size="1">(실음: ${esc(soundName)})</font>`;
             }
             if (dualKey) {
@@ -1180,7 +1189,7 @@ const Export = (() => {
     // Capo table
     if (capoPosition > 0 && chords.length > 0) {
       html += `<blockquote style="margin:0;"><font size="3"><b>카포 변환표</b></font></blockquote><table width="100%" border="1" bordercolor="#999999" cellpadding="10" cellspacing="0" style="margin:0;">`;
-      html += `<tr><td align="center" bgcolor="#f0f0f0"><b>카포</b></td>`;
+      html += `<tr><td align="center" bgcolor="#f0f0f0"><b>구분</b></td>`;
       chords.forEach(name => {
         html += `<td align="center" bgcolor="#f0f0f0"><b>${esc(name)}</b></td>`;
       });
@@ -1192,7 +1201,7 @@ const Export = (() => {
         const isCurrent = pos === capoPosition;
         const cellBg = isCurrent ? '#eef4ff' : '#ffffff';
         html += `<tr>`;
-        html += `<td align="center" bgcolor="${cellBg}"><b>${pos === 0 ? '원래 코드' : `카포 ${pos}프렛`}</b></td>`;
+        html += `<td align="center" bgcolor="${cellBg}"><b>${pos === 0 ? '연주 폼' : `카포 ${pos}프렛 실음`}</b></td>`;
         entry.chords.forEach(chord => {
           html += `<td align="center" bgcolor="${cellBg}">${isCurrent ? `<b><font color="#2563eb">${esc(chord)}</font></b>` : esc(chord)}</td>`;
         });
@@ -1318,7 +1327,7 @@ const Export = (() => {
               const roman = info ? `(${info.roman})` : '';
               let chordLabel = `${name} ${roman}`.trim();
               if (capoPosition > 0) {
-                const soundName = MusicTheory.transposeChord(name, capoPosition);
+                const soundName = transposeCapoSound(name, capoPosition, metadata);
                 chordLabel += ` → ${soundName}`;
               }
               t += chordLabel.padEnd(22) + `${notesStr}\n`;
@@ -1378,8 +1387,8 @@ const Export = (() => {
       text += `\n카포 변환표\n`;
       text += `${'─'.repeat(30)}\n`;
       const capoTable = MusicTheory.generateCapoTable(chords);
-      text += `원래 코드    ${capoTable[0].chords.join('  ')}\n`;
-      text += `카포 ${capoPosition}프렛    ${capoTable[capoPosition].chords.join('  ')}\n`;
+      text += `연주 폼    ${capoTable[0].chords.join('  ')}\n`;
+      text += `카포 ${capoPosition}프렛 실음    ${capoTable[capoPosition].chords.join('  ')}\n`;
     }
 
     if (metadata.songName || metadata.artist) {

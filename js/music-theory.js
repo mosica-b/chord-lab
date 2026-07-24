@@ -536,8 +536,8 @@ const MusicTheory = (() => {
 
   /**
    * Generate capo transposition table
-   * chords: array of chord names
-   * Returns: array of { capo, chords: [] } for capo positions 0-12
+   * chords: array of fingered chord-shape names
+   * Returns: array of { capo, chords: [] } sounding at capo positions 0-12
    */
   function generateCapoTable(chords) {
     // Derive playing key reference from first chord's root

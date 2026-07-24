@@ -202,6 +202,31 @@ const App = (() => {
   // MusicXML / PDF Upload
   // =========================================
 
+  /**
+   * MusicXML harmony symbols describe concert (sounding) chords.  The rest of
+   * the app, including the viewer and blog exporter, keeps capo scores as
+   * fingered chord shapes and derives sounding chords by adding the capo.
+   * Normalize the imported score at that boundary.
+   */
+  function normalizeMusicXmlCapoResult(result) {
+    const capo = Math.min(12, Math.max(0, parseInt(result.capo, 10) || 0));
+    if (!capo || typeof MusicTheory === 'undefined') return result;
+
+    const transposeKey = key => String(key || '').trim()
+      .split(/\s*→\s*/)
+      .map(part => MusicTheory.transposeChord(part, -capo))
+      .join(' → ');
+
+    // Some guitar scores provide only an "Original … key" annotation. In
+    // that case it is the sounding key, so derive the missing play-form key.
+    const soundingKey = result.key || result.originalKey || '';
+    return {
+      ...result,
+      key: transposeKey(soundingKey),
+      chords: (result.chords || []).map(chord => MusicTheory.transposeChord(chord, -capo)),
+    };
+  }
+
   /** Show/hide "다른 악보 추가" button based on whether song has metadata */
   function updateAddVariantBtn() {
     const btn = document.getElementById('addVariantBtn');
@@ -248,12 +273,17 @@ const App = (() => {
       if (typeof SongDB !== 'undefined') {
         let savedCount = 0;
         for (const p of parsed) {
-          const r = p.result;
+          const r = normalizeMusicXmlCapoResult(p.result);
           // Use current state metadata (filled from first file) but override scoreType + chords
           const saveState = {
-            metadata: { ...state.metadata, scoreType: r.scoreType || '' },
+            metadata: {
+              ...state.metadata,
+              key: r.key || state.metadata.key,
+              originalKey: r.originalKey || state.metadata.originalKey,
+              scoreType: r.scoreType || '',
+            },
             selectedChords: r.chords || [],
-            capoPosition: state.capoPosition,
+            capoPosition: r.capo || 0,
           };
           try {
             await SongDB.saveSong(saveState);
@@ -484,7 +514,7 @@ const App = (() => {
       if (btn) { btn.textContent = '불러오는 중...'; btn.disabled = true; }
 
       const text = await file.text();
-      const result = MusicXMLParser.parse(text, file.name);
+      const result = normalizeMusicXmlCapoResult(MusicXMLParser.parse(text, file.name));
 
       // Fill metadata
       if (result.songName) { state.metadata.songName = result.songName; document.getElementById('songName').value = result.songName; }
@@ -1196,7 +1226,7 @@ const App = (() => {
     const headerRow = document.createElement('tr');
     const thCapo = document.createElement('th');
     thCapo.className = 'bg-gray-50 border px-3 py-2 text-center font-semibold';
-    thCapo.textContent = '카포';
+    thCapo.textContent = '구분';
     headerRow.appendChild(thCapo);
 
     state.selectedChords.forEach(name => {
@@ -1215,7 +1245,7 @@ const App = (() => {
 
       const tdCapo = document.createElement('td');
       tdCapo.className = `border px-3 py-2 text-center font-semibold ${isSelected ? 'bg-blue-50 text-blue-700' : ''}`;
-      tdCapo.textContent = capo === 0 ? '원래 코드' : `${capo}프렛`;
+      tdCapo.textContent = capo === 0 ? '연주 폼' : `카포 ${capo}프렛 실음`;
       row.appendChild(tdCapo);
 
       transposed.forEach(chord => {
