@@ -1217,7 +1217,9 @@ const App = (() => {
     section.classList.remove('hidden');
     container.innerHTML = '';
 
-    const capoTable = MusicTheory.generateCapoTable(state.selectedChords);
+    const spellingKey = state.metadata.originalKey || state.metadata.key;
+    const useFlats = spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
+    const capoTable = MusicTheory.generateCapoTable(state.selectedChords, useFlats);
 
     const table = document.createElement('table');
     table.className = 'w-full text-sm border-collapse';

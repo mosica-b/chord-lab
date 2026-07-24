@@ -75,13 +75,19 @@ const Export = (() => {
   /**
    * Transpose a list of chord names from Play key to Original key.
    */
-  function transposeChordsToOriginal(chords, metadata) {
-    if (!hasDualKeyVersion(metadata)) return null;
+  function transposeChordToOriginal(chord, metadata) {
+    if (!hasDualKeyVersion(metadata)) return chord;
     const playRoot = keyRootSemitone(metadata.key);
     const origRoot = keyRootSemitone(metadata.originalKey);
-    if (playRoot == null || origRoot == null) return null;
+    if (playRoot == null || origRoot == null) return chord;
+
     const diff = (origRoot - playRoot + 120) % 12;
-    return chords.map(c => MusicTheory.transposeChord(c, diff));
+    return MusicTheory.transposeChord(chord, diff, getKeySpellingPreference(metadata));
+  }
+
+  function transposeChordsToOriginal(chords, metadata) {
+    if (!hasDualKeyVersion(metadata)) return null;
+    return chords.map(chord => transposeChordToOriginal(chord, metadata));
   }
 
   /**
@@ -98,11 +104,14 @@ const Export = (() => {
     return transposed;
   }
 
+  function getKeySpellingPreference(metadata) {
+    const spellingKey = stripKeyLabel((metadata && (metadata.originalKey || metadata.key)) || '');
+    return spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
+  }
+
   /** Transpose a capo shape to its sounding chord using the song's key spelling. */
   function transposeCapoSound(chordName, capoFret, metadata) {
-    const spellingKey = stripKeyLabel((metadata && (metadata.originalKey || metadata.key)) || '');
-    const useFlats = spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
-    return MusicTheory.transposeChord(chordName, capoFret, useFlats);
+    return MusicTheory.transposeChord(chordName, capoFret, getKeySpellingPreference(metadata));
   }
 
   /**
@@ -130,8 +139,7 @@ const Export = (() => {
     const hasCapo = capoPosition > 0;
 
     if (hasCapo) {
-      const spellingKey = stripKeyLabel(originalKey || playKey);
-      const useFlats = spellingKey ? MusicTheory.keyPrefersFlats(spellingKey) : undefined;
+      const useFlats = getKeySpellingPreference({ key: playKey, originalKey });
       const capoResult = computeCapoKey(playKey, capoPosition, useFlats);
       const capoLabel = formatKeyLabel(capoResult);
       let display = `Play: ${playLabel} (Capo ${capoPosition} = ${capoLabel})`;
@@ -568,9 +576,6 @@ const Export = (() => {
         const keyLabelText = opts.keyLabelText || (formatKeyDisplay(metadata, capoPosition) || (metadata.key + ' Key'));
         // Dual-key: per-row transposition to original key
         const dualKey = hasDualKeyVersion(metadata);
-        const playRoot = dualKey ? keyRootSemitone(metadata.key) : null;
-        const origRoot = dualKey ? keyRootSemitone(metadata.originalKey) : null;
-        const dualDiff = dualKey ? ((origRoot - playRoot + 120) % 12) : 0;
         const origKeyLabelInline = dualKey ? formatKeyLabel(metadata.originalKey) : '';
         const section = document.createElement('div');
         section.style.marginBottom = '20px';
@@ -643,7 +648,7 @@ const Export = (() => {
             }
             // Dual-key: 원키 버전 병기 (클릭 가능한 링크)
             if (dualKey) {
-              const origName = MusicTheory.transposeChord(name, dualDiff);
+              const origName = transposeChordToOriginal(name, metadata);
               const origSpan = document.createElement('span');
               origSpan.style.cssText = 'font-size:11px;color:#6b21a8;display:block;';
               const origLink = document.createElement('a');
@@ -680,7 +685,7 @@ const Export = (() => {
             tdNotes.innerHTML = ext.length > 0 ? `${fmtTriad}, ${fmtExt}` : fmtTriad;
             // Dual-key: 원키 기준 구성음 병기
             if (dualKey) {
-              const origName = MusicTheory.transposeChord(name, dualDiff);
+              const origName = transposeChordToOriginal(name, metadata);
               const oNotes = MusicTheory.getChordNotesDisplay(origName);
               const oDeg = MusicTheory.getChordDegreeLabels(origName);
               const oTriad = oNotes.slice(0, 3).map((n, i) => `<b>${esc(fmt(n))}</b><span style="color:#999;font-size:${isCompact ? '10' : '11'}px;">(${esc(oDeg[i] || '')})</span>`).join(', ');
@@ -747,7 +752,7 @@ const Export = (() => {
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, getKeySpellingPreference(metadata));
       [0, capoPosition].forEach(pos => {
         const entry = capoTable[pos];
         const row = document.createElement('tr');
@@ -1088,9 +1093,6 @@ const Export = (() => {
         const capoForTable = capoApplies ? capoPosition : 0;
         const capoParamForTable = capoApplies ? capoParam : '';
         const dualKey = hasDualKeyVersion(metadata);
-        const playRootN = dualKey ? keyRootSemitone(metadata.key) : null;
-        const origRootN = dualKey ? keyRootSemitone(metadata.originalKey) : null;
-        const dualDiffN = dualKey ? ((origRootN - playRootN + 120) % 12) : 0;
         let t = '';
         const pad = isCompact ? '6' : '10';
         const sz = isCompact ? '2' : null;
@@ -1128,7 +1130,7 @@ const Export = (() => {
               chordCell += `<br><font color="#92400e" size="1">(실음: ${esc(soundName)})</font>`;
             }
             if (dualKey) {
-              const origName = MusicTheory.transposeChord(name, dualDiffN);
+              const origName = transposeChordToOriginal(name, metadata);
               const origUrl = `${viewerBase}?chords=${encodeURIComponent(origName)}&type=${defaultType}`;
               chordCell += `<br><a href="${origUrl}"><font color="#6b21a8" size="1">(원키: ${esc(origName)} ▶)</font></a>`;
             }
@@ -1146,7 +1148,7 @@ const Export = (() => {
             }).join(', ');
             let notesCell = fmtNotes;
             if (dualKey) {
-              const origName = MusicTheory.transposeChord(name, dualDiffN);
+              const origName = transposeChordToOriginal(name, metadata);
               const oN = MusicTheory.getChordNotesDisplay(origName);
               const oD = MusicTheory.getChordDegreeLabels(origName);
               const oFmt = oN.map((n, ni) => {
@@ -1195,7 +1197,7 @@ const Export = (() => {
       });
       html += `</tr>`;
 
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, getKeySpellingPreference(metadata));
       [0, capoPosition].forEach(pos => {
         const entry = capoTable[pos];
         const isCurrent = pos === capoPosition;
@@ -1290,10 +1292,6 @@ const Export = (() => {
     });
 
     const plainDualKey = chords.length > 0 && hasDualKeyVersion(metadata);
-    const plainDualDiff = plainDualKey
-      ? (((keyRootSemitone(metadata.originalKey) - keyRootSemitone(metadata.key)) + 120) % 12)
-      : 0;
-
     // 사용 코드 (triads only, with advanced note)
     if (chords.length > 0) {
       const ptBasic = chords.filter(c => isPrimaryChord(c, metadata.key));
@@ -1303,7 +1301,7 @@ const Export = (() => {
         if (ptAdv.length > 0) text += ` ... +심화 코드 ${ptAdv.length}개`;
         text += '\n';
         if (plainDualKey) {
-          const origUsed = ptBasic.map(c => MusicTheory.transposeChord(c, plainDualDiff));
+          const origUsed = ptBasic.map(chord => transposeChordToOriginal(chord, metadata));
           text += `           (원키 ${formatKeyLabel(metadata.originalKey)}): ${origUsed.join(', ')}\n`;
         }
         text += `저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼\n`;
@@ -1335,7 +1333,7 @@ const Export = (() => {
               t += `${name.padEnd(16)}${notesStr}\n`;
             }
             if (plainDualKey) {
-              const origName = MusicTheory.transposeChord(name, plainDualDiff);
+              const origName = transposeChordToOriginal(name, metadata);
               const oN = MusicTheory.getChordNotesDisplay(origName);
               const oD = MusicTheory.getChordDegreeLabels(origName);
               const oStr = oN.map((n, i) => `${MusicTheory.formatNoteDisplay(n)}(${oD[i] || ''})`).join(', ');
@@ -1386,7 +1384,7 @@ const Export = (() => {
     if (capoPosition > 0 && chords.length > 0) {
       text += `\n카포 변환표\n`;
       text += `${'─'.repeat(30)}\n`;
-      const capoTable = MusicTheory.generateCapoTable(chords);
+      const capoTable = MusicTheory.generateCapoTable(chords, getKeySpellingPreference(metadata));
       text += `연주 폼    ${capoTable[0].chords.join('  ')}\n`;
       text += `카포 ${capoPosition}프렛 실음    ${capoTable[capoPosition].chords.join('  ')}\n`;
     }

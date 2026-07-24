@@ -17,13 +17,15 @@ const MusicTheory = (() => {
   const FLAT_KEY_INDICES = new Set([1, 3, 5, 8, 10]);
 
   /**
-   * Determine if a key prefers flat notation based on circle of fifths.
-   * For minor keys, uses relative major (root + 3 semitones).
+   * Determine if a key prefers flat notation. Explicit #/b spelling wins;
+   * natural roots fall back to the circle of fifths.
    */
   function keyPrefersFlats(keyName) {
     if (!keyName) return false;
     const parsed = parseChordName(keyName);
     if (!parsed) return false;
+    if (parsed.root.includes('#')) return false;
+    if (parsed.root.includes('b')) return true;
     const rootIdx = noteIndex(parsed.root);
     if (rootIdx < 0) return false;
     const isMinor = (parsed.suffix || '').toLowerCase() === 'm' || (parsed.suffix || '').toLowerCase() === 'minor';
@@ -537,9 +539,10 @@ const MusicTheory = (() => {
   /**
    * Generate capo transposition table
    * chords: array of fingered chord-shape names
+   * useFlats: optional explicit spelling preference for the score key
    * Returns: array of { capo, chords: [] } sounding at capo positions 0-12
    */
-  function generateCapoTable(chords) {
+  function generateCapoTable(chords, useFlats) {
     // Derive playing key reference from first chord's root
     // (metadata.key may be sounding key, which would give wrong results if re-transposed)
     const firstParsed = chords.length > 0 ? parseChordName(chords[0]) : null;
@@ -548,15 +551,15 @@ const MusicTheory = (() => {
 
     const table = [];
     for (let capo = 0; capo <= 12; capo++) {
-      let useFlats;
-      if (refRootIdx >= 0) {
+      let capoUseFlats = useFlats;
+      if (capoUseFlats === undefined && refRootIdx >= 0) {
         const transposedIdx = (refRootIdx + capo) % 12;
         const majorIdx = refIsMinor ? (transposedIdx + 3) % 12 : transposedIdx;
-        useFlats = FLAT_KEY_INDICES.has(majorIdx);
+        capoUseFlats = FLAT_KEY_INDICES.has(majorIdx);
       }
       table.push({
         capo,
-        chords: chords.map(chord => transposeChord(chord, capo, useFlats))
+        chords: chords.map(chord => transposeChord(chord, capo, capoUseFlats))
       });
     }
     return table;
