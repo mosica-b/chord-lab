@@ -144,7 +144,7 @@ const Auth = (() => {
 
     let appPlain;
     try {
-      const bundle = await fetchBundle('js/app.encrypted?v=59');
+      const bundle = await fetchBundle('js/app.encrypted?v=60');
       appPlain = await aesDecrypt(masterKey, b64ToU8(bundle.app.iv), b64ToU8(bundle.app.data));
     } catch (_) {
       // During master-key rotation, existing sessions can still load the previous bundle.
