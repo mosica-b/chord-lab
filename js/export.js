@@ -207,6 +207,24 @@ const Export = (() => {
     return url;
   }
 
+  /** Normalize section metadata restored from current or older saved state. */
+  function normalizeSongSections(songSections) {
+    const values = Array.isArray(songSections)
+      ? songSections
+      : (typeof songSections === 'string' ? songSections.split(/\s*(?:→|,|\n)\s*/) : []);
+    return values.map(value => String(value).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  }
+
+  /** Format an ordered song form for the preview or Naver-compatible HTML. */
+  function formatSongSectionsHtml(songSections, naver = false) {
+    const sections = normalizeSongSections(songSections);
+    if (sections.length === 0) return '';
+    const arrow = naver
+      ? `&nbsp;<font color="#999999">→</font>&nbsp;`
+      : `&nbsp;<span style="color:#999;">→</span>&nbsp;`;
+    return sections.map(section => esc(section)).join(arrow);
+  }
+
   /** Replace {아티스트}, {곡명} shortcodes with actual values */
   function resolveShortcodes(html, metadata) {
     return html
@@ -462,8 +480,9 @@ const Export = (() => {
 
       // Info rows
       const allTableRows = [...infoRows];
+      let usedChordsRow = null;
 
-      // 사용 코드 row (after 키/카포) — includes derived triads from advanced chords
+      // Prepare the used-chords row; it is inserted after lyrics + song form below.
       if (chords.length > 0) {
         const origChords = transposeChordsToOriginal(chords, metadata);
         function buildUsedChordsHtml(srcChords, keyForSplit, capoApplies) {
@@ -491,13 +510,15 @@ const Export = (() => {
             `<span style="color:#666;font-size:11px;">[Play Key: ${esc(formatKeyLabel(metadata.key))}]</span><br>${playHtml}` +
             `<br><span style="color:#666;font-size:11px;margin-top:4px;display:inline-block;">[Original Key: ${esc(formatKeyLabel(metadata.originalKey))}]</span><br>${origHtml}` +
             `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>`;
-          allTableRows.push({ label: '사용 코드', valueHtml: combined });
+          usedChordsRow = { label: '사용 코드', valueHtml: combined };
         } else {
-          allTableRows.push({ label: '사용 코드', valueHtml: playHtml + `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>` });
+          usedChordsRow = { label: '사용 코드', valueHtml: playHtml + `<br><span style="color:#999;font-size:11px;">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</span>` };
         }
       }
 
       // 가사 row (lyrics intro + full lyrics link)
+      let lyricsRow = null;
+      let musicRow = null;
       if (metadata.songName || metadata.artist) {
         const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
         const query = encodeURIComponent(q);
@@ -518,10 +539,16 @@ const Export = (() => {
         } else {
           lyricsHtml += `▶ <a href="${googleLyricsUrl}" target="_blank" style="color:#8B2252;text-decoration:none;">가사 검색하기</a> 🌙`;
         }
-        allTableRows.push({ label: '가사', valueHtml: lyricsHtml });
+        lyricsRow = { label: '가사', valueHtml: lyricsHtml };
 
-        allTableRows.push({ label: '음원', valueHtml: `<a href="https://www.youtube.com/results?search_query=${query}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` });
+        musicRow = { label: '음원', valueHtml: `<a href="https://www.youtube.com/results?search_query=${query}" target="_blank" style="color:#2563eb;text-decoration:none;">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}" target="_blank" style="color:#2563eb;text-decoration:none;">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}" target="_blank" style="color:#2563eb;text-decoration:none;">Apple Music</a>` };
       }
+
+      if (lyricsRow) allTableRows.push(lyricsRow);
+      const songSectionsHtml = formatSongSectionsHtml(metadata.songSections);
+      if (songSectionsHtml) allTableRows.push({ label: '곡 구성', valueHtml: songSectionsHtml });
+      if (usedChordsRow) allTableRows.push(usedChordsRow);
+      if (musicRow) allTableRows.push(musicRow);
 
       allTableRows.forEach((row, i) => {
         const tr = document.createElement('tr');
@@ -1008,8 +1035,9 @@ const Export = (() => {
     if (infoRows.length > 0 || chords.length > 0) {
       // Build extra rows for the info table
       const extraRows = [];
+      let usedChordsRow = null;
 
-      // 사용 코드 row — includes derived triads from advanced chords
+      // Prepare the used-chords row; it is inserted after lyrics + song form below.
       if (chords.length > 0) {
         const origChordsN = transposeChordsToOriginal(chords, metadata);
         function naverUsedChords(srcChords, keyForSplit, capoApplies) {
@@ -1041,13 +1069,15 @@ const Export = (() => {
           chordsValue = playVal;
         }
         chordsValue += `<br><font color="#999999" size="1">저작권 보호를 위해 코드 진행은 생략했습니다. 음원 청취나 악보 구매를 권장드려요! 🎼</font>`;
-        extraRows.push({ label: '사용 코드', value: chordsValue });
+        usedChordsRow = { label: '사용 코드', value: chordsValue };
       }
 
       // 가사 row (lyrics intro + full lyrics link)
       const q = `${metadata.artist || ''} ${metadata.songName || ''}`.trim();
       const query = encodeURIComponent(q);
       const lyricsQuery = encodeURIComponent(`${q} 가사`);
+      let lyricsRow = null;
+      let musicRow = null;
       if (metadata.songName || metadata.artist) {
         const googleLyricsUrl2 = `https://www.google.com/search?q=${lyricsQuery}`;
         const appleMusicLink = metadata.appleMusicUrl ? esc(metadata.appleMusicUrl) : `https://music.apple.com/search?term=${query}`;
@@ -1065,10 +1095,16 @@ const Export = (() => {
         } else {
           lyricsValue += `▶ <a href="${googleLyricsUrl2}" style="color:#8B2252 !important;text-decoration:none !important;"><font color="#8B2252">가사 검색하기</font></a> 🌙`;
         }
-        extraRows.push({ label: '가사', value: lyricsValue });
+        lyricsRow = { label: '가사', value: lyricsValue };
 
-        extraRows.push({ label: '음원', value: `<a href="https://www.youtube.com/results?search_query=${query}">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` });
+        musicRow = { label: '음원', value: `<a href="https://www.youtube.com/results?search_query=${query}">YouTube</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://open.spotify.com/search/${query}">Spotify</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="${appleMusicLink}">Apple Music</a>` };
       }
+
+      if (lyricsRow) extraRows.push(lyricsRow);
+      const songSectionsHtml = formatSongSectionsHtml(metadata.songSections, true);
+      if (songSectionsHtml) extraRows.push({ label: '곡 구성', value: songSectionsHtml });
+      if (usedChordsRow) extraRows.push(usedChordsRow);
+      if (musicRow) extraRows.push(musicRow);
 
       html += `<table width="100%" border="1" bordercolor="#999999" cellpadding="8" cellspacing="0" style="margin:0;">`;
       const allRows = [...infoRows.map(r => ({ label: r.label, value: r.valueHtml || esc(r.value) })), ...extraRows];

@@ -416,10 +416,72 @@ const MusicXMLParser = (() => {
   }
 
   /**
+   * Return true when text looks like a semantic song-section label.
+   * Boxed <words> are also accepted by parseSongSections so custom labels such
+   * as "A" and "B" are not lost.
+   */
+  function isSongSectionLabel(text) {
+    const label = (text || '').replace(/\s+/g, ' ').trim();
+    if (!label) return false;
+
+    const englishSection = /^(?:(?:\d+(?:st|nd|rd|th)\s+)?(?:intro(?:duction)?|verse|pre[\s-]?chorus|chorus|refrain|hook|post[\s-]?chorus|interlude|bridge|breakdown|instrumental|solo|outro|ending|tag|vamp|turnaround|coda))(?:\s*(?:\d+|[A-Z]))?$/i;
+    const koreanSection = /^(?:전주|도입|인트로|벌스|\d+절|프리[\s-]?코러스|후렴|후렴구|코러스|간주|브리지|브릿지|브레이크다운|연주|솔로|아웃트로|후주|엔딩|코다)(?:\s*\d+)?$/i;
+    return englishSection.test(label) || koreanSection.test(label);
+  }
+
+  /**
+   * Extract the ordered song form from MusicXML direction markings.
+   * Supports standard <rehearsal> elements and Sibelius-style boxed <words>.
+   * When multiple parts repeat the same markings, use the most complete part
+   * rather than concatenating duplicate section lists.
+   * @param {Document} doc - Parsed XML document
+   * @returns {string[]} Ordered section labels, including later repetitions
+   */
+  function parseSongSections(doc) {
+    const parts = Array.from(doc.querySelectorAll('score-partwise > part, part'));
+    const containers = parts.length > 0 ? parts : [doc];
+    let bestSections = [];
+
+    for (const container of containers) {
+      const sections = [];
+      const measures = container.querySelectorAll('measure');
+
+      for (const measure of measures) {
+        const seenInMeasure = new Set();
+        const markers = measure.querySelectorAll('direction-type > rehearsal, direction-type > words');
+
+        for (const marker of markers) {
+          const label = (marker.textContent || '').replace(/\s+/g, ' ').trim();
+          if (!label || seenInMeasure.has(label)) continue;
+
+          const tagName = (marker.localName || marker.tagName || '').toLowerCase();
+          const enclosure = (marker.getAttribute('enclosure') || '').toLowerCase();
+          const isRehearsal = tagName === 'rehearsal';
+          const isBoxedWords = tagName === 'words' && enclosure && enclosure !== 'none';
+
+          // Key/tempo/navigation directions are metadata, not song-form labels.
+          const isNonSectionDirection = /\bkey\b/i.test(label)
+            || /^(?:D\.?\s*[SC]\.?(?:\s|$)|To\s+Coda\b|Fine\b|Segno\b)/i.test(label)
+            || /^[q♩]\.?\s*=\s*\d+/i.test(label);
+
+          if (!isNonSectionDirection && (isRehearsal || isBoxedWords || isSongSectionLabel(label))) {
+            sections.push(label);
+            seenInMeasure.add(label);
+          }
+        }
+      }
+
+      if (sections.length > bestSections.length) bestSections = sections;
+    }
+
+    return bestSections;
+  }
+
+  /**
    * Parse a MusicXML string and extract metadata + chords + score type
    * @param {string} xmlString - Raw XML content
    * @param {string} [fileName] - Original filename (for EPG/EPB detection)
-   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords, scoreType, lyricsIntro }
+   * @returns {Object} { songName, artist, composer, lyricist, key, timeSignature, tempo, chords, scoreType, lyricsIntro, songSections }
    */
   function parse(xmlString, fileName) {
     const parser = new DOMParser();
@@ -443,6 +505,7 @@ const MusicXMLParser = (() => {
       chords: parseChords(doc),
       scoreType: parseScoreType(doc, fileName || ''),
       lyricsIntro: parseLyricsIntro(doc),
+      songSections: parseSongSections(doc),
     };
   }
 

@@ -17,6 +17,7 @@ const App = (() => {
       originalKey: '',
       scoreType: '',
       version: '',
+      songSections: [],
     },
     selectedChords: [],
     capoPosition: 0,
@@ -331,6 +332,7 @@ const App = (() => {
       if (result.lyricist) { state.metadata.lyricist = result.lyricist; document.getElementById('lyricist').value = result.lyricist; }
       if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
       if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
+      state.metadata.songSections = [];
       if (result.key) {
         state.metadata.key = result.key;
         const keySelect = document.getElementById('songKey');
@@ -524,6 +526,7 @@ const App = (() => {
       if (result.tempo) { state.metadata.tempo = result.tempo; document.getElementById('tempo').value = result.tempo; }
       if (result.timeSignature) { state.metadata.timeSignature = result.timeSignature; document.getElementById('timeSignature').value = result.timeSignature; }
       if (result.scoreType) { state.metadata.scoreType = result.scoreType; const stEl = document.getElementById('scoreType'); if (stEl) stEl.value = result.scoreType; }
+      state.metadata.songSections = Array.isArray(result.songSections) ? result.songSections : [];
       if (result.key) {
         state.metadata.key = result.key;
         const keySelect = document.getElementById('songKey');
@@ -707,6 +710,7 @@ const App = (() => {
         }
         state.metadata.scoreType = '';
         state.metadata.version = '';
+        state.metadata.songSections = [];
         const stEl = document.getElementById('scoreType');
         if (stEl) { stEl.value = ''; stEl.focus(); }
         const verEl = document.getElementById('songVersion');
@@ -728,7 +732,7 @@ const App = (() => {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         // Clear metadata
-        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', originalKey: '', scoreType: '', version: '', geniusUrl: '', appleMusicUrl: '' };
+        state.metadata = { songName: '', artist: '', albumName: '', lyricsIntro: '', composer: '', lyricist: '', tempo: '', timeSignature: '', key: '', originalKey: '', scoreType: '', version: '', songSections: [], geniusUrl: '', appleMusicUrl: '' };
         _autoLyrics = false;
         _editingFromDB = false;
         if (typeof SongDB !== 'undefined') SongDB.setEditingId(null);
@@ -1373,6 +1377,7 @@ const App = (() => {
   function loadFromDB(songData, editing = false) {
     _editingFromDB = editing;
     Object.assign(state.metadata, songData.metadata);
+    state.metadata.songSections = Array.isArray(songData.metadata.songSections) ? songData.metadata.songSections : [];
     state.selectedChords = songData.selectedChords || [];
     state.capoPosition = songData.capoPosition || 0;
 
