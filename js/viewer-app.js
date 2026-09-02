@@ -759,7 +759,7 @@ const ViewerApp = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
+      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
       'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
       'sus2': '서스 2', 'sus4': '서스 4',
       '6': '메이저 6', 'm6': '마이너 6',
@@ -1121,7 +1121,7 @@ const ViewerApp = (() => {
     const parsed = MusicTheory.parseChordName(chordName);
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
+      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
       'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
       'sus2': '서스 2', 'sus4': '서스 4',
       '6': '메이저 6', 'm6': '마이너 6',

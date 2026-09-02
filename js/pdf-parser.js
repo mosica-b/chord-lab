@@ -26,6 +26,7 @@ const SibeliusPDFParser = (() => {
     '7', 'dom7',
     'm7', 'min7', '-7',
     'maj7', 'M7',
+    'mMaj7', 'mmaj7', 'mM7', 'minMaj7', 'minmaj7',
     'dim7', 'o7',
     'm7b5',
     'sus2', 'sus4', 'sus',

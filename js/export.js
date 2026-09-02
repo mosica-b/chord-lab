@@ -581,7 +581,7 @@ const Export = (() => {
     if (chords.length > 0) {
       const typeNames = {
         'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-        '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
+        '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
         'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
         'sus2': '서스 2', 'sus4': '서스 4',
         '6': '메이저 6', 'm6': '마이너 6',
@@ -1004,7 +1004,7 @@ const Export = (() => {
       : (isUkuleleScore ? (_isTabScore ? 'ukulele-tab' : 'ukulele-diagram') : (_isTabScore ? 'guitar-tab' : 'guitar-diagram'));
     const typeNames = {
       'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7',
+      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
       'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
       'sus2': '서스 2', 'sus4': '서스 4',
       '6': '메이저 6', 'm6': '마이너 6',
@@ -1471,7 +1471,7 @@ const Export = (() => {
     const suffix = parsed.suffix === 'major' ? '' : (parsed.suffix || '');
     const intervalKey = MusicTheory.SUFFIX_MAP[suffix] || MusicTheory.SUFFIX_MAP[suffix.toLowerCase()] || 'major';
 
-    const minorQualities = new Set(['minor', 'm7', 'm6', 'dim', 'dim7', 'm7b5', 'm9']);
+    const minorQualities = new Set(['minor', 'm7', 'mMaj7', 'm6', 'dim', 'dim7', 'm7b5', 'm9']);
     const isMinor = minorQualities.has(intervalKey);
 
     const romanUpper = ['I','♭II','II','♭III','III','IV','♯IV','V','♭VI','VI','♭VII','VII'];
@@ -1484,7 +1484,7 @@ const Export = (() => {
     else if (intervalKey === 'aug' || intervalKey === 'aug7') roman += '+';
 
     const extMap = {
-      '7': '7', 'm7': '7', 'maj7': 'M7', 'dim7': '7', 'm7b5': '7',
+      '7': '7', 'm7': '7', 'maj7': 'M7', 'mMaj7': 'M7', 'dim7': '7', 'm7b5': '7',
       '6': '6', 'm6': '6', '9': '9', 'm9': '9', 'maj9': 'M9',
       'add9': 'add9', '7sus4': '7sus4', '11': '11', '13': '13',
       'aug7': '7', 'sus2': 'sus2', 'sus4': 'sus4', '5': '5',
@@ -1533,7 +1533,7 @@ const Export = (() => {
     if (!intervalKey) return null;
     // Map extended chord types → triad suffix
     const triadMap = {
-      '7': '', 'm7': 'm', 'maj7': '', 'dim7': 'dim', 'm7b5': 'dim',
+      '7': '', 'm7': 'm', 'maj7': '', 'mMaj7': 'm', 'dim7': 'dim', 'm7b5': 'dim',
       '9': '', 'm9': 'm', 'maj9': '',
       '11': '', '13': '',
       '6': '', 'm6': 'm',
