@@ -125,7 +125,7 @@ const ChordDB = (() => {
         'A#': 'Bb', 'Bb': 'Bb',
         'B': 'B',
       };
-      return ukeKeyMap[key] || key;
+      return ukeKeyMap[key] || ukeKeyMap[MusicTheory.normalizeNote(key)] || key;
     }
     const keyMap = {
       'C': 'C',
@@ -141,7 +141,7 @@ const ChordDB = (() => {
       'A#': 'Bb', 'Bb': 'Bb',
       'B': 'B',
     };
-    return keyMap[key] || key;
+    return keyMap[key] || keyMap[MusicTheory.normalizeNote(key)] || key;
   }
 
   // =========================================
@@ -167,7 +167,7 @@ const ChordDB = (() => {
       'A#': 'Bb', 'Bb': 'Bb',
       'B': 'B',
     };
-    return map[root] || root;
+    return map[root] || map[MusicTheory.normalizeNote(root)] || root;
   }
 
   /**
@@ -306,14 +306,16 @@ const ChordDB = (() => {
   function getLowestNoteSemitone(position, tuning) {
     const frets = position.frets;
     const baseFret = position.baseFret || 1;
+    let lowest = Infinity;
     for (let i = 0; i < frets.length; i++) {
       if (frets[i] >= 0) {
-        const actualFret = frets[i] === 0 ? 0 : frets[i] + (baseFret - 1);
+        const fret = Number(frets[i]);
+        const actualFret = fret === 0 ? 0 : fret + (baseFret - 1);
         const noteInfo = MusicTheory.fretToNote(tuning, i, actualFret);
-        if (noteInfo) return MusicTheory.noteIndex(noteInfo.note);
+        if (noteInfo) lowest = Math.min(lowest, noteInfo.octave * 12 + MusicTheory.noteIndex(noteInfo.note));
       }
     }
-    return -1;
+    return lowest === Infinity ? -1 : lowest % 12;
   }
 
   /**
@@ -335,18 +337,12 @@ const ChordDB = (() => {
       }
     }
 
-    if (matching.length > 0) {
-      return [...matching, ...others];
-    }
-
-    for (const pos of positions) {
+    const generated = [];
+    for (const pos of others) {
       const modified = createSlashVoicing(pos, bassTarget, tuning);
-      if (modified) {
-        return [modified, ...positions];
-      }
+      if (modified) generated.push(modified);
     }
-
-    return positions;
+    return [...matching, ...generated];
   }
 
   function toAbsoluteFrets(frets, baseFret) {
@@ -400,12 +396,13 @@ const ChordDB = (() => {
 
         if (isPlayable(newAbs, 3)) {
           const rel = toRelativeFrets(newAbs);
-          return {
+          const candidate = {
             frets: rel.frets,
             baseFret: rel.baseFret,
             barres: [],
             fingers: [],
           };
+          if (getLowestNoteSemitone(candidate, tuning) === bassTarget) return candidate;
         }
       }
     }
@@ -448,118 +445,150 @@ const ChordDB = (() => {
     return chord ? chord.positions : null;
   }
 
-  /**
-   * Get guitar chord voicings.
-   * Priority:
-   *   1. jguitar direct lookup (full suffix with degreeMods, e.g., "7#9")
-   *   2. jguitar base chord + slash algorithm
-   *   3. CDN DB (full suffix first, then base suffix fallback)
-   */
-  function getGuitarChord(chordName) {
+  function usableVoicings(positions, chordName, tuning) {
+    if (!positions || !positions.length) return null;
     const parsed = MusicTheory.parseChordName(chordName);
-    if (!parsed) return null;
-
-    const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
-
-    // 1. Try jguitar direct lookup (full chord name including slash)
-    const jgDirect = lookupJGuitar(chordName);
-    if (jgDirect && jgDirect.length > 0) {
-      return [...jgDirect];
-    }
-
-    // 1b. Try jguitar with full suffix (e.g., "B7#9" for "B7(#9)")
-    if (fullSuffix) {
-      const jgFull = lookupJGuitarBase(parsed.root, fullSuffix);
-      if (jgFull && jgFull.length > 0) {
-        if (parsed.bassNote) {
-          return applySlashBass([...jgFull], parsed.bassNote, MusicTheory.GUITAR_TUNING);
-        }
-        return [...jgFull];
-      }
-    }
-
-    // 2. For slash chords: try base chord from jguitar + algorithmic slash
-    if (parsed.bassNote) {
-      const jgBase = lookupJGuitarBase(parsed.root, parsed.suffix);
-      if (jgBase && jgBase.length > 0) {
-        return applySlashBass([...jgBase], parsed.bassNote, MusicTheory.GUITAR_TUNING);
-      }
-    }
-
-    // 3. Fall back to CDN DB — try full suffix first (e.g., "7#9"), then base
-    if (!guitarData) return null;
-
-    let positions = null;
-    if (fullSuffix) {
-      positions = lookupPositions(guitarData, parsed.root, fullSuffix);
-    }
-    if (!positions) {
-      positions = lookupPositions(guitarData, parsed.root, parsed.suffix);
-    }
-    if (!positions) return null;
-
-    if (parsed.bassNote) {
-      positions = applySlashBass(positions, parsed.bassNote, MusicTheory.GUITAR_TUNING);
-    }
-
-    return positions;
+    const notes = MusicTheory.getChordNotes(chordName);
+    if (!parsed || !notes.length) return null;
+    const allowed = new Set(notes.map(MusicTheory.noteIndex));
+    const required = MusicTheory.getChordEssentialNotes(chordName).map(MusicTheory.noteIndex);
+    const candidates = parsed.bassNote ? applySlashBass(positions, parsed.bassNote, tuning) : positions;
+    const seen = new Set();
+    const valid = candidates.filter(position => {
+      if (!position || !Array.isArray(position.frets)) return false;
+      if (position.frets.some(fret => fret >= 0 && Number(fret) > 4)) return false;
+      const pitches = position.frets.flatMap((fret, i) => {
+        if (!(fret >= 0) || !tuning[i]) return [];
+        const numericFret = Number(fret);
+        const actual = numericFret === 0 ? 0 : numericFret + ((position.baseFret || 1) - 1);
+        const note = MusicTheory.fretToNote(tuning, i, actual);
+        return note ? [MusicTheory.noteIndex(note.note)] : [];
+      });
+      if (!pitches.length || pitches.some(pitch => !allowed.has(pitch)) ||
+          required.some(pitch => !pitches.includes(pitch))) return false;
+      if (parsed.bassNote && getLowestNoteSemitone(position, tuning) !== MusicTheory.noteIndex(parsed.bassNote)) return false;
+      const key = `${position.baseFret || 1}:${position.frets.join(',')}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return valid.length ? valid : null;
   }
 
-  /**
-   * Get ukulele chord voicings.
-   * Priority:
-   *   1. jguitar ukulele direct lookup (full suffix with degreeMods)
-   *   2. jguitar ukulele base chord + slash algorithm
-   *   3. CDN DB (full suffix first, then base suffix fallback)
-   */
-  function getUkuleleChord(chordName) {
-    const parsed = MusicTheory.parseChordName(chordName);
-    if (!parsed) return null;
+  const generatedVoicingCache = new Map();
 
+  // Search only four adjacent frets plus open strings. Return shapes whose
+  // sounding notes, characteristic degrees and actual lowest pitch are valid.
+  function generateVoicings(chordName, instrument) {
+    const name = MusicTheory.normalizeChordSymbol(chordName);
+    const cacheKey = instrument + ':' + name;
+    if (generatedVoicingCache.has(cacheKey)) return generatedVoicingCache.get(cacheKey);
+    const parsed = MusicTheory.parseChordName(name);
+    const notes = MusicTheory.getChordNotes(name);
+    if (!parsed || !notes.length) return null;
+    const tuning = instrument === 'guitar' ? MusicTheory.GUITAR_TUNING : MusicTheory.UKULELE_TUNING;
+    const allowed = new Set(notes.map(MusicTheory.noteIndex));
+    const required = MusicTheory.getChordEssentialNotes(name).map(MusicTheory.noteIndex);
+    const bass = parsed.bassNote ? MusicTheory.noteIndex(parsed.bassNote) : null;
+    const root = MusicTheory.noteIndex(parsed.root);
+    const found = [];
+    const seen = new Set();
+    const frets = new Array(tuning.length).fill(-1);
+    for (let start = 1; start <= 12; start++) {
+      const choices = tuning.map(string => {
+        const open = MusicTheory.noteIndex(string.note);
+        const result = [-1];
+        if (allowed.has(open)) result.push(0);
+        for (let fret = start; fret < start + 4 && fret <= 15; fret++) {
+          if (allowed.has((open + fret) % 12)) result.push(fret);
+        }
+        return result;
+      });
+      let inWindow = 0;
+      function visit(index) {
+        if (inWindow >= 80) return;
+        if (index < frets.length) {
+          for (const fret of choices[index]) { frets[index] = fret; visit(index + 1); }
+          return;
+        }
+        const sounded = frets.filter(fret => fret >= 0).length;
+        if (sounded < 3) return;
+        const fretted = frets.filter(fret => fret > 0);
+        if (fretted.length && Math.max(...fretted) - Math.min(...fretted) > 3) return;
+        // Count separate finger/barre groups, rather than assuming any shape
+        // within four frets can be played with four fingers.
+        let groups = 0;
+        for (let i = 0; i < frets.length; i++) {
+          if (frets[i] > 0 && (i === 0 || frets[i - 1] !== frets[i])) groups++;
+        }
+        if (groups > 4) return;
+        const pitchClasses = frets.flatMap((fret, i) => fret < 0 ? [] :
+          [(MusicTheory.noteIndex(tuning[i].note) + fret) % 12]);
+        if (required.some(note => !pitchClasses.includes(note))) return;
+        const rel = toRelativeFrets(frets);
+        const key = rel.baseFret + ':' + rel.frets.join(',');
+        if (seen.has(key)) return;
+        const barres = [...new Set(rel.frets.filter((fret, i) => fret > 0 && rel.frets[i + 1] === fret))];
+        const position = { frets: rel.frets, baseFret: rel.baseFret, barres, fingers: [] };
+        const lowest = getLowestNoteSemitone(position, tuning);
+        if (bass !== null && lowest !== bass) return;
+        seen.add(key);
+        inWindow++;
+        found.push({ position, score: sounded * 10 + (lowest === root ? 5 : 0) - start / 10 - groups / 10 });
+      }
+      visit(0);
+    }
+    found.sort((a, b) => b.score - a.score);
+    const result = found.length ? found.slice(0, 20).map(item => item.position) : null;
+    generatedVoicingCache.set(cacheKey, result);
+    return result;
+  }
+
+  /** Look up voicings, accepting only notes and bass compatible with the chord. */
+  function lookupChordVoicings(chordName, instrument) {
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed || !MusicTheory.getChordNotes(chordName).length) return null;
+    const guitar = instrument === 'guitar';
+    const tuning = guitar ? MusicTheory.GUITAR_TUNING : MusicTheory.UKULELE_TUNING;
+    const lookupDirect = guitar ? lookupJGuitar : lookupJGuitarUkulele;
+    const lookupBase = guitar ? lookupJGuitarBase : lookupJGuitarUkuleleBase;
+    const data = guitar ? guitarData : ukuleleData;
     const fullSuffix = buildFullSuffix(parsed.suffix, parsed.degreeMods);
 
-    // 1. Try jguitar ukulele direct lookup (full chord name including slash)
-    const jgDirect = lookupJGuitarUkulele(chordName);
-    if (jgDirect && jgDirect.length > 0) {
-      return [...jgDirect];
-    }
-
-    // 1b. Try jguitar ukulele with full suffix (e.g., "B7#9")
+    let valid = usableVoicings(lookupDirect(chordName), chordName, tuning);
+    if (valid) return valid;
     if (fullSuffix) {
-      const jgFull = lookupJGuitarUkuleleBase(parsed.root, fullSuffix);
-      if (jgFull && jgFull.length > 0) {
-        if (parsed.bassNote) {
-          return applySlashBass([...jgFull], parsed.bassNote, MusicTheory.UKULELE_TUNING);
-        }
-        return [...jgFull];
+      valid = usableVoicings(lookupBase(parsed.root, fullSuffix), chordName, tuning);
+      if (valid) return valid;
+      // add2/add4 and add9/add11 have the same fretboard pitch classes.
+      const equivalent = fullSuffix.replace(/add2(?=$|[#b,])/g, 'add9')
+        .replace(/add4(?=$|[#b,])/g, 'add11');
+      if (equivalent !== fullSuffix) {
+        valid = usableVoicings(lookupBase(parsed.root, equivalent), chordName, tuning);
+        if (valid) return valid;
       }
     }
-
-    // 2. For slash chords: try base chord from jguitar ukulele + algorithmic slash
-    if (parsed.bassNote) {
-      const jgBase = lookupJGuitarUkuleleBase(parsed.root, parsed.suffix);
-      if (jgBase && jgBase.length > 0) {
-        return applySlashBass([...jgBase], parsed.bassNote, MusicTheory.UKULELE_TUNING);
-      }
-    }
-
-    // 3. Fall back to CDN DB — try full suffix first, then base
-    if (!ukuleleData) return null;
-
-    let positions = null;
+    // A base voicing is usable only when validation proves it also contains
+    // every defining alteration and the requested bass.
+    valid = usableVoicings(lookupBase(parsed.root, parsed.suffix), chordName, tuning);
+    if (valid) return valid;
+    if (!data) return generateVoicings(chordName, instrument);
+    const suffix = fullSuffix || parsed.suffix;
+    valid = usableVoicings(lookupPositions(data, parsed.root, suffix, instrument), chordName, tuning);
+    if (valid) return valid;
     if (fullSuffix) {
-      positions = lookupPositions(ukuleleData, parsed.root, fullSuffix, 'ukulele');
+      valid = usableVoicings(lookupPositions(data, parsed.root, parsed.suffix, instrument), chordName, tuning);
+      if (valid) return valid;
     }
-    if (!positions) {
-      positions = lookupPositions(ukuleleData, parsed.root, parsed.suffix, 'ukulele');
-    }
-    if (!positions) return null;
+    return generateVoicings(chordName, instrument);
+  }
 
-    if (parsed.bassNote) {
-      positions = applySlashBass(positions, parsed.bassNote, MusicTheory.UKULELE_TUNING);
-    }
+  function getGuitarChord(chordName) {
+    return lookupChordVoicings(chordName, 'guitar');
+  }
 
-    return positions;
+  function getUkuleleChord(chordName) {
+    return lookupChordVoicings(chordName, 'ukulele');
   }
 
   function isLoaded() {

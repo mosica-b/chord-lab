@@ -21,6 +21,33 @@ const Renderers = (() => {
     return w > 0 ? Math.max(minWidth, w) : Math.max(minWidth, 400);
   }
 
+  function renderUnavailable(container, name, message) {
+    const p = document.createElement('p');
+    p.className = 'text-sm text-gray-500 p-4';
+    p.textContent = `${name} — ${message}`;
+    container.appendChild(p);
+  }
+
+  function separateUnavailable(container, chords, available, renderSingle, message) {
+    if (available.every(Boolean)) return false;
+    if (chords.length === 1) {
+      renderUnavailable(container, chords[0], message);
+      return true;
+    }
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.flexWrap = 'wrap';
+    chords.forEach((name, index) => {
+      const item = document.createElement('div');
+      item.style.minWidth = '180px';
+      if (available[index]) renderSingle(item, name);
+      else renderUnavailable(item, name, message);
+      row.appendChild(item);
+    });
+    container.appendChild(row);
+    return true;
+  }
+
   // =========================================
   // Staff Notation (오선표기)
   // =========================================
@@ -30,6 +57,9 @@ const Renderers = (() => {
       container.innerHTML = '<p class="text-sm text-gray-400 p-4">코드를 추가하면 오선표기가 표시됩니다.</p>';
       return;
     }
+    const noteSets = chords.map(name => MusicTheory.getChordNotesDisplay(name));
+    if (separateUnavailable(container, chords, noteSets.map(notes => notes.length > 0),
+      (item, name) => renderStaffNotation(item, [name]), '구성음을 확인할 수 없습니다.')) return;
 
     const labelHeight = 14; // Space reserved for chord names above stave
     const staveY = 36 + labelHeight;
@@ -48,19 +78,15 @@ const Renderers = (() => {
     stave.addClef('treble');
     stave.setContext(context).draw();
 
-    const notes = chords.map(chordName => {
+    const notes = chords.map((chordName, chordIndex) => {
       // Use theory-correct enharmonic spelling (Bb not A#, Eb not D#, etc.)
-      const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
-      if (!chordNotes.length) {
-        return new VF.StaveNote({
-          clef: 'treble',
-          keys: ['c/4'],
-          duration: 'w',
-        });
-      }
+      const chordNotes = noteSets[chordIndex];
 
       // Build VexFlow keys with octave assignments
-      const keys = assignOctavesForStaff(chordNotes, chordName);
+      // VexFlow 3 cannot draw triple accidentals; use the same sounding pitch.
+      const staffNotes = chordNotes.map(note => /(?:#{3,}|b{3,})$/.test(note)
+        ? MusicTheory.normalizeNote(note) : note);
+      const keys = assignOctavesForStaff(staffNotes, chordName);
 
       const staveNote = new VF.StaveNote({
         clef: 'treble',
@@ -185,6 +211,8 @@ const Renderers = (() => {
       const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
       return { name, positions: positions ? positions[clamped] : null };
     });
+    if (separateUnavailable(container, chords, chordsWithPositions.map(item => !!item.positions),
+      (item, name) => renderGuitarTab(item, [name], voicingIndexMap, options), '표시할 운지법을 찾지 못했습니다.')) return;
 
     const compactWidth = options && options.compactWidth;
     const minContentWidth = chordsWithPositions.length * 120 + 80;
@@ -198,18 +226,6 @@ const Renderers = (() => {
     stave.setContext(context).draw();
 
     const tabNotes = chordsWithPositions.map(({ name, positions }) => {
-      if (!positions) {
-        // Fallback: show chord name only
-        const note = new VF.TabNote({
-          positions: [{ str: 1, fret: 0 }],
-          duration: 'w',
-        });
-        note.addModifier(
-          new VF.Annotation(name + ' (?)').setVerticalJustification(VF.Annotation.VerticalJustify.TOP), 0
-        );
-        return note;
-      }
-
       const frets = positions.frets;
       const baseFret = positions.baseFret || 1;
       const tabPositions = [];
@@ -222,10 +238,6 @@ const Renderers = (() => {
             fret: actualFret,
           });
         }
-      }
-
-      if (tabPositions.length === 0) {
-        tabPositions.push({ str: 1, fret: 0 });
       }
 
       const note = new VF.TabNote({
@@ -266,6 +278,8 @@ const Renderers = (() => {
       const clamped = positions ? Math.min(idx, positions.length - 1) : 0;
       return { name, positions: positions ? positions[clamped] : null };
     });
+    if (separateUnavailable(container, chords, chordsWithPositions.map(item => !!item.positions),
+      (item, name) => renderUkuleleTab(item, [name], voicingIndexMap, options), '표시할 운지법을 찾지 못했습니다.')) return;
 
     const compactWidth = options && options.compactWidth;
     const minContentWidth = chordsWithPositions.length * 120 + 80;
@@ -279,17 +293,6 @@ const Renderers = (() => {
     stave.setContext(context).draw();
 
     const tabNotes = chordsWithPositions.map(({ name, positions }) => {
-      if (!positions) {
-        const note = new VF.TabNote({
-          positions: [{ str: 1, fret: 0 }],
-          duration: 'w',
-        });
-        note.addModifier(
-          new VF.Annotation(name + ' (?)').setVerticalJustification(VF.Annotation.VerticalJustify.TOP), 0
-        );
-        return note;
-      }
-
       const frets = positions.frets;
       const baseFret = positions.baseFret || 1;
       const tabPositions = [];
@@ -302,10 +305,6 @@ const Renderers = (() => {
             fret: actualFret,
           });
         }
-      }
-
-      if (tabPositions.length === 0) {
-        tabPositions.push({ str: 1, fret: 0 });
       }
 
       const note = new VF.TabNote({
@@ -645,7 +644,8 @@ const Renderers = (() => {
       item.appendChild(svgContainer);
 
       const chordNotesOct = MusicTheory.getChordNotesWithOctave(name);
-      drawPianoKeyboard(svgContainer, chordNotesOct, name);
+      if (chordNotesOct.length) drawPianoKeyboard(svgContainer, chordNotesOct, name);
+      else renderUnavailable(svgContainer, name, '구성음을 확인할 수 없습니다.');
 
       grid.appendChild(item);
     });

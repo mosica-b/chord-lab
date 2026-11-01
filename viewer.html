@@ -53,6 +53,8 @@
     }
     .play-btn:hover { background: #2563eb; }
     .play-btn:active { background: #1d4ed8; }
+    .play-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .chord-notes-unavailable { color: #92400e; font-size: 13px; line-height: 1.4; }
     .play-btn.playing {
       background: #ef4444;
     }
@@ -825,9 +827,9 @@
   <!-- VexFlow 3 -->
   <script src="https://cdn.jsdelivr.net/npm/vexflow@3.0.9/releases/vexflow-min.js"></script>
   <!-- Shared modules -->
-  <script src="js/music-theory.js?v=5"></script>
-  <script src="js/chord-db.js?v=9"></script>
-  <script src="js/renderers.js?v=8"></script>
+  <script src="js/music-theory.js?v=6"></script>
+  <script src="js/chord-db.js?v=10"></script>
+  <script src="js/renderers.js?v=9"></script>
   <!-- WebAudioFont sampled instruments -->
   <script src="lib/WebAudioFontPlayer.js"></script>
   <script src="lib/piano_preset.js"></script>
@@ -835,7 +837,7 @@
   <script src="lib/ukulele_preset.js"></script>
   <!-- Viewer app -->
   <script src="js/chord-audio.js?v=8"></script>
-  <script src="js/viewer-app.js?v=36"></script>
+  <script src="js/viewer-app.js?v=37"></script>
 
   <!-- Voicing selection modal -->
   <div id="voicingModal" class="notation-modal-overlay hidden">

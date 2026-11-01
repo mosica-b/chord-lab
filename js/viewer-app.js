@@ -98,7 +98,8 @@ const ViewerApp = (() => {
     }
 
     if (chordsParam) {
-      chords = splitChordsRespectingParens(chordsParam).map(c => c.trim()).filter(Boolean);
+      chords = splitChordsRespectingParens(chordsParam)
+        .map(c => MusicTheory.normalizeChordSymbol(c.trim())).filter(Boolean);
     }
     originalChords = chords.slice(); // save original order
 
@@ -732,6 +733,14 @@ const ViewerApp = (() => {
     const notesDiv = document.createElement('div');
     notesDiv.className = 'chord-notes-row';
     const chordNotes = MusicTheory.getChordNotesDisplay(chordName);
+    if (!chordNotes.length) {
+      const message = document.createElement('span');
+      message.className = 'chord-notes-unavailable';
+      message.textContent = /alt/i.test(chordName)
+        ? 'alt의 변형음이 지정되지 않아 구성음을 확정할 수 없습니다.'
+        : '이 표기의 구성음을 확인할 수 없습니다.';
+      notesDiv.appendChild(message);
+    }
     chordNotes.forEach(note => {
       const badge = document.createElement('span');
       badge.className = 'chord-notes-badge highlighted';
@@ -739,7 +748,7 @@ const ViewerApp = (() => {
       notesDiv.appendChild(badge);
     });
     // 카포 적용 시 원래→실음 구성음 화살표 표시 (모든 타입)
-    if (capoPosition > 0) {
+    if (capoPosition > 0 && chordNotes.length) {
       const soundNotes = MusicTheory.getChordNotesDisplay(soundName);
       const arrow = document.createElement('span');
       arrow.textContent = '→';
@@ -764,6 +773,7 @@ const ViewerApp = (() => {
       'sus2': '서스 2', 'sus4': '서스 4', '7sus4': '세븐 서스 4',
       '6': '메이저 6', 'm6': '마이너 6',
       '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
+      'm11': '마이너 11', 'maj11': '메이저 11', 'm13': '마이너 13', 'maj13': '메이저 13',
     };
     if (parsed) {
       const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
@@ -820,6 +830,12 @@ const ViewerApp = (() => {
       arpBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 14v-2h2v2H3zm3-3v-2h2v2H6zm3-3V6h2v2H9zm3-3V3h2v2h-2z"/></svg> 아르페지오`;
     });
 
+    if (!chordNotes.length) {
+      playBtn.disabled = true;
+      arpBtn.disabled = true;
+      playBtn.title = arpBtn.title = '구성음을 확인할 수 없어 재생할 수 없습니다.';
+    }
+
     btnGroup.appendChild(playBtn);
     btnGroup.appendChild(arpBtn);
 
@@ -846,7 +862,7 @@ const ViewerApp = (() => {
     const btn = document.getElementById('addChordBtn');
 
     function addFromInput() {
-      const name = input.value.trim();
+      const name = MusicTheory.normalizeChordSymbol(input.value.trim());
       if (!name) return;
       const parsed = MusicTheory.parseChordName(name);
       if (!parsed) return;
@@ -1126,6 +1142,7 @@ const ViewerApp = (() => {
       'sus2': '서스 2', 'sus4': '서스 4', '7sus4': '세븐 서스 4',
       '6': '메이저 6', 'm6': '마이너 6',
       '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
+      'm11': '마이너 11', 'maj11': '메이저 11', 'm13': '마이너 13', 'maj13': '메이저 13',
     };
     if (parsed) {
       const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];

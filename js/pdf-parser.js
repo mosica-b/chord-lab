@@ -17,29 +17,6 @@ const SibeliusPDFParser = (() => {
     [/\u201C/g, 'sus'],  // " → sus
   ];
 
-  // Valid chord suffixes (from MusicTheory SUFFIX_MAP)
-  const VALID_SUFFIXES = new Set([
-    '', 'major', 'maj', 'M',
-    'm', 'minor', 'min',
-    'dim', 'o',
-    'aug', '+',
-    '7', 'dom7',
-    'm7', 'min7', '-7',
-    'maj7', 'M7',
-    'mMaj7', 'mmaj7', 'mM7', 'minMaj7', 'minmaj7',
-    'dim7', 'o7',
-    'm7b5',
-    'sus2', 'sus4', 'sus',
-    '6', 'maj6',
-    'm6', 'min6',
-    '9', 'm9',
-    'maj9', 'M9',
-    'add9',
-    '7sus4',
-    '11', '13', '5',
-    'aug7', '+7',
-  ]);
-
   function normalizeOpusText(text) {
     let s = text;
     for (const [pattern, replacement] of OPUS_REPLACEMENTS) {
@@ -101,15 +78,15 @@ const SibeliusPDFParser = (() => {
     if (!parsed) return null;
 
     // Validate root is a valid note
-    const validRoots = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
-    if (!validRoots.includes(parsed.root)) return null;
+    if (MusicTheory.noteIndex(parsed.root) < 0) return null;
 
     // Validate suffix is a known chord type
     const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
-    if (!VALID_SUFFIXES.has(suffix) && !VALID_SUFFIXES.has(suffix.toLowerCase())) return null;
+    if (!Object.prototype.hasOwnProperty.call(MusicTheory.SUFFIX_MAP, suffix) &&
+        !Object.prototype.hasOwnProperty.call(MusicTheory.SUFFIX_MAP, suffix.toLowerCase())) return null;
 
     // Validate bass note of slash chord
-    if (parsed.bassNote && !validRoots.includes(parsed.bassNote)) return null;
+    if (parsed.bassNote && MusicTheory.noteIndex(parsed.bassNote) < 0) return null;
 
     return cleaned;
   }

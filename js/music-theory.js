@@ -45,7 +45,11 @@ const MusicTheory = (() => {
     'm7b5': [1,3,5,7], 'sus2': [1,2,5], 'sus4': [1,4,5],
     '6': [1,3,5,6], 'm6': [1,3,5,6],
     '9': [1,3,5,7,9], 'm9': [1,3,5,7,9], 'maj9': [1,3,5,7,9], 'add9': [1,3,5,9],
-    '7sus4': [1,4,5,7], '11': [1,3,5,7,9,11], '13': [1,3,5,7,9,13],
+    '7sus4': [1,4,5,7], '11': [1,3,5,7,9,11], '13': [1,3,5,7,9,11,13],
+    'm11': [1,3,5,7,9,11], 'maj11': [1,3,5,7,9,11],
+    'm13': [1,3,5,7,9,11,13], 'maj13': [1,3,5,7,9,11,13],
+    'dim9': [1,3,5,7,9], 'dim11': [1,3,5,7,9,11],
+    'm7b59': [1,3,5,7,9], 'augMaj7': [1,3,5,7], 'dimMaj7': [1,3,5,7],
     '5': [1,5], 'aug7': [1,3,5,7],
   };
 
@@ -88,7 +92,16 @@ const MusicTheory = (() => {
     'add9':   [0, 4, 7, 14],
     '7sus4':  [0, 5, 7, 10],
     '11':     [0, 4, 7, 10, 14, 17],
-    '13':     [0, 4, 7, 10, 14, 21],
+    '13':     [0, 4, 7, 10, 14, 17, 21],
+    'm11':    [0, 3, 7, 10, 14, 17],
+    'maj11':  [0, 4, 7, 11, 14, 17],
+    'm13':    [0, 3, 7, 10, 14, 17, 21],
+    'maj13':  [0, 4, 7, 11, 14, 17, 21],
+    'dim9':   [0, 3, 6, 9, 14],
+    'dim11':  [0, 3, 6, 9, 14, 17],
+    'm7b59':  [0, 3, 6, 10, 14],
+    'augMaj7':[0, 4, 8, 11],
+    'dimMaj7':[0, 3, 6, 11],
     '5':      [0, 7],
     'aug7':   [0, 4, 8, 10],
   };
@@ -115,37 +128,50 @@ const MusicTheory = (() => {
     'maj9': 'maj9', 'M9': 'maj9',
     'add9': 'add9',
     '7sus4': '7sus4',
-    '11': '11',
-    '13': '13',
+    '11': '11', 'm11': 'm11', 'maj11': 'maj11', 'M11': 'maj11',
+    '13': '13', 'm13': 'm13', 'maj13': 'maj13', 'M13': 'maj13',
+    'dim9': 'dim9', 'dim11': 'dim11', 'm7b59': 'm7b59',
+    '+maj7': 'augMaj7', 'augmaj7': 'augMaj7', 'dimmaj7': 'dimMaj7',
     '5': '5',
     'aug7': 'aug7', '+7': 'aug7',
   };
+
+  // A suspended chord replaces its third while keeping the other extensions.
+  const SUSPENSION_BASES = {
+    major: '', minor: '', '6': '6', m6: '6', '7': '7', m7: '7',
+    '9': '9', m9: '9', maj7: 'maj7', maj9: 'maj9',
+    '11': '11', m11: '11', maj11: 'maj11',
+    '13': '13', m13: '13', maj13: 'maj13',
+  };
+  for (const [base, prefix] of Object.entries(SUSPENSION_BASES)) {
+    for (const degree of [2, 4]) {
+      const key = prefix + 'sus' + degree;
+      if (!CHORD_INTERVALS[key]) {
+        const parts = CHORD_INTERVALS[base].map((interval, index) => ({
+          interval: CHORD_DEGREE_NUMS[base][index] === 3 ? (degree === 2 ? 2 : 5) : interval,
+          degree: CHORD_DEGREE_NUMS[base][index] === 3 ? degree : CHORD_DEGREE_NUMS[base][index],
+        }));
+        // A 9sus2 already contains the same pitch as its ninth.
+        const unique = parts.filter((part, index) =>
+          parts.findIndex(other => other.interval % 12 === part.interval % 12) === index);
+        CHORD_INTERVALS[key] = unique.map(part => part.interval);
+        CHORD_DEGREE_NUMS[key] = unique.map(part => part.degree);
+      }
+      SUFFIX_MAP[key] = key;
+      if (base !== 'major' && base !== 'minor') SUFFIX_MAP[base + 'sus' + degree] = key;
+      if (base === 'minor') SUFFIX_MAP['m' + 'sus' + degree] = key;
+    }
+  }
 
   /**
    * Normalize a note name to sharp notation
    */
   function normalizeNote(note) {
-    if (ENHARMONIC[note] && !NOTE_NAMES.includes(note)) {
-      return ENHARMONIC[note];
-    }
-    // Handle double sharps: F## → G
-    if (note.length === 3 && note.endsWith('##')) {
-      const baseIdx = NOTE_NAMES.indexOf(note[0]);
-      if (baseIdx >= 0) return NOTE_NAMES[(baseIdx + 2) % 12];
-    }
-    // Handle double flats: Bbb → A
-    if (note.length === 3 && note.endsWith('bb')) {
-      const baseIdx = NOTE_NAMES.indexOf(note[0]);
-      if (baseIdx >= 0) return NOTE_NAMES[(baseIdx - 2 + 12) % 12];
-    }
-    // Handle single flats
-    if (note.length === 2 && note[1] === 'b') {
-      const idx = NOTE_NAMES.indexOf(note[0]);
-      if (idx >= 0) {
-        return NOTE_NAMES[(idx - 1 + 12) % 12];
-      }
-    }
-    return note;
+    if (typeof note !== 'string') return note;
+    const match = /^([A-G])([#b]*)$/.exec(note);
+    if (!match) return note;
+    const offset = [...match[2]].reduce((sum, sign) => sum + (sign === '#' ? 1 : -1), 0);
+    return NOTE_NAMES[((LETTER_TO_SEMITONE[match[1]] + offset) % 12 + 12) % 12];
   }
 
   /**
@@ -162,13 +188,35 @@ const MusicTheory = (() => {
    *        "C#maj7" -> { root: "C#", suffix: "maj7" }
    *        "Bbm" -> { root: "Bb", suffix: "m" }
    */
+  function normalizeChordSymbol(name) {
+    if (typeof name !== 'string') return '';
+    let value = name.trim()
+      .replace(/♯/g, '#').replace(/♭/g, 'b')
+      .replace(/¬/g, 'bb').replace(/«/g, '##')
+      .replace(/\[äÆ\]/g, '(#9,b13)').replace(/\[âÅ\]/g, '(b9,#11)')
+      .replace(/\[alt\]/gi, 'alt')
+      .replace(/;(?=\d)/g, 'omit')
+      .replace(/(^|\/)([A-G])x(?=\/|\(|[A-Za-z0-9]|$)/g, '$1$2##');
+    // The Opus percent glyph is a compact 6/9, including minor 6/9.
+    value = value.replace(/^([A-G](?:#{1,2}|b{1,2})?)(m?)%(?=\/|$)/,
+      (_, root, minor) => root + minor + '6(add9)');
+    value = value.replace(/^([A-G](?:#{1,2}|b{1,2})?m?6)\/9(?=\/|$)/, '$1(add9)');
+    // Older PDF-only builds sometimes appended a second bass to the first.
+    const parts = value.split('/');
+    if (parts.length > 2 && parts.slice(1).every(part => /^[A-G](?:#{1,2}|b{1,2})?$/.test(part))) {
+      value = parts[0] + '/' + parts[parts.length - 1];
+    }
+    return value;
+  }
+
   function parseChordName(name) {
+    name = normalizeChordSymbol(name);
     if (!name) return null;
 
     // Handle slash chords: G/B, B7(#9)/D# → base chord with bass note
     let bassNote = null;
     let chordPart = name;
-    const slashMatch = name.match(/^(.+?)\/([A-G][#b]?)$/);
+    const slashMatch = name.match(/^(.+?)\/([A-G](?:#{1,2}|b{1,2})?)$/);
     if (slashMatch) {
       chordPart = slashMatch[1];
       bassNote = slashMatch[2];
@@ -182,136 +230,134 @@ const MusicTheory = (() => {
       chordPart = chordPart.substring(0, parenIdx);
     }
 
-    let root, suffix;
-    if (chordPart.length >= 2 && (chordPart[1] === '#' || chordPart[1] === 'b')) {
-      root = chordPart.substring(0, 2);
-      suffix = chordPart.substring(2);
-    } else {
-      root = chordPart[0];
-      suffix = chordPart.substring(1);
-    }
+    const rootMatch = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(chordPart);
+    if (!rootMatch) return null;
+    const root = rootMatch[1];
+    let suffix = rootMatch[2];
 
     // A parenthesized suspension changes the chord type, unlike an added
     // degree: D7(sus4) is D7sus4, not D7 with an extra fourth.
     degreeMods = degreeMods.replace(/\(([^()]*)\)/g, (group, contents) => {
-      const parts = contents.split(',');
-      const index = parts.findIndex(part => /^sus[24]$/i.test(part.trim()));
-      if (index < 0) return group;
-
-      const suspendedSuffix = (suffix === 'major' ? '' : suffix) + parts[index].trim().toLowerCase();
-      if (!SUFFIX_MAP[suspendedSuffix]) return group;
-      suffix = suspendedSuffix;
-      parts.splice(index, 1);
+      let parts = contents.split(',').map(part => part.trim());
+      // Scores can write the suspension and alteration together, e.g. b9sus4.
+      parts = parts.flatMap(part => {
+        const match = /^(.*?)(sus[24])$/i.exec(part);
+        return match && match[1] ? [match[1], match[2]] : [part];
+      });
+      const majorSeventh = parts.findIndex(part => /^maj7(?:[#b]5)?$/i.test(part));
+      const baseKey = SUFFIX_MAP[suffix] || SUFFIX_MAP[suffix.toLowerCase()];
+      if (majorSeventh >= 0 && baseKey === 'minor') {
+        const remainder = parts[majorSeventh].slice(4);
+        suffix = 'mMaj7';
+        parts.splice(majorSeventh, 1, ...(remainder ? [remainder] : []));
+      }
+      const suspension = parts.findIndex(part => /^sus[24]$/i.test(part));
+      if (suspension >= 0) {
+        const key = SUFFIX_MAP[suffix] || SUFFIX_MAP[suffix.toLowerCase()];
+        const prefix = SUSPENSION_BASES[key];
+        if (prefix !== undefined) {
+          suffix = prefix + parts[suspension].toLowerCase();
+          parts.splice(suspension, 1);
+        }
+      }
       return parts.length ? `(${parts.join(',')})` : '';
     });
 
     return { root, suffix: suffix || 'major', bassNote: bassNote || null, degreeMods };
   }
 
-  /**
-   * Get the notes that make up a chord
-   * Returns array of note names (e.g., ["A", "C", "E"] for Am)
-   */
-  function getChordNotes(chordName) {
+  /** Resolve intervals and degrees once for display, playback and piano. */
+  function getChordComponents(chordName) {
     const parsed = parseChordName(chordName);
-    if (!parsed) return [];
-
+    if (!parsed) return null;
     const rootIdx = noteIndex(parsed.root);
-    if (rootIdx < 0) return [];
-
     const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
     const intervals = CHORD_INTERVALS[intervalKey];
-    if (!intervals) return [];
+    const degrees = CHORD_DEGREE_NUMS[intervalKey];
+    if (rootIdx < 0 || !intervals || !degrees || intervals.length !== degrees.length) return null;
+    const mods = parseDegreeModsToSemitones(parsed.degreeMods);
+    if (mods === null) return null; // Never silently ignore an unknown modifier.
 
-    // Apply degree modifications (#9, b5, add9, etc.)
-    let finalIntervals = intervals;
-    if (parsed.degreeMods) {
-      finalIntervals = [...intervals];
-      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
-      for (const mod of mods) {
-        // Check if the natural version of this degree exists and needs alteration
-        const baseSemitone = DEGREE_SEMITONES[mod.degree];
-        if (baseSemitone !== undefined && mod.alter) {
-          const idx = finalIntervals.indexOf(baseSemitone);
-          if (idx >= 0) {
-            finalIntervals[idx] = mod.semitone;
-            continue;
-          }
-        }
-        // Add new note if not already present (check both raw and mod12)
-        const mod12 = ((mod.semitone % 12) + 12) % 12;
-        if (!finalIntervals.some(i => ((i % 12) + 12) % 12 === mod12)) {
-          finalIntervals.push(mod.semitone);
-        }
+    let components = intervals.map((interval, index) => ({ interval, degree: degrees[index] }));
+    for (const mod of mods) {
+      const degree = Number(mod.degree);
+      if (mod.omit) {
+        components = components.filter(component => component.degree !== degree);
+        continue;
+      }
+      const natural = DEGREE_SEMITONES[mod.degree];
+      const existing = mod.alter ? components.findIndex(component =>
+        component.degree === degree && component.interval === natural) : -1;
+      if (existing >= 0) {
+        components[existing] = { interval: mod.semitone, degree };
+      } else if (!components.some(component => ((component.interval - mod.semitone) % 12 + 12) % 12 === 0)) {
+        components.push({ interval: mod.semitone, degree });
       }
     }
+    return { parsed, rootIdx, components };
+  }
 
-    let notes = finalIntervals.map(interval => NOTE_NAMES[(rootIdx + interval) % 12]);
-
-    // Handle slash chord: put bass note first (inversion)
-    if (parsed.bassNote) {
-      const bass = normalizeNote(parsed.bassNote);
-      const bassIdx = notes.indexOf(bass);
-      if (bassIdx > 0) {
-        // Rotate so bass note comes first
-        notes = [...notes.slice(bassIdx), ...notes.slice(0, bassIdx)];
-      } else if (bassIdx < 0) {
-        // Bass note not in chord, prepend it
-        notes = [bass, ...notes];
-      }
+  /** Notes for playback, with the requested bass first. */
+  function getChordNotes(chordName) {
+    const chord = getChordComponents(chordName);
+    if (!chord) return [];
+    let notes = chord.components.map(component => NOTE_NAMES[(chord.rootIdx + component.interval) % 12]);
+    if (chord.parsed.bassNote) {
+      const bass = normalizeNote(chord.parsed.bassNote);
+      const index = notes.indexOf(bass);
+      if (index > 0) notes = [...notes.slice(index), ...notes.slice(0, index)];
+      else if (index < 0) notes = [bass, ...notes];
     }
-
     return notes;
   }
 
-  /**
-   * Get chord notes WITH interval info (for piano: determines octave offset)
-   * Returns array of { note, octaveOffset } where octaveOffset=1 for 9th+
-   */
+  /** Notes with extension octave offsets for the piano keyboard. */
   function getChordNotesWithOctave(chordName) {
-    const parsed = parseChordName(chordName);
-    if (!parsed) return [];
-
-    const rootIdx = noteIndex(parsed.root);
-    if (rootIdx < 0) return [];
-
-    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
-    const intervals = CHORD_INTERVALS[intervalKey];
-    if (!intervals) return [];
-
-    let finalIntervals = intervals;
-    if (parsed.degreeMods) {
-      finalIntervals = [...intervals];
-      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
-      for (const mod of mods) {
-        const baseSemitone = DEGREE_SEMITONES[mod.degree];
-        if (baseSemitone !== undefined && mod.alter) {
-          const idx = finalIntervals.indexOf(baseSemitone);
-          if (idx >= 0) { finalIntervals[idx] = mod.semitone; continue; }
-        }
-        const mod12 = ((mod.semitone % 12) + 12) % 12;
-        if (!finalIntervals.some(i => ((i % 12) + 12) % 12 === mod12)) {
-          finalIntervals.push(mod.semitone);
-        }
-      }
-    }
-
-    let result = finalIntervals.map(interval => ({
-      note: NOTE_NAMES[(rootIdx + interval) % 12],
-      octaveOffset: Math.floor(interval / 12),
+    const chord = getChordComponents(chordName);
+    if (!chord) return [];
+    const noteFor = component => NOTE_NAMES[(chord.rootIdx + component.interval) % 12];
+    const bass = chord.parsed.bassNote && normalizeNote(chord.parsed.bassNote);
+    if (!bass) return chord.components.map(component => ({
+      note: noteFor(component), octaveOffset: Math.floor(component.interval / 12),
     }));
 
-    if (parsed.bassNote) {
-      const bass = normalizeNote(parsed.bassNote);
-      const bassIdx = result.findIndex(r => r.note === bass);
-      if (bassIdx > 0) {
-        result = [...result.slice(bassIdx), ...result.slice(0, bassIdx)];
-      } else if (bassIdx < 0) {
-        result = [{ note: bass, octaveOffset: 0 }, ...result];
-      }
+    const index = chord.components.findIndex(component => noteFor(component) === bass);
+    if (index < 0) {
+      const rootOffset = (chord.rootIdx - noteIndex(bass) + 12) % 12;
+      return [{ note: bass, octaveOffset: 0 }, ...chord.components.map(component => ({
+        note: noteFor(component), octaveOffset: Math.floor((rootOffset + component.interval) / 12),
+      }))];
     }
 
-    return result;
+    // Rotate an inversion while measuring extensions from the new lowest note.
+    const rotated = [...chord.components.slice(index), ...chord.components.slice(0, index)];
+    const bassInterval = rotated[0].interval;
+    let previous = bassInterval;
+    return rotated.map((component, i) => {
+      let interval = component.interval;
+      while (i && interval <= previous) interval += 12;
+      previous = interval;
+      return { note: noteFor(component), octaveOffset: Math.floor((interval - bassInterval) / 12) };
+    });
+  }
+
+  // Voicings may omit a root or fifth, but must retain the chord's defining
+  // third/suspension, seventh, highest extension and explicit alterations.
+  function getChordEssentialNotes(chordName) {
+    const chord = getChordComponents(chordName);
+    if (!chord) return [];
+    const mods = parseDegreeModsToSemitones(chord.parsed.degreeMods);
+    const alteredDegrees = new Set(mods.filter(mod => !mod.omit).map(mod => Number(mod.degree)));
+    const extension = Math.max(0, ...chord.components.map(component => component.degree >= 9 ? component.degree : 0));
+    const suspended = /sus[24]$/i.test(chord.parsed.suffix);
+    return [...new Set(chord.components.filter(component => {
+      const natural = DEGREE_SEMITONES[String(component.degree)];
+      return component.degree === 3 || component.degree === 7 || component.degree === extension ||
+        (component.degree === 6 && /^(?:m?6|6sus)/i.test(chord.parsed.suffix)) ||
+        (suspended && (component.degree === 2 || component.degree === 4)) ||
+        (component.degree === 5 && natural !== undefined && component.interval !== natural) ||
+        alteredDegrees.has(component.degree);
+    }).map(component => NOTE_NAMES[(chord.rootIdx + component.interval) % 12]))];
   }
 
   // Semitone → degree label mapping
@@ -333,26 +379,21 @@ const MusicTheory = (() => {
    */
   function parseDegreeModsToSemitones(degreeMods) {
     if (!degreeMods) return [];
-    const inner = degreeMods.replace(/[()]/g, '');
-    if (!inner) return [];
-
-    const parts = inner.split(',');
+    const groups = [...degreeMods.matchAll(/\(([^()]*)\)/g)];
+    if (!groups.length || groups.map(group => group[0]).join('') !== degreeMods) return null;
     const result = [];
-    for (const part of parts) {
-      const trimmed = part.trim();
-      const m = trimmed.match(/^(?:add)?(#|b)?(\d+)$/);
-      if (!m) continue;
-      const alter = m[1] || '';
-      const degreeNum = m[2];
-
-      const baseSemitone = DEGREE_SEMITONES[degreeNum];
-      if (baseSemitone === undefined) continue;
-
-      let semitone = baseSemitone;
-      if (alter === '#') semitone++;
-      else if (alter === 'b') semitone--;
-
-      result.push({ alter, degree: degreeNum, semitone });
+    for (const group of groups) {
+      for (const raw of group[1].split(',')) {
+        const part = raw.trim();
+        const omit = /^(?:omit|no)(2|3|4|5|6|7|9|11|13)$/i.exec(part);
+        if (omit) { result.push({ omit: true, degree: omit[1] }); continue; }
+        const match = /^(?:add)?(#|b)?(2|3|4|5|6|7|9|11|13)$/i.exec(part);
+        if (!match) return null;
+        const alter = match[1] || '';
+        const degree = match[2];
+        const semitone = DEGREE_SEMITONES[degree] + (alter === '#' ? 1 : alter === 'b' ? -1 : 0);
+        result.push({ alter, degree, semitone });
+      }
     }
     return result;
   }
@@ -362,24 +403,14 @@ const MusicTheory = (() => {
    * e.g., "Am7" → ["1", "♭3", "5", "♭7"]
    */
   function getChordDegreeLabels(chordName) {
-    const parsed = parseChordName(chordName);
-    if (!parsed) return [];
-    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
-    const intervals = CHORD_INTERVALS[intervalKey];
-    if (!intervals) return [];
-    const labels = intervals.map(i => SEMITONE_TO_DEGREE[i] || String(i));
-
-    // Add degree modification labels
-    if (parsed.degreeMods) {
-      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
-      for (const mod of mods) {
-        const label = SEMITONE_TO_DEGREE[mod.semitone] ||
-          ((mod.alter === '#' ? '♯' : mod.alter === 'b' ? '♭' : '') + mod.degree);
-        labels.push(label);
-      }
-    }
-
-    return labels;
+    const chord = getChordComponents(chordName);
+    if (!chord) return [];
+    return chord.components.map(({ interval, degree }) => {
+      const natural = degree === 1 ? 0 : DEGREE_SEMITONES[String(degree)];
+      const delta = interval - natural;
+      const accidental = delta < 0 ? '♭'.repeat(-delta) : '♯'.repeat(delta);
+      return accidental + degree;
+    });
   }
 
   /**
@@ -400,6 +431,8 @@ const MusicTheory = (() => {
     else if (diff === 11) accidental = 'b';
     else if (diff === 2) accidental = '##';
     else if (diff === 10) accidental = 'bb';
+    else if (diff === 3) accidental = '###';
+    else if (diff === 9) accidental = 'bbb';
 
     return targetLetter + accidental;
   }
@@ -411,62 +444,19 @@ const MusicTheory = (() => {
    *        F7 → ["F", "A", "C", "Eb"]  (not D#)
    */
   function getChordNotesDisplay(chordName) {
-    const parsed = parseChordName(chordName);
-    if (!parsed) return [];
-
-    const rootIdx = noteIndex(parsed.root);
-    if (rootIdx < 0) return [];
-
-    const intervalKey = SUFFIX_MAP[parsed.suffix] || SUFFIX_MAP[parsed.suffix.toLowerCase()];
-    const intervals = CHORD_INTERVALS[intervalKey];
-    const degreeNums = CHORD_DEGREE_NUMS[intervalKey];
-    if (!intervals) return [];
-
-    // Fallback if degree nums not defined for this chord type
-    if (!degreeNums) {
-      const notes = intervals.map(i => NOTE_NAMES[(rootIdx + i) % 12]);
-      if (parsed.root.includes('b')) return notes.map(n => ENHARMONIC[n] || n);
-      return notes;
+    const chord = getChordComponents(chordName);
+    if (!chord) return [];
+    let notes = chord.components.map(component =>
+      spellChordNote(chord.parsed.root[0], chord.rootIdx, component.interval, component.degree));
+    if (chord.parsed.bassNote) {
+      const bass = chord.parsed.bassNote;
+      const bassNorm = normalizeNote(bass);
+      const index = notes.findIndex(note => normalizeNote(note) === bassNorm);
+      if (index >= 0) {
+        notes[index] = bass; // Preserve the explicitly written enharmonic bass.
+        if (index > 0) notes = [...notes.slice(index), ...notes.slice(0, index)];
+      } else notes = [bass, ...notes];
     }
-
-    const rootLetter = parsed.root[0];
-    let notes = intervals.map((interval, i) =>
-      spellChordNote(rootLetter, rootIdx, interval, degreeNums[i])
-    );
-
-    // Apply degree modifications (#9, b13, add9, etc.)
-    if (parsed.degreeMods) {
-      const mods = parseDegreeModsToSemitones(parsed.degreeMods);
-      for (const mod of mods) {
-        const degNum = parseInt(mod.degree);
-        const note = spellChordNote(rootLetter, rootIdx, mod.semitone, degNum);
-        const noteNorm = normalizeNote(note);
-        // Replace existing natural version or add new
-        const existingIdx = notes.findIndex(n => {
-          const baseSemitone = DEGREE_SEMITONES[mod.degree];
-          if (baseSemitone === undefined || !mod.alter) return false;
-          const naturalNote = NOTE_NAMES[(rootIdx + baseSemitone) % 12];
-          return normalizeNote(n) === naturalNote;
-        });
-        if (existingIdx >= 0) {
-          notes[existingIdx] = note;
-        } else if (!notes.some(n => normalizeNote(n) === noteNorm)) {
-          notes.push(note);
-        }
-      }
-    }
-
-    // Handle slash chord: put bass note first (inversion)
-    if (parsed.bassNote) {
-      const bassNorm = normalizeNote(parsed.bassNote);
-      const bassIdx = notes.findIndex(n => normalizeNote(n) === bassNorm);
-      if (bassIdx > 0) {
-        notes = [...notes.slice(bassIdx), ...notes.slice(0, bassIdx)];
-      } else if (bassIdx < 0) {
-        notes = [parsed.bassNote, ...notes];
-      }
-    }
-
     return notes;
   }
 
@@ -509,6 +499,7 @@ const MusicTheory = (() => {
    * Transpose a chord name by a number of semitones
    */
   function transposeChord(chordName, semitones, useFlats) {
+    chordName = normalizeChordSymbol(chordName);
     const parsed = parseChordName(chordName);
     if (!parsed) return chordName;
 
@@ -622,7 +613,7 @@ const MusicTheory = (() => {
    * Format a note name for display (## → 𝄪, bb → 𝄫)
    */
   function formatNoteDisplay(note) {
-    return note.replace('##', '×').replace('bb', '𝄫');
+    return note.replace('###', '×#').replace('bbb', '𝄫♭').replace('##', '×').replace('bb', '𝄫');
   }
 
   return {
@@ -633,11 +624,13 @@ const MusicTheory = (() => {
     CHORD_INTERVALS,
     SUFFIX_MAP,
     normalizeNote,
+    normalizeChordSymbol,
     noteIndex,
     parseChordName,
     getChordNotes,
     getChordNotesWithOctave,
     getChordNotesDisplay,
+    getChordEssentialNotes,
     getChordDegreeLabels,
     formatNoteDisplay,
     fretToNote,
