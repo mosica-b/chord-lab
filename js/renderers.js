@@ -157,42 +157,29 @@ const Renderers = (() => {
    */
   function assignOctavesForStaff(noteNames, chordName) {
     if (noteNames.length === 0) return [];
-
-    // Close voicing: stack notes in ascending pitch without large octave jumps.
-    // Treble clef staff range: E4–F5 (no ledger lines). Avoid starting below D4.
-    const LETTER_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-    const isSlash = chordName && chordName.includes('/');
-
-    // Always start at octave 4 to stay on the staff (no ledger lines)
-    const keys = [];
-    let currentOctave = 4;
-    let prevLetterIdx = -1;
-
-    for (let i = 0; i < noteNames.length; i++) {
-      const noteName = noteNames[i];
-      const vfNote = noteName.toLowerCase();
-      const letterIdx = LETTER_IDX[noteName[0]];
-
-      if (i === 0) {
-        // First note: if below E (bottom line of treble clef), bump to avoid ledger lines
-        // C4=ledger, D4=just below → both need ledger lines visually
-        // For slash chords, bass note stays at 4 (on the staff)
-        currentOctave = 4;
-      } else if (letterIdx <= prevLetterIdx) {
-        // Only bump octave for genuine wrap-around (large drop, e.g., B→C, A→C)
-        // Small backward steps (1-2 letters like G→F, A→G) = close voicing, stay same octave
-        const drop = prevLetterIdx - letterIdx;
-        if (drop >= 3) {
-          currentOctave++;
-        }
-      }
-
-      prevLetterIdx = letterIdx;
-      const octave = Math.min(Math.max(currentOctave, 4), 6);
-      keys.push(`${vfNote}/${octave}`);
+    const naturalPitch = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    function assign(notes) {
+      let octave = 4, previous = -Infinity, first = null;
+      const keys = notes.map(name => {
+        const accidental = [...name.slice(1)].reduce((sum, char) => sum + (char === '#' ? 1 : -1), 0);
+        let pitch = octave * 12 + naturalPitch[name[0]] + accidental;
+        while (pitch <= previous) { octave++; pitch += 12; }
+        if (first === null) first = pitch;
+        previous = pitch;
+        return `${name.toLowerCase()}/${octave}`;
+      });
+      return { keys, span: previous - first, octave };
     }
-
-    return keys;
+    let result = assign(noteNames);
+    if (result.octave > 6 || result.span > 28) {
+      // Inversions with added extensions can wrap twice. Keep the written
+      // bass lowest and bring the remaining notes into a readable close voicing.
+      const bass = MusicTheory.noteIndex(noteNames[0]);
+      const rest = noteNames.slice(1).sort((a, b) =>
+        ((MusicTheory.noteIndex(a) - bass + 12) % 12) - ((MusicTheory.noteIndex(b) - bass + 12) % 12));
+      result = assign([noteNames[0], ...rest]);
+    }
+    return result.keys;
   }
 
   // =========================================
@@ -664,33 +651,6 @@ const Renderers = (() => {
       { note: 'A#', pos: 5 },
     ];
 
-    // Build 3-octave + final C key layout (C~C~C~C)
-    const whiteKeys = [...whiteKeysOneOctave, ...whiteKeysOneOctave, ...whiteKeysOneOctave, 'C'];
-    const blackKeys = [
-      ...blackKeysOneOctave,
-      ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 7 })),
-      ...blackKeysOneOctave.map(k => ({ note: k.note, pos: k.pos + 14 })),
-    ];
-
-    const keyWidth = 18;
-    const keyHeight = 70;
-    const blackKeyWidth = 12;
-    const blackKeyHeight = 44;
-    const labelHeight = 18;
-    const width = whiteKeys.length * keyWidth + 2;
-    const height = keyHeight + labelHeight + 10;
-
-    const svg = createSVG(width, height);
-
-    // Draw chord name at top
-    if (chordName) {
-      const nameText = createSVGText(width / 2, 11, chordName, '12px', 'middle');
-      nameText.setAttribute('font-weight', 'bold');
-      svg.appendChild(nameText);
-    }
-
-    const keyboardY = labelHeight;
-
     // Support both formats: array of strings OR array of { note, octaveOffset }
     const hasOctaveInfo = highlightNotes.length > 0 && typeof highlightNotes[0] === 'object';
 
@@ -732,17 +692,40 @@ const Renderers = (() => {
       });
     }
 
+    // Wide inversions with an added 13th can exceed three octaves. Include
+    // every highlighted note instead of silently drawing it outside the keys.
+    const octaveCount = Math.max(3, ...notesWithOctOffset.map(entry =>
+      entry.octaveOffset + (MusicTheory.normalizeNote(entry.note) === 'C' ? 0 : 1)));
+    const whiteKeys = Array.from({ length: octaveCount }, () => whiteKeysOneOctave).flat().concat('C');
+    const blackKeys = Array.from({ length: octaveCount }, (_, octave) =>
+      blackKeysOneOctave.map(key => ({ note: key.note, pos: key.pos + octave * 7 }))).flat();
+
+    const keyWidth = 18;
+    const keyHeight = 70;
+    const blackKeyWidth = 12;
+    const blackKeyHeight = 44;
+    const labelHeight = 18;
+    const width = whiteKeys.length * keyWidth + 2;
+    const height = keyHeight + labelHeight + 10;
+    const svg = createSVG(width, height);
+    if (chordName) {
+      const nameText = createSVGText(width / 2, 11, chordName, '12px', 'middle');
+      nameText.setAttribute('font-weight', 'bold');
+      svg.appendChild(nameText);
+    }
+    const keyboardY = labelHeight;
+
     // Build highlight set with octave position
     const highlightPositions = new Set();
     if (notesWithOctOffset.length > 0) {
       const noteVisPos = { C: 0, 'C#': 0.5, D: 1, 'D#': 1.5, E: 2, F: 3, 'F#': 3.5, G: 4, 'G#': 4.5, A: 5, 'A#': 5.5, B: 6 };
-      const totalKbWidth = 21;
+      const totalKbWidth = octaveCount * 7;
 
       // Calculate max octave span
-      const span = notesWithOctOffset[notesWithOctOffset.length - 1].octaveOffset;
+      const span = Math.max(...notesWithOctOffset.map(entry => entry.octaveOffset));
 
       // Find best starting octave for centering
-      const maxStart = Math.max(0, 2 - span);
+      const maxStart = Math.max(0, octaveCount - 1 - span);
       let bestStart = 0;
       let bestImbalance = Infinity;
       for (let s = 0; s <= maxStart; s++) {
@@ -761,12 +744,12 @@ const Renderers = (() => {
       // Assign octaves
       notesWithOctOffset.forEach(entry => {
         const norm = MusicTheory.normalizeNote(entry.note);
-        const oct = Math.min(bestStart + entry.octaveOffset, 3);
+        const oct = Math.min(bestStart + entry.octaveOffset, octaveCount);
         highlightPositions.add(`${norm}-${oct}`);
       });
     }
 
-    // Draw white keys (3 octaves)
+    // Draw white keys and the final C.
     whiteKeys.forEach((note, i) => {
       const x = i * keyWidth + 1;
       const octave = Math.floor(i / 7);
@@ -792,7 +775,7 @@ const Renderers = (() => {
       }
     });
 
-    // Draw black keys (3 octaves)
+    // Draw black keys.
     blackKeys.forEach(({ note, pos }) => {
       const x = (pos + 1) * keyWidth - blackKeyWidth / 2 + 1;
       const octave = Math.floor(pos / 7);

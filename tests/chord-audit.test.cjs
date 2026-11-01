@@ -17,6 +17,11 @@ const theory = vm.runInContext('MusicTheory', context);
 const db = vm.runInContext('ChordDB', context);
 const pdf = vm.runInContext('SibeliusPDFParser', context);
 const plain = value => JSON.parse(JSON.stringify(value));
+const renderers = fs.readFileSync(path.join(root, 'js/renderers.js'), 'utf8');
+const staffStart = renderers.indexOf('function assignOctavesForStaff(');
+const staffEnd = renderers.indexOf('\n  // =========================================', staffStart);
+assert(staffStart >= 0 && staffEnd > staffStart);
+vm.runInContext(renderers.slice(staffStart, staffEnd) + '\nthis.assignOctavesForStaff = assignOctavesForStaff;', context);
 
 const examples = [
   ['Em11', ['E', 'G', 'B', 'D', 'F#', 'A']],
@@ -60,6 +65,10 @@ async function main() {
     { note: 'G', octaveOffset: 0 }, { note: 'B', octaveOffset: 1 },
     { note: 'D', octaveOffset: 1 }, { note: 'F#', octaveOffset: 1 },
   ]);
+  assert.deepEqual(plain(context.assignOctavesForStaff(['E', 'G', 'B', 'D', 'F#', 'A'])),
+    ['e/4', 'g/4', 'b/4', 'd/5', 'f#/5', 'a/5']);
+  assert.deepEqual(plain(context.assignOctavesForStaff(['B', 'A', 'C#', 'E', 'G', 'F#'])),
+    ['b/4', 'c#/5', 'e/5', 'f#/5', 'g/5', 'a/5']);
   assert.deepEqual(plain(theory.getChordNotes('G7alt')), [], 'unspecified altered chord is ambiguous');
   assert.deepEqual(plain(theory.getChordNotes('C7(unknown)')), [], 'unknown modifier must not be ignored');
   assert.equal(theory.transposeChord('D7(sus4,b9)/A', 2), 'E7(sus4,b9)/B');
