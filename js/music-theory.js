@@ -191,6 +191,20 @@ const MusicTheory = (() => {
       suffix = chordPart.substring(1);
     }
 
+    // A parenthesized suspension changes the chord type, unlike an added
+    // degree: D7(sus4) is D7sus4, not D7 with an extra fourth.
+    degreeMods = degreeMods.replace(/\(([^()]*)\)/g, (group, contents) => {
+      const parts = contents.split(',');
+      const index = parts.findIndex(part => /^sus[24]$/i.test(part.trim()));
+      if (index < 0) return group;
+
+      const suspendedSuffix = (suffix === 'major' ? '' : suffix) + parts[index].trim().toLowerCase();
+      if (!SUFFIX_MAP[suspendedSuffix]) return group;
+      suffix = suspendedSuffix;
+      parts.splice(index, 1);
+      return parts.length ? `(${parts.join(',')})` : '';
+    });
+
     return { root, suffix: suffix || 'major', bassNote: bassNote || null, degreeMods };
   }
 
@@ -515,8 +529,10 @@ const MusicTheory = (() => {
       }
     }
 
-    const suffix = parsed.suffix === 'major' ? '' : parsed.suffix;
-    let result = newRoot + suffix + (parsed.degreeMods || '');
+    // Keep the original written suffix, including parentheses, when changing
+    // the root. parseChordName may canonicalize it for interval lookup.
+    const suffixEnd = parsed.bassNote ? chordName.lastIndexOf('/') : chordName.length;
+    let result = newRoot + chordName.slice(parsed.root.length, suffixEnd);
 
     // Transpose bass note for slash chords
     if (parsed.bassNote) {
