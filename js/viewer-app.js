@@ -48,6 +48,26 @@ const ViewerApp = (() => {
     { id: 'piano', label: '피아노', instrument: 'piano' },
   ];
   const instrumentLabels = { piano: '피아노', guitar: '기타', ukulele: '우쿨렐레' };
+  const chordTypeNames = {
+    'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
+    '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
+    'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
+    'sus2': '서스 2', 'sus4': '서스 4', '7sus4': '세븐 서스 4',
+    '6': '메이저 6', 'm6': '마이너 6',
+    '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
+    'm11': '마이너 11', 'maj11': '메이저 11', 'm13': '마이너 13', 'maj13': '메이저 13',
+  };
+
+  function chordTypeName(chordName) {
+    const parsed = MusicTheory.parseChordName(chordName);
+    if (!parsed) return '';
+    let intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
+    // m7(b5) and m7b5 have the same half-diminished quality.
+    if (intervalKey === 'm7' && parsed.degreeMods.split(/[(),]/).some(part => part.trim().toLowerCase() === 'b5')) {
+      intervalKey = 'm7b5';
+    }
+    return chordTypeNames[intervalKey] || parsed.suffix || '';
+  }
 
   // Split a chord-list string on top-level commas only.
   // Commas inside parens/brackets are part of multi-tension notation
@@ -765,25 +785,12 @@ const ViewerApp = (() => {
     }
     notesWrap.appendChild(notesDiv);
 
-    const parsed = MusicTheory.parseChordName(chordName);
-    const typeNames = {
-      'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
-      'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
-      'sus2': '서스 2', 'sus4': '서스 4', '7sus4': '세븐 서스 4',
-      '6': '메이저 6', 'm6': '마이너 6',
-      '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
-      'm11': '마이너 11', 'maj11': '메이저 11', 'm13': '마이너 13', 'maj13': '메이저 13',
-    };
-    if (parsed) {
-      const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-      const typeName = typeNames[intervalKey] || parsed.suffix;
-      if (typeName) {
-        const typeSpan = document.createElement('span');
-        typeSpan.className = 'text-xs text-gray-500 ml-2';
-        typeSpan.textContent = typeName;
-        title.appendChild(typeSpan);
-      }
+    const typeName = chordTypeName(chordName);
+    if (typeName) {
+      const typeSpan = document.createElement('span');
+      typeSpan.className = 'text-xs text-gray-500 ml-2';
+      typeSpan.textContent = typeName;
+      title.appendChild(typeSpan);
     }
     left.appendChild(notesWrap);
 
@@ -1134,22 +1141,7 @@ const ViewerApp = (() => {
 
     titleEl.textContent = chordName;
 
-    const parsed = MusicTheory.parseChordName(chordName);
-    const typeNames = {
-      'major': '메이저', 'minor': '마이너', 'dim': '디미니쉬', 'aug': '어그먼트',
-      '7': '도미넌트 7', 'm7': '마이너 7', 'maj7': '메이저 7', 'mMaj7': '마이너 메이저 7',
-      'dim7': '디미니쉬 7', 'm7b5': '하프 디미니쉬',
-      'sus2': '서스 2', 'sus4': '서스 4', '7sus4': '세븐 서스 4',
-      '6': '메이저 6', 'm6': '마이너 6',
-      '9': '도미넌트 9', 'add9': '애드 9', '5': '파워',
-      'm11': '마이너 11', 'maj11': '메이저 11', 'm13': '마이너 13', 'maj13': '메이저 13',
-    };
-    if (parsed) {
-      const intervalKey = MusicTheory.SUFFIX_MAP[parsed.suffix] || MusicTheory.SUFFIX_MAP[parsed.suffix.toLowerCase()];
-      typeEl.textContent = typeNames[intervalKey] || parsed.suffix || '';
-    } else {
-      typeEl.textContent = '';
-    }
+    typeEl.textContent = chordTypeName(chordName);
 
     notesEl.innerHTML = '';
     const modalNotesRow = document.createElement('div');
